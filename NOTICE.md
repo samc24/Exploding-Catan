@@ -19,7 +19,8 @@ server here are a rewrite.
 - **The card and tile artwork** in `apps/web/public/art` belongs to its
   owners, chiefly Exploding Kittens, Inc. It is used here non-commercially
   and is not licensed for reuse.
-- **The music** in `apps/web/public/music` is not licensed for reuse.
+- **The music** in `apps/web/public/music` is not ours. It belongs to its
+  owner, is used here non-commercially, and is not licensed for reuse.
 
 ## Credits
 

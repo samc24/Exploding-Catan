@@ -40,5 +40,5 @@ Node 22 or newer.
 
 The code is under the [PolyForm Noncommercial License 1.0.0](LICENSE): free
 to use, change and share for non-commercial purposes. The Catan and Exploding
-Kittens names and the card art are their owners' and are not covered; see
-[NOTICE.md](NOTICE.md) for that and for credits.
+Kittens names, the card art and the music are their owners' and are not
+covered; see [NOTICE.md](NOTICE.md) for that and for credits.
