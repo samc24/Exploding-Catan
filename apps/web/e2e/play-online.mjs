@@ -9,7 +9,9 @@ const { browser, page: ann, errors, newPage } = await launch("Ann", { width: 130
 async function goOnline(page, name) {
   await page.click('#landing .way:has-text("Play online")');
   await page.fill('#modal input[placeholder="Your name"]', name);
-  await page.fill('#modal input[placeholder="wss://your-server"]', SERVER);
+  // The server field is hidden when the page has one built in (VITE_SERVER_URL); then it is the one to use.
+  const urlIn = page.locator('#modal input[placeholder="wss://your-server"]');
+  if (await urlIn.isVisible()) await urlIn.fill(SERVER);
   await page.click('#modal button:has-text("Connect")');
   await page.waitForSelector('#modal h2:has-text("Online as")', { timeout: 5000 });
 }

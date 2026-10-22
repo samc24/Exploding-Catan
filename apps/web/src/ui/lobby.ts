@@ -12,11 +12,29 @@ export function connectDialog(net: Net, onConnected: () => void): void {
   const nameIn = h("input", { type: "text", maxlength: String(NAME_MAX), placeholder: "Your name", value: Net.savedName() });
   const urlIn = h("input", { type: "text", placeholder: "wss://your-server", value: Net.defaultUrl(), style: { width: "260px" } });
   const status = h("p", { style: { color: "var(--dim)", fontSize: "12px", margin: "6px 0 0" } }, "");
+  // With a server built into the page, all anyone types is a name (and then a room code). The
+  // address stays a click away for someone running their own.
+  const serverRow = h("label", { title: "The game server. Left as it is unless you are running your own." }, "Server ", urlIn);
+  const builtIn = !!Net.configuredUrl();
+  if (builtIn) serverRow.hidden = true;
+  const change = h("p", { style: { color: "var(--dim)", fontSize: "12px", margin: "6px 0 0" } }, "Playing on our server. ",
+    h("a", { href: "#", onclick: (ev: Event) => { ev.preventDefault(); serverRow.hidden = false; change.hidden = true; urlIn.focus(); } }, "Use another"));
+  if (!builtIn) change.hidden = true;
   const body = h("div", null,
     h("label", null, "Name ", nameIn),
-    h("label", { title: "The game server. Left as it is unless you are running your own." }, "Server ", urlIn),
+    serverRow,
+    change,
     status,
   );
+  // A free host sleeps when idle and takes most of a minute to wake. Knock on
+  // the door as the dialog opens, so by the time a name is typed it is up.
+  if (builtIn) {
+    const http = Net.configuredUrl().replace(/^ws/, "http").replace(/\/$/, "") + "/health";
+    status.textContent = "Waking the server…";
+    const t0 = Date.now();
+    fetch(http, { cache: "no-store" }).then((r) => { if (status.textContent === "Waking the server…") status.textContent = r.ok ? (Date.now() - t0 > 3000 ? "The server is awake." : "") : "The server answered oddly; try anyway."; })
+      .catch(() => { if (status.textContent === "Waking the server…") status.textContent = "The server is not answering yet. Give it a minute and press Connect."; });
+  }
   openModal("Play online", body, [
     { label: "Cancel", fn: closeModal },
     { label: "Connect", cls: "primary", fn: async () => {

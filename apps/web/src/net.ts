@@ -41,6 +41,13 @@ export class Net {
   /** The server's clock, as best this screen can tell. */
   now(): number { return Date.now() + this.offset; }
 
+  /** The server built into this page at build time (VITE_SERVER_URL), or when the server itself served the page. */
+  static configuredUrl(): string {
+    const env = (import.meta.env?.VITE_SERVER_URL as string | undefined) ?? "";
+    if (env) return env;
+    if (location.hostname.endsWith("github.io") || location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return "";
+    return (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
+  }
   /** Where the server is: configured, remembered, or this same host when the server served the page. */
   static defaultUrl(): string {
     const env = (import.meta.env?.VITE_SERVER_URL as string | undefined) ?? "";
