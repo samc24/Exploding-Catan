@@ -34,7 +34,8 @@ console.log("after 6 turns: turn", s.turnCounter, "phase", s.phase, "cur", s.cur
 if (s.turnCounter < 5) errors.push("the turns did not advance: " + s.turnCounter);
 if ((await page.locator("#feed .fl").count()) < 5) errors.push("the feed is empty");
 await page.screenshot({ path: `${OUT}/07-midgame.png` });
-// The dice history and the direction tag.
+// The dice history and the direction tag. (On a phone the side panel is a drawer: open it first.)
+if (await page.locator("#sideBtn").isVisible()) { await page.click("#sideBtn"); await page.waitForTimeout(150); }
 await page.click('#sidetabs button[data-tab="dice"]'); await page.waitForTimeout(100);
 const bars = await page.locator("#dicepanel .hist .bar").count();
 const dirTag = (await page.locator("#dirTag").textContent()) || "";
@@ -43,11 +44,13 @@ if (bars !== 11) errors.push("the dice history did not draw");
 if (!dirTag.includes("clockwise")) errors.push("the direction tag is missing");
 await page.screenshot({ path: `${OUT}/07b-dice.png` });
 await page.click('#sidetabs button[data-tab="feed"]');
-// Zoom in and back out.
-await page.click("#zoomIn"); await page.click("#zoomIn"); await page.waitForTimeout(100);
-const vb = await page.getAttribute("#board", "viewBox");
-await page.click("#zoomReset");
-console.log("zoomed viewBox:", vb);
+// Zoom in and back out (by the buttons; a phone has only the pinch and the way back).
+if (await page.locator("#zoomIn").isVisible()) {
+  await page.click("#zoomIn"); await page.click("#zoomIn"); await page.waitForTimeout(100);
+  const vb = await page.getAttribute("#board", "viewBox");
+  await page.click("#zoomReset");
+  console.log("zoomed viewBox:", vb);
+}
 // Music (in the settings menu): the slider sets and remembers the volume; the track is a loop.
 await page.click("#menuBtn"); await page.waitForTimeout(100);
 await page.locator("#musicRow input[type=range]").fill("70"); await page.waitForTimeout(100);

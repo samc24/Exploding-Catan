@@ -43,10 +43,10 @@ export function act(a: Action): string | null {
   return err;
 }
 let hintTimer: number | null = null;
-export function hint(text: string, isError = false): void {
+export function hint(text: string, isError = false, ms = 3500): void {
   const el = $("hint");
   el.textContent = text;
   el.style.color = isError ? "var(--danger)" : "var(--dim)";
   if (hintTimer) clearTimeout(hintTimer);
-  hintTimer = window.setTimeout(() => { el.textContent = ""; }, 3500);
+  hintTimer = window.setTimeout(() => { el.textContent = ""; }, ms);
 }

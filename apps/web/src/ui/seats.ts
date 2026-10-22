@@ -4,7 +4,7 @@ import { portrait } from "./avatars";
 
 let shownCur = -1;
 export function drawSeats(root: HTMLElement, s: GameState, view: number, isBot: (pid: number) => boolean, onSeat: (pid: number) => void): void {
-  const left = root.scrollLeft;
+  const left = root.scrollLeft, top = root.scrollTop;
   clear(root);
   const owed = discardOwed(s);
   for (const p of s.players) {
@@ -42,13 +42,28 @@ export function drawSeats(root: HTMLElement, s: GameState, view: number, isBot: 
     );
     root.append(el);
   }
-  // On a phone the seats are a strip: keep the scroll, and bring a new current seat into view.
-  root.scrollLeft = left;
-  if (s.cur !== shownCur) {
-    shownCur = s.cur;
-    const el = root.children[s.cur] as HTMLElement | undefined;
-    if (el && root.scrollWidth > root.clientWidth) root.scrollTo({ left: el.offsetLeft - (root.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+  // On a phone the seats are a strip (a column, on its side): keep the scroll, and bring the
+  // current seat into view whenever it is out of it, unless a finger moved the strip a moment
+  // ago. (A smooth scroll was tried; the next render, which can come at once, cut it short.)
+  root.scrollLeft = left; root.scrollTop = top;
+  const el = root.children[s.cur] as HTMLElement | undefined;
+  const follow = s.cur !== shownCur || Date.now() - touched > TOUCH_HOLD_MS;
+  if (el && follow && root.scrollWidth > root.clientWidth + 1) {
+    const seen = el.offsetLeft >= root.scrollLeft && el.offsetLeft + el.offsetWidth <= root.scrollLeft + root.clientWidth;
+    if (s.cur !== shownCur || !seen) root.scrollLeft = el.offsetLeft - (root.clientWidth - el.offsetWidth) / 2;
   }
+  if (el && follow && root.scrollHeight > root.clientHeight + 1) {
+    const seen = el.offsetTop >= root.scrollTop && el.offsetTop + el.offsetHeight <= root.scrollTop + root.clientHeight;
+    if (s.cur !== shownCur || !seen) root.scrollTop = el.offsetTop - (root.clientHeight - el.offsetHeight) / 2;
+  }
+  shownCur = s.cur;
+}
+/** When a finger last moved the strip; the follow stays out of its way for a while. */
+let touched = 0;
+const TOUCH_HOLD_MS = 6000;
+export function installSeatStrip(root: HTMLElement): void {
+  root.addEventListener("pointerdown", () => { touched = Date.now(); }, { passive: true });
+  root.addEventListener("wheel", () => { touched = Date.now(); }, { passive: true });
 }
 
 function stat(icon: string, n: number, title: string): HTMLElement {

@@ -9,7 +9,8 @@ import { store } from "./store";
 import { preload } from "./art";
 import { $, h } from "./ui/dom";
 import { showRules } from "./ui/rules";
-import { setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
+import { hint, setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
+import { installSeatStrip } from "./ui/seats";
 import { onEvents, paintClocks, render } from "./render";
 import { installKeys } from "./input";
 import { installDrag } from "./drag";
@@ -62,6 +63,7 @@ let lastCur = -1;
 store.subscribe((s, events, action) => {
   // A game beginning (or arriving from the server) takes the landing away.
   if (s && action === null && landingShowing()) hideLanding();
+  if (s && action === null) homeScreenTip();
   // Only the clocks moved: repaint them in place unless something they gate flipped.
   if (s && action && action.type === "tick" && !events.length && paintClocks(s)) return;
   if (s) onEvents(s, events);
@@ -80,6 +82,31 @@ $("menuOnline").onclick = () => { $("menu").hidden = true; $("onlineBtn").click(
 $("homeBtn").onclick = () => { if (landingShowing()) hideLanding(); else landing(); };
 $("rulesBtn").onclick = () => { $("menu").hidden = true; showRules(); };
 $("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
+// The last few log lines at the board's foot (phones) open the whole log.
+$("ticker").onclick = () => { if (!$("side").classList.contains("open")) $("sideBtn").click(); };
+installSeatStrip($("seats"));
+
+/* A phone inside a browser gives up a good slice of the screen to the
+   browser's own bars, and no page can take them away: iPhones have no
+   fullscreen for pages at all. Opening the game from the Home Screen does.
+   The ⚙ menu says so on such phones, and a toast says it once. */
+const PHONE_MQ = "(max-width:800px), (max-width:1000px) and (max-height:520px)";
+function inBrowserOnAPhone(): boolean {
+  try {
+    const standalone = matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || (navigator as { standalone?: boolean }).standalone === true;
+    return !standalone && matchMedia(PHONE_MQ).matches && matchMedia("(pointer:coarse)").matches;
+  } catch { return false; }
+}
+const HOME_TIP_KEY = "exploding-catan:home-screen-tip";
+function homeScreenTip(): void {
+  if (!inBrowserOnAPhone()) return;
+  $("homeTip").hidden = false;
+  try {
+    if (localStorage.getItem(HOME_TIP_KEY)) return;
+    localStorage.setItem(HOME_TIP_KEY, "1");
+  } catch { return; }
+  setTimeout(() => hint("Tip: add this page to your Home Screen to play without the browser's bars (⚙ says how).", false, 7000), 1500);
+}
 // The drawer (phones) closes on a tap anywhere outside it.
 document.addEventListener("pointerdown", (ev) => {
   const side = $("side"), t = ev.target as Node;
