@@ -6,8 +6,7 @@ Play against bots, hot-seat on one screen, or online with up to six people.
 **Play it:** https://samc24.github.io/Exploding-Catan/
 
 A fork of [JP's original](https://themiamest.github.io/Exploding-Catan/),
-rebuilt as a rules engine, bots, a browser app and a multiplayer server. The
-card art is his; the deck's design notes are in
+rebuilt as a rules engine, bots, a browser app and a multiplayer server.The deck's design notes are in
 [`docs/kitten-cards.txt`](docs/kitten-cards.txt).
 
 ## What is here
