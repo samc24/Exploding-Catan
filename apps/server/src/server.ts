@@ -91,6 +91,7 @@ export function startServer(opts: ServerOptions = {}) {
         switch (msg.t) {
           case "ping": send({ t: "pong", now: Date.now() }); return;
           case "setName": s.name = cleanName(msg.name) || s.name; persistSession(s); if (s.room) s.room.rename(s.uid, s.name); return;
+          case "setAvatar": if (s.room) s.room.setAvatar(s.uid, msg.avatar); return;
           case "create": {
             if (s.room) s.room.leave(s.uid);
             let code = randomCode();

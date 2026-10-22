@@ -10,11 +10,19 @@ import { showEmote } from "./emotes";
 import { $, clear, h } from "./ui/dom";
 import { closeModal, modalOpen } from "./ui/dialogs";
 import { connectDialog, lobbyDialog, roomDialog } from "./ui/lobby";
-import { hint, onNoGame, requestRender } from "./screen";
+import { feed, hint, onNoGame, requestRender } from "./screen";
 
 const ONLINE_KEY = "exploding-catan:online";
 let lobbyShowing = false;
 const chatLines: { name: string; text: string; seat: number | null }[] = [];
+let unread = 0;
+function paintChatTab(): void {
+  const tab = $("chatTab");
+  tab.textContent = unread ? `Chat (${unread})` : "Chat";
+  tab.classList.toggle("on", unread > 0 || tab.classList.contains("on") && !$("chat").hidden);
+}
+/** The chat pane was opened: nothing is unread any more. */
+export function chatSeen(): void { unread = 0; paintChatTab(); }
 
 /** The clock every window is judged by: the server's when online, else ours. */
 export function clock(): number { return net.online ? net.now() : Date.now(); }
@@ -27,7 +35,10 @@ export function goLocal(): void {
   store.remote = null;
   store.clear();
   chatLines.length = 0;
+  unread = 0;
   $("chatTab").hidden = true;
+  $("chatrow").hidden = true;
+  document.body.classList.remove("online");
   try { localStorage.removeItem(ONLINE_KEY); } catch { /* fine */ }
   if (!store.restore()) onNoGame();
   else requestRender();
@@ -45,6 +56,8 @@ export const net = new Net({
     stopBots();
     try { localStorage.setItem(ONLINE_KEY, "1"); } catch { /* fine */ }
     $("chatTab").hidden = false;
+    $("chatrow").hidden = false;
+    document.body.classList.add("online");
     store.remote = (a) => net.action(a);
     if (!room.started || room.over) {
       // The table, open until the host starts. Redrawn on every change.
@@ -55,7 +68,14 @@ export const net = new Net({
   },
   state(s, events) { store.receive(s, events); },
   clock(p) { store.patchClock(p); },
-  chat(seat, name, text) { chatLines.push({ seat, name, text }); drawChat(); if ($("chat").hidden) $("chatTab").classList.add("on"); },
+  chat(seat, name, text) {
+    chatLines.push({ seat, name, text });
+    drawChat();
+    // Also a line in the game log, so talk is seen whatever tab is open.
+    feed.lines.push({ text: `${name}: ${text}`, kind: "chat", jid: null });
+    if ($("chat").hidden) { unread++; paintChatTab(); }
+    requestRender();
+  },
   emote(seat, emoji) { showEmote(seat, emoji); },
   refused(error) { hint(error, true); },
   error(message) { hint(message, true); },

@@ -3,25 +3,29 @@ import { defaultAvatar } from "@exploding-catan/protocol";
 import { h } from "./dom";
 import { seg as segRow } from "./controls";
 import { closeModal, openModal } from "./dialogs";
+import { avatarGrid, portrait } from "./avatars";
 
 const KEY = "exploding-catan:newgame";
-interface Saved { names: string[]; bots: boolean[]; n: number; mode: Mode; board: BoardKey | "auto"; win: number; timer: number }
-const DEFAULT: Saved = { names: ["", "", "", "", "", ""], bots: [false, true, true, true, true, true], n: 4, mode: "normal", board: "auto", win: 10, timer: 0 };
+interface Saved { names: string[]; avatars: string[]; bots: boolean[]; n: number; mode: Mode; board: BoardKey | "auto"; win: number; timer: number }
+const DEFAULT: Saved = { names: ["", "", "", "", "", ""], avatars: [], bots: [false, true, true, true, true, true], n: 4, mode: "normal", board: "auto", win: 10, timer: 0 };
 
 export type Preset = "bots" | "humans" | null;
 export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], seed?: number) => void, canCancel: boolean, preset: Preset = null): void {
   let st: Saved = DEFAULT;
   try { st = { ...DEFAULT, ...(JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Saved>) }; } catch { /* defaults */ }
   if (!Array.isArray(st.bots) || st.bots.length < 6) st.bots = DEFAULT.bots.slice();
+  if (!Array.isArray(st.avatars)) st.avatars = [];
+  let picking: number | null = null;
   // The way in from the landing page decides who sits down; the form still lets it be changed.
   if (preset === "bots") st.bots = [false, true, true, true, true, true];
   if (preset === "humans") st.bots = [false, false, false, false, false, false];
   const render = () => {
-    const names = h("div", null, Array.from({ length: st.n }, (_, i) => h("label", null,
-      h("span", { class: "swatch", style: { background: PLAYER_COLORS[i], borderRadius: "50%" } }),
+    const avatarOf = (i: number) => st.avatars[i] || defaultAvatar(i);
+    const names = h("div", null, Array.from({ length: st.n }, (_, i) => [h("label", null,
+      h("button", { class: "facebtn", title: "Choose a portrait", onclick: () => { picking = picking === i ? null : i; render(); } }, portrait(avatarOf(i), PLAYER_COLORS[i], st.names[i] || PLAYER_NAMES[i], 32)),
       h("input", { type: "text", maxlength: "16", placeholder: PLAYER_NAMES[i], value: st.names[i] ?? "", oninput: (e: Event) => { st.names[i] = (e.target as HTMLInputElement).value; } }),
       h("button", { class: "sm" + (st.bots[i] ? " on" : ""), title: "Let a bot play this seat", onclick: () => { st.bots[i] = !st.bots[i]; render(); } }, st.bots[i] ? "🤖 bot" : "👤 human"),
-    )));
+    ), picking === i ? h("div", { class: "pickwrap" }, avatarGrid(avatarOf(i), (a) => { st.avatars[i] = a; picking = null; render(); })) : null]));
     // Some choices change what the dialog shows (player count, the mode blurb), so set() redraws.
     const seg = <T extends string>(opts: { v: T; label: string; title?: string }[], cur: T, set: (v: T) => void) =>
       segRow(opts, () => cur, (v) => { set(v); render(); });
@@ -41,7 +45,7 @@ export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], see
       { label: "Start game", cls: "primary", fn: () => {
         localStorage.setItem(KEY, JSON.stringify(st));
         const cfg: GameConfig = {
-          players: Array.from({ length: st.n }, (_, i) => ({ name: (st.names[i] || "").trim() || PLAYER_NAMES[i], avatar: defaultAvatar(i) })),
+          players: Array.from({ length: st.n }, (_, i) => ({ name: (st.names[i] || "").trim() || PLAYER_NAMES[i], avatar: st.avatars[i] || defaultAvatar(i) })),
           mode: st.mode, winPoints: st.win, turnSeconds: st.timer, implodeRevealMs: 2500,
         };
         if (st.board !== "auto") cfg.board = st.board;

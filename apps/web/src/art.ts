@@ -1,5 +1,6 @@
 /* Optional art. Anything missing falls back to drawing; nothing waits on a load. */
 import type { CardKey, Res, Terrain } from "@exploding-catan/engine";
+import { AVATAR_IDS } from "@exploding-catan/protocol";
 
 const BASE = "./art/";
 export const hexArt = (t: Terrain) => `${BASE}hex-${t}.png`;
@@ -38,7 +39,7 @@ export async function preload(): Promise<void> {
     ...keys.map((k) => cardArt(k, null)),
     ...["beard", "watermelon", "potato", "rainbow", "taco"].map((f) => `${BASE}card-knight-${f}.png`),
     cardBack, resBack,
-    ...Array.from({ length: 26 }, (_, i) => avatarArt(i + 1)),
+    ...AVATAR_IDS.map((id) => avatarArt(Number(id))),
   ];
   await Promise.all(urls.map(probe));
 }

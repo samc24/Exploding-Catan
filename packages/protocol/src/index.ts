@@ -21,6 +21,7 @@ export interface RoomConfig {
 export interface SeatInfo {
   seat: number;
   name: string | null;
+  avatar: string | null;
   bot: boolean;
   /** Somebody holds this seat (bot or person). */
   taken: boolean;
@@ -36,13 +37,14 @@ export interface RoomInfo {
   over: boolean;
   /** The recipient may change settings, add bots and start. */
   host: boolean;
-  /** The recipient's seat, or null while watching. */
+  /** The recipient"s seat, or null while watching. */
   seat: number | null;
 }
 
 export type ClientMsg =
   | { t: "hello"; v: number; name: string; token?: string }
   | { t: "setName"; name: string }
+  | { t: "setAvatar"; avatar: string }
   | { t: "create"; seats: number; config: RoomConfig }
   | { t: "join"; code: string }
   | { t: "sit"; seat: number }
@@ -98,8 +100,19 @@ export function normalizeRoomConfig(raw: unknown, base?: RoomConfig): RoomConfig
   return { mode, board, winPoints, turnSeconds: r.turnSeconds === undefined && base ? base.turnSeconds : turnSeconds };
 }
 
+/** A different portrait for each seat, from the ones that exist. */
 export function defaultAvatar(seat: number): string {
-  return String(1 + ((seat * 7) % 26));
+  return AVATAR_IDS[(seat * 7) % AVATAR_IDS.length];
 }
-/** The tray. Anything else is refused, so a bot or a client cannot be given a wider vocabulary. */
-export const EMOJIS = ["😂", "😹", "😏", "🤡", "💀", "😭", "😱", "🙄", "🔥", "🧠", "👏", "🤝", "🙏", "🥱", "🐔", "💩", "🖕", "👶"];
+/** The tray: the original game"s eighteen, then five more. Anything else is
+    refused, so a bot or a client cannot be given a wider vocabulary. */
+export const EMOJIS = [
+  "😠", "😂", "😏", "🙄", "🥱", "🤡", "💀", "🖕", "☹️", "😎", "⏲️", "🧠", "😉", "😱", "😭", "🙏", "🤝", "🔥",
+  "😹", "👏", "🐔", "💩", "👶",
+];
+/** The painted portraits that exist in art/profile (the numbering has gaps). */
+export const AVATAR_IDS: readonly string[] = ["1", "2", "3", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"].map(String);
+export function validAvatar(a: unknown): string | null {
+  const s = String(a ?? "");
+  return AVATAR_IDS.includes(s) ? s : null;
+}

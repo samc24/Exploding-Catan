@@ -124,5 +124,6 @@ export class Net {
   leave(): void { this.send({ t: "leave" }); this.room = null; this.seat = null; }
   action(action: Action): void { this.send({ t: "action", action }); }
   chat(text: string): void { this.send({ t: "chat", text }); }
+  setAvatar(avatar: string): void { this.send({ t: "setAvatar", avatar }); }
   emote(emoji: string): void { this.send({ t: "emote", emoji }); }
 }

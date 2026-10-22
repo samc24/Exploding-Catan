@@ -15,7 +15,7 @@ import { installKeys } from "./input";
 import { installDrag } from "./drag";
 import { installBoardView } from "./boardview";
 import { installEmoteTray, showEmote } from "./emotes";
-import { drawChat, net, resumeOnline, wireOnline } from "./online";
+import { chatSeen, drawChat, net, resumeOnline, wireOnline } from "./online";
 import { BOT_PACE, pokeTaunts, scheduleBots } from "./bots-host";
 import { hasSavedGame, openNewGame, resumeLocal } from "./game";
 import { hideLanding, landingShowing, showLanding } from "./ui/landing";
@@ -62,7 +62,7 @@ const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", 
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
   for (const [tab, id] of Object.entries(PANES)) $(id).hidden = b.dataset.tab !== tab;
-  if (b.dataset.tab === "chat") { drawChat(); setTimeout(() => $("chatin").focus(), 0); }
+  if (b.dataset.tab === "chat") { drawChat(); chatSeen(); setTimeout(() => $("chatin").focus(), 0); }
   render();
 };
 // The settings menu: things set once, out of the way of the things pressed mid-game.

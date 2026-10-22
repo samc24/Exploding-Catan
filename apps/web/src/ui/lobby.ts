@@ -4,6 +4,7 @@ import { NAME_MAX, type RoomConfig, type RoomInfo } from "@exploding-catan/proto
 import { h } from "./dom";
 import { seg } from "./controls";
 import { closeModal, openModal } from "./dialogs";
+import { avatarGrid, portrait } from "./avatars";
 import { Net } from "../net";
 
 /** Step one: who you are and where the server is. */
@@ -55,11 +56,15 @@ export function roomDialog(net: Net): void {
 }
 
 /** The table before the game starts (and after it ends): who sits where. */
-export function lobbyDialog(net: Net, room: RoomInfo): void {
+export function lobbyDialog(net: Net, room: RoomInfo): void { lobbyDialogWith(net, room, false); }
+function lobbyDialogWith(net: Net, room: RoomInfo, pickingNow: boolean): void {
+  let picking = pickingNow;
   const seatRows = room.seats.map((s) => {
-    const label = s.bot ? "🤖 " + (s.name ?? "bot") : s.name ? (s.connected ? "" : "⌛ ") + s.name : h("i", { style: { color: "var(--dim)" } }, "empty");
-    const row = h("div", { class: "counter" },
-      h("span", { class: "lbl" }, h("span", { class: "swatch", style: { background: PLAYER_COLORS[s.seat], borderRadius: "50%" } }), h("b", null, label), s.you ? h("span", { style: { color: "var(--accent)", fontSize: "12px" } }, " (you)") : null),
+    const label = s.bot ? (s.name ?? "bot") : s.name ? (s.connected ? "" : "⌛ ") + s.name : h("i", { style: { color: "var(--dim)" } }, "empty seat");
+    const face = portrait(s.avatar, PLAYER_COLORS[s.seat], s.name ?? "?", 36);
+    const row = h("div", { class: "seatrow" + (s.you ? " you" : "") },
+      s.you ? h("button", { class: "facebtn", title: "Choose your portrait", onclick: () => { picking = !picking; redraw(); } }, face) : face,
+      h("span", { class: "lbl" }, h("b", null, label), s.bot ? h("span", { class: "tag" }, "bot") : null, s.you ? h("span", { class: "tag you" }, "you") : null),
     );
     if (!s.taken && room.seat !== s.seat) row.append(h("button", { class: "sm", onclick: () => net.sit(s.seat) }, "Sit here"));
     if (room.host && !s.taken) row.append(h("button", { class: "sm", onclick: () => net.bot(s.seat, true) }, "Add bot"));
@@ -67,10 +72,13 @@ export function lobbyDialog(net: Net, room: RoomInfo): void {
     return row;
   });
   const empty = room.seats.filter((s) => !s.taken).length;
+  const me = room.seats.find((s) => s.you);
+  const redraw = () => lobbyDialogWith(net, room, picking);
   const body = h("div", null,
-    h("p", { class: "sub", style: { color: "var(--dim)", margin: "0 0 8px" } }, "Read the code out to everyone. They press Online, then Join."),
-    h("div", { style: { fontSize: "34px", fontWeight: "800", letterSpacing: "8px", textAlign: "center", color: "var(--accent)", margin: "6px 0 12px", userSelect: "text" } }, room.code),
+    h("p", { class: "sub", style: { color: "var(--dim)", margin: "0 0 8px" } }, "Read the code out to everyone. They press Play online, then Join."),
+    h("div", { class: "roomcode", style: { userSelect: "text" } }, room.code),
     seatRows,
+    picking && me ? h("div", { class: "pickwrap" }, h("p", { class: "sub" }, "Your portrait"), avatarGrid(me.avatar, (a) => { net.setAvatar(a); picking = false; })) : null,
     h("p", { style: { color: "var(--dim)", fontSize: "12px", marginTop: "10px" } },
       `${MODES[room.config.mode].name} · play to ${room.config.winPoints} · ${room.config.turnSeconds ? room.config.turnSeconds + "s turns" : "no clock"}`,
       room.over ? " · the game is over" : "",

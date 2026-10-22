@@ -2,6 +2,7 @@ import { answersFor, canNopeEntry, type GameEvent, type GameState, type JournalE
 import { clear, h } from "./dom";
 
 export interface FeedLine { text: string; kind: string; jid: number | null; }
+/** Chat lines ride in the feed too; they are never answerable. */
 const KEEP = 80;
 
 export class Feed {

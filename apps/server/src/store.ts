@@ -14,7 +14,7 @@ import { join } from "node:path";
 import type { GameState } from "@exploding-catan/engine";
 import type { RoomConfig } from "@exploding-catan/protocol";
 
-export interface SeatRecord { uid: string | null; name: string | null; bot: boolean }
+export interface SeatRecord { uid: string | null; name: string | null; bot: boolean; avatar?: string }
 export interface RoomSnapshot {
   code: string;
   hostUid: string;

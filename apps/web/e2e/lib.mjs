@@ -36,7 +36,7 @@ export async function startLocal(page, { seed = "7", bots = [], mode = null } = 
   }
   // Every seat human first, then the ones asked for.
   while (await page.locator('#modal button:has-text("bot")').count()) { await page.locator('#modal button:has-text("bot")').first().click(); await page.waitForTimeout(30); }
-  for (const i of bots) { await page.locator('#modal label').nth(i + 1).locator("button").click(); await page.waitForTimeout(30); }
+  for (const i of bots) { await page.locator('#modal label').nth(i + 1).locator("button.sm").click(); await page.waitForTimeout(30); }
   if (mode) await page.locator("#modal .seg").nth(1).locator("button", { hasText: mode }).first().click();
   await page.fill('#modal input[placeholder="random"]', seed);
   await page.click('#modal button:has-text("Start game")');
