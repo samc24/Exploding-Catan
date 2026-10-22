@@ -80,7 +80,7 @@ export interface RobberMove {
 export type AlterPurpose = { kind: "play"; cardId: number } | { kind: "defuse" };
 
 export type Select =
-  | { kind: "settlement"; setup: true }
+  | { kind: "settlement" }
   | { kind: "road"; fromVertex: number }
   | ({ kind: "robber" } & RobberMove)
   | { kind: "victim"; actor: number; candidates: number[]; move: RobberMove }
@@ -123,7 +123,14 @@ export interface Snapshot {
   seven: SevenState | null;
   robberDue: RobberMove[];
   attackDue: AttackDue[];
-  rec: TurnRecord | null;
+  rec: TurnRecord;
+}
+/** What a snapshot looks like from another seat: present, so the line is still
+    open to an answer, but holding nothing a rewind could use. */
+export interface RedactedSnapshot { redacted: true }
+export type SnapshotOrRedacted = Snapshot | RedactedSnapshot;
+export function isSnapshot(x: SnapshotOrRedacted | null | undefined): x is Snapshot {
+  return !!x && !("redacted" in x);
 }
 
 export interface SevenState {
@@ -179,7 +186,7 @@ export interface JournalEntry {
   text: string;
   card: Card | null;
   payload: CardPayload | null;
-  snap: Snapshot | null;
+  snap: SnapshotOrRedacted | null;
   turnBack: TurnPointer | null;
   spent: { pid: number; key: CardKey; id: number | null } | null;
   redo: CardPlay | null;
@@ -247,13 +254,10 @@ export interface GameState {
   turnCounter: number;
   firstPlayer: number;
   phase: Phase;
-  setupNeed: "settlement" | "road";
-  setupLastVertex: number | null;
   setupOrder: number[];
   setupIdx: number;
   roadsOwed: number[] | null;
   rolled: [number, number] | null;
-  rollId: number;
   extraTurn: boolean;
   roadLens: number[];
   longestRoad: { owner: number | null; len: number };
@@ -265,7 +269,6 @@ export interface GameState {
   robberDue: RobberMove[];
   select: Select | null;
   forcedNope: { pid: number; winner: number } | null;
-  playing: { pid: number; id: number; key: CardKey } | null;
   trade: TradeOffer | null;
   pile: PileEntry[];
   diceLog: number[];
@@ -275,12 +278,10 @@ export interface GameState {
   journal: JournalEntry[];
   journalId: number;
   revealed: boolean;
-  sweeping: boolean;
   implodeTurn: number;
   implodeBy: number | null;
   implodeUntil: number;
   implodeFrom: number;
-  rewinds: number;
   log: string[];
   winner: number | null;
 }

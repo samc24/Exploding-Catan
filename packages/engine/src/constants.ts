@@ -72,6 +72,8 @@ export const KITTEN: Record<CardKey, KittenDef> = {
     text: "Move the robber and steal 1 resource from a player on that hex. Counts toward Largest Army.",
   },
 };
+/** The keys that make up the 54-card deck, in id order. `hidden` is never dealt. */
+export const DECK_KEYS: readonly CardKey[] = ["implode", "vp", "skip", "nope", "explode", "defuse", "alter", "attack", "favor", "reverse", "knight"];
 export const KNIGHT_FLAVOR = ["Beard Cat", "Watermelon Cat", "Potato Cat", "Rainbow Cat", "Taco Cat"];
 
 export const MODES: Record<Mode, { name: string; blurb: string }> = {
@@ -98,8 +100,14 @@ export const NOPE_REACH = 4;
 export const HANDOVER_MS = 3000;
 /** The Imploding Kitten's turn ends this long after the card has landed. */
 export const IMPLODE_MS = 20000;
-export const JOURNAL_KEEP = 240;
-export const LOG_KEEP = 400;
+/* Journal depth. Nothing reaches further back than the turn in progress and
+   the one before it (NOPE_REACH lines, turnStartSnap's scan), and the view
+   sends the last 40; measured, no live snapshot ever sat more than 18 entries
+   from the end. 64 is headroom. The log is what a details panel shows. */
+export const JOURNAL_KEEP = 64;
+export const LOG_KEEP = 200;
+export const PILE_KEEP = 60;
+export const DICE_KEEP = 100;
 
 export const TURN_TICK_MS = 250;
 /** A tick arriving this late was not at the table (background tab); the excess is handed back. */

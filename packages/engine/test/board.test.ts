@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createGame, geometry, hasAdjacentReds, Rng, BOARD } from "../src";
+import { createGame, geometry, Rng, BOARD } from "../src";
+import { hasAdjacentReds } from "../src/board";
 import { cfg } from "./helpers";
 
 describe("geometry", () => {

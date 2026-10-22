@@ -11,15 +11,17 @@ import { Rng } from "./rng";
 import { RuleError, affordable, canPlaceCity, canPlaceRoad, canPlaceSettlement, cur, player, type Ctx } from "./state";
 import { implodeRevealing } from "./journal";
 import {
-  advancePlayer, canRollNow, doEndTurn, doRoll, openingRoadLegal, owesAnswer, performDiscard, placeCity,
-  placeOpeningRoad, placeRoad, placeSettlement, robberPlaced, serveForcedNope, startTurnTimer, tick,
-  victimPicked,
+  buildCity, buildRoad, buildSettlement, canRollNow, doEndTurn, doRoll, openingRoadLegal, owesAnswer, performDiscard,
+  placeOpeningRoad, placeSetupRoad, placeSetupSettlement, robberPlaced, startTurnTimer, tick, victimPicked,
 } from "./turn";
 import { alterPicked, buyCards, cancelSelect, favorDemanded, playCard, seatPicked } from "./cards";
-import { defuseEntry, nopeLine, nopeWholeTurn } from "./answers";
+import { defuseEntry, nopeLine, nopeTurnNow } from "./answers";
 import { acceptTrade, answerTrade, bankTrade, cancelTrade, offerTrade } from "./trade";
-import type { Action, ApplyResult, GameEvent, GameState, SeatAction } from "./types";
+import type { Action, ApplyResult, GameState, SeatAction } from "./types";
 
+/** One action in, a new state and its events out. A RuleError is a refusal
+    and leaves the caller's state untouched; anything else is a bug and is
+    thrown, so a server never plays on past a crash it mistook for a "no". */
 export function applyAction(state: GameState, action: Action, now: number): ApplyResult {
   const s: GameState = structuredClone(state);
   const c: Ctx = { s, geo: geometry(s.board), now, events: [], rng: new Rng(s.rng) };
@@ -28,7 +30,7 @@ export function applyAction(state: GameState, action: Action, now: number): Appl
     s.rng = c.rng.state;
     return { ok: true, state: s, events: c.events };
   } catch (err) {
-    if (err instanceof RuleError || err instanceof Error) return { ok: false, error: err.message };
+    if (err instanceof RuleError) return { ok: false, error: err.message };
     throw err;
   }
 }
@@ -57,23 +59,22 @@ function seatAction(c: Ctx, a: SeatAction): void {
   switch (a.type) {
     case "placeSettlement": {
       mustBeTurn(c, a.seat);
-      const sel = s.select;
-      if (sel && sel.kind === "settlement" && sel.setup) {
+      if (s.select && s.select.kind === "settlement") {
         if (!canPlaceSettlement(s, c.geo, a.vid, s.cur, true)) throw new RuleError("not a legal spot");
-        placeSettlement(c, a.vid, true);
+        placeSetupSettlement(c, a.vid);
         return;
       }
       mustBeMainFree(c, a.seat);
       if (!affordable(cur(c), "settlement")) throw new RuleError("cannot afford a settlement");
       if (!canPlaceSettlement(s, c.geo, a.vid, s.cur, false)) throw new RuleError("not a legal spot");
-      placeSettlement(c, a.vid, false);
+      buildSettlement(c, a.vid);
       return;
     }
     case "placeCity": {
       mustBeMainFree(c, a.seat);
       if (!affordable(cur(c), "city")) throw new RuleError("cannot afford a city");
       if (!canPlaceCity(s, a.vid, s.cur)) throw new RuleError("not your settlement");
-      placeCity(c, a.vid);
+      buildCity(c, a.vid);
       return;
     }
     case "placeRoad": {
@@ -87,13 +88,13 @@ function seatAction(c: Ctx, a: SeatAction): void {
       const sel = s.select;
       if (sel && sel.kind === "road") {
         if (!canPlaceRoad(s, c.geo, a.eid, s.cur, sel.fromVertex)) throw new RuleError("the road must touch the settlement you just placed");
-        placeRoad(c, a.eid, true);
+        placeSetupRoad(c, a.eid);
         return;
       }
       mustBeMainFree(c, a.seat);
       if (!affordable(cur(c), "road")) throw new RuleError("cannot afford a road");
       if (!canPlaceRoad(s, c.geo, a.eid, s.cur, null)) throw new RuleError("not a legal spot");
-      placeRoad(c, a.eid, false);
+      buildRoad(c, a.eid);
       return;
     }
     case "roll": {
@@ -177,11 +178,7 @@ function seatAction(c: Ctx, a: SeatAction): void {
       nopeLine(c, a.jid, a.seat);
       return;
     case "nopeTurn":
-      if (s.forcedNope && s.forcedNope.pid === a.seat) { serveForcedNope(c, a.seat); return; }
-      if (s.cur === a.seat) throw new RuleError("you cannot Nope your own turn");
-      if (s.phase.startsWith("setup")) throw new RuleError("nothing to Nope yet");
-      if (s.implodeTurn === s.turnCounter) throw new RuleError("an imploded turn cannot be Noped");
-      nopeWholeTurn(c, a.seat, s.cur);
+      nopeTurnNow(c, a.seat);
       return;
     case "defuse":
       defuseEntry(c, a.jid, a.seat);
@@ -200,5 +197,3 @@ function seatAction(c: Ctx, a: SeatAction): void {
   }
 }
 
-export { advancePlayer };
-export type { GameEvent };

@@ -3,11 +3,11 @@
    ══════════════════════════════════════════════════════════════════════ */
 import { KITTEN, RES } from "./constants";
 import {
-  cur, feed, holds, log, player, removeCardById, spendCard, totalVP, updateLargestArmy, updateLongestRoad,
-  vpCards, type Ctx,
+  cur, feed, holds, log, player, refuse, removeCardById, spendCard, totalVP, turnPointer, updateLargestArmy,
+  updateLongestRoad, type Ctx,
 } from "./state";
 import {
-  canDefuseEntry, canNopeEntry, canNopeFor, canNopeNow, entryById, handoverActive, isRobberEntry,
+  canDefuseEntry, canNopeEntry, canNopeFor, canNopeNow, canNopeTurnNow, entryById, handoverActive, isRobberEntry,
   logAction, nopeCancelsCard, notThisTurnsDoing, pileCancel, pileDrop, restoreAll, snapAll, turnOpenSnap,
   turnStartSnap,
 } from "./journal";
@@ -97,8 +97,6 @@ export function wipeNopedTurn(c: Ctx): void {
     being played is the turn that comes off, whoever's win it was. */
 export function cancelTurn(c: Ctx, actorId: number, wasWin: boolean): void {
   const s = c.s;
-  s.winner = null;
-  if (s.phase === "over") s.phase = "main";
   s.select = null;
   wipeNopedTurn(c);
   stripWinningPoints(c, s.players[actorId], wasWin);
@@ -130,42 +128,44 @@ export function stripWinningPoints(c: Ctx, p: Player, wasWin: boolean): void {
 /** Dropping a Nope on whoever is playing cancels their whole turn. */
 export function nopeWholeTurn(c: Ctx, ownerId: number, pid: number): void {
   const s = c.s;
-  if (!canNopeNow(s, ownerId)) throw new Error("a forced Nope is being served first");
+  if (!canNopeNow(s, ownerId)) refuse("a forced Nope is being served first");
   const victim = player(c, pid), noper = player(c, ownerId);
-  if (!holds(noper, "nope")) throw new Error("no Nope in hand");
+  if (!holds(noper, "nope")) refuse("no Nope in hand");
   const playing = cur(c);
   const sameTurn = playing.id === pid;
   const wasWin = totalVP(s, victim) >= s.winPoints;
   // Snapshot BEFORE the card is spent, so a counter-Nope's re-charge finds it.
   const snapBefore = snapAll(s);
   s.forcedNope = null;
-  const paidNope = spendCard(c, noper, "nope");
+  const spent = spendCard(c, noper, "nope");
   log(c, sameTurn
     ? `${victim.name}'s turn was Noped by ${noper.name}.`
     : `${noper.name} Nopes ${victim.name}'s win, which takes ${playing.name}'s turn with it.`);
-  const turnBack: TurnPointer = { cur: s.cur, phase: s.phase, turnCounter: s.turnCounter, rolled: s.rolled ? [s.rolled[0], s.rolled[1]] : null, extraTurn: s.extraTurn };
+  const turnBack = turnPointer(s);
   const noteEntry = logAction(c,
     sameTurn ? `${victim.name}'s turn was Noped` : `${victim.name}'s win is Noped — ${playing.name}'s turn is cancelled with it`,
-    "defend", {
-      actor: ownerId, snap: snapBefore, nopeable: true, turnBack,
-      spent: { pid: ownerId, key: "nope", id: paidNope ? paidNope.id : null },
-      show: "nope", wonBy: wasWin ? pid : null,
-    });
+    "defend", { actor: ownerId, snap: snapBefore, nopeable: true, turnBack, spent, show: "nope", wonBy: wasWin ? pid : null });
   clearImplodeClock(c);
   cancelTurn(c, pid, wasWin);
   noteEntry.turn = s.turnCounter; // it belongs to the turn it made
+}
+
+/** The forced player serving their obligation. */
+export function serveForcedNope(c: Ctx, pid: number): void {
+  const f = c.s.forcedNope;
+  if (!f || f.pid !== pid) refuse("you are not the one being forced");
+  nopeWholeTurn(c, pid, f.winner);
 }
 
 /* ── Nope an entry ─────────────────────────────────────────────────── */
 export function nopeEntry(c: Ctx, id: number, noperId: number): void {
   const s = c.s;
   const idx = s.journal.findIndex((e) => e.id === id);
-  if (idx < 0) throw new Error("that line is gone");
+  if (idx < 0) refuse("that line is gone");
   const e = s.journal[idx];
-  if (!canNopeEntry(s, e, c.now)) throw new Error("that can no longer be answered");
-  if (!canNopeFor(s, e, noperId, c.now)) throw new Error("you may not Nope that");
+  if (!canNopeFor(s, e, noperId, c.now)) refuse(canNopeEntry(s, e, c.now) ? "you may not Nope that" : "that can no longer be answered");
   const noper = player(c, noperId);
-  if (!holds(noper, "nope")) throw new Error("no Nope in hand");
+  if (!holds(noper, "nope")) refuse("no Nope in hand");
 
   const selfRoll = noperId === e.actor && e.kind === "roll";
   const answeredCard = e.kind === "defend" ? (e.spent && e.spent.key === "defuse" ? "Defuse" : "Nope") : null;
@@ -176,18 +176,17 @@ export function nopeEntry(c: Ctx, id: number, noperId: number): void {
   const wasNoperTurn = e.actor === s.cur && live;
   // Their turn ended a moment ago and the hand-over window is still open.
   const lateTurn = live && e.actor !== s.cur && handoverActive(s, c.now) && e.turn === s.handoverTurn;
-  const turnBack: TurnPointer = { cur: s.cur, phase: s.phase, turnCounter: s.turnCounter, rolled: s.rolled ? [s.rolled[0], s.rolled[1]] : null, extraTurn: s.extraTurn };
+  const turnBack = turnPointer(s);
 
   // Captured BEFORE the rewind: what a counter-Nope has to put back.
   const undone = snapAll(s);
-  s.rewinds++;
 
   // Rewind first, then spend the card — the entry's snapshot predates the Nope.
-  restoreAll(s, e.snap!);
+  restoreAll(s, e.snap);
   pileDrop(s, s.journal.slice(idx + 1).map((x) => x.id));
   pileCancel(s, e.id);
   s.journal.splice(idx);
-  const paidNope = spendCard(c, noper, "nope");
+  const spent = spendCard(c, noper, "nope");
 
   // The attack and the Nope are both spent: the rewind handed the card back.
   if (e.card && !e.card.synthetic) {
@@ -212,13 +211,10 @@ export function nopeEntry(c: Ctx, id: number, noperId: number): void {
   }
   s.select = null;
   s.robberDue = [];
-  s.playing = null;
   s.trade = null;
 
   const noteEntry = logAction(c, `${noper.name} Nopes ${selfRoll ? "their own roll" : answering}`, "defend", {
-    actor: noperId, snap: undone, nopeable: true, turnBack,
-    spent: { pid: noperId, key: "nope", id: paidNope ? paidNope.id : null },
-    show: "nope",
+    actor: noperId, snap: undone, nopeable: true, turnBack, spent, show: "nope",
     undid: { text: e.text, actor: e.actor, kind: e.kind },
   });
   log(c, selfRoll ? `${noper.name} Nopes their own roll.` : `${noper.name} Nopes: ${e.text}`);
@@ -292,17 +288,16 @@ function restoreTurnPointer(c: Ctx, t: TurnPointer): void {
 /** Spending a Defuse on the roll buys one hand out of the cut. Nothing is rewound. */
 function defuseSeven(c: Ctx, _e: JournalEntry, defuserId: number): void {
   const s = c.s;
-  if (!s.seven) throw new Error("no seven to Defuse");
+  if (!s.seven) refuse("no seven to Defuse");
   const d = player(c, defuserId);
   const snapBefore = snapAll(s);
-  const paidDefuse = spendCard(c, d, "defuse");
+  const spent = spendCard(c, d, "defuse");
   const i = s.seven.queue.indexOf(defuserId);
   if (i >= 0) s.seven.queue.splice(i, 1);
   log(c, `${d.name} Defuses the seven — their hand is not cut.`);
   // turnSafe: defensive and out of turn, so Noping it must not end a roller's turn.
   logAction(c, `${d.name} Defuses the seven — their hand is spared`, "defend", {
-    actor: defuserId, snap: snapBefore, nopeable: true, turnSafe: true,
-    spent: { pid: defuserId, key: "defuse", id: paidDefuse ? paidDefuse.id : null }, show: "defuse",
+    actor: defuserId, snap: snapBefore, nopeable: true, turnSafe: true, spent, show: "defuse",
   });
   stepSeven(c);
 }
@@ -310,12 +305,12 @@ function defuseSeven(c: Ctx, _e: JournalEntry, defuserId: number): void {
 /** "No you": the robbery is undone and the defuser moves the robber themselves. */
 function defuseRobber(c: Ctx, e: JournalEntry, defuserId: number): void {
   const s = c.s;
-  if (e.answered) throw new Error("that robbery has already been answered");
+  if (e.answered) refuse("that robbery has already been answered");
   const d = player(c, defuserId);
   const thief = s.players[e.actor];
-  if (!thief || e.fromHex === undefined) throw new Error("that robbery cannot be answered");
+  if (!thief || e.fromHex === undefined) refuse("that robbery cannot be answered");
   const snapBefore = snapAll(s);
-  const paidDefuse = spendCard(c, d, "defuse");
+  const spent = spendCard(c, d, "defuse");
   e.answered = true;
   s.robber = e.fromHex;
   const r = e.stolen;
@@ -323,8 +318,7 @@ function defuseRobber(c: Ctx, e: JournalEntry, defuserId: number): void {
   if (r && victim && thief.res[r] > 0) { thief.res[r]--; victim.res[r]++; }
   log(c, `${d.name} Defuses the robbery — they take the robber from ${thief.name}${r && victim ? ", and the card goes back" : ""}.`);
   const note = logAction(c, `${d.name} Defuses the robbery — they move the robber instead`, "defend", {
-    actor: defuserId, target: e.actor, snap: snapBefore, nopeable: true, turnSafe: true,
-    spent: { pid: defuserId, key: "defuse", id: paidDefuse ? paidDefuse.id : null }, show: "defuse",
+    actor: defuserId, target: e.actor, snap: snapBefore, nopeable: true, turnSafe: true, spent, show: "defuse",
   });
   note.unanswers = e.id;
   // The reflected placement is part of the Defuse, not a fresh attack.
@@ -334,11 +328,11 @@ function defuseRobber(c: Ctx, e: JournalEntry, defuserId: number): void {
 export function defuseEntry(c: Ctx, id: number, defuserId: number): void {
   const s = c.s;
   const idx = s.journal.findIndex((e) => e.id === id);
-  if (idx < 0) throw new Error("that line is gone");
+  if (idx < 0) refuse("that line is gone");
   const e = s.journal[idx];
-  if (!canDefuseEntry(s, c.geo, e, defuserId, c.now)) throw new Error("you may not Defuse that");
+  if (!canDefuseEntry(s, c.geo, e, defuserId, c.now)) refuse("you may not Defuse that");
   const d = player(c, defuserId);
-  if (!holds(d, "defuse")) throw new Error("no Defuse in hand");
+  if (!holds(d, "defuse")) refuse("no Defuse in hand");
   if (e.kind === "roll") { defuseSeven(c, e, defuserId); return; }
   if (isRobberEntry(e)) { defuseRobber(c, e, defuserId); return; }
 
@@ -348,18 +342,14 @@ export function defuseEntry(c: Ctx, id: number, defuserId: number): void {
   // play recorded alongside: undo the Defuse and the card is simply played again.
   const preCard = e.snap;
   const redo = { card, actor: victimId, target: e.target, payload };
-  const spent: { pid: number; key: "defuse"; id: number | null } = { pid: defuserId, key: "defuse", id: null };
 
-  s.rewinds++;
-  restoreAll(s, e.snap!);
+  restoreAll(s, e.snap);
   pileDrop(s, s.journal.slice(idx + 1).map((x) => x.id));
   pileCancel(s, e.id);
   s.journal.splice(idx);
-  const paidDefuse = spendCard(c, d, "defuse");
-  spent.id = paidDefuse ? paidDefuse.id : null;
+  const spent = spendCard(c, d, "defuse");
   s.select = null;
   s.robberDue = [];
-  s.playing = null;
   s.trade = null;
 
   // The rewind put the defused card back in its owner's hand. It is spent either way.
@@ -404,11 +394,21 @@ export function defuseEntry(c: Ctx, id: number, defuserId: number): void {
 export function nopeLine(c: Ctx, jid: number, me: number): void {
   const s = c.s;
   const e = entryById(s, jid);
-  if (!e) throw new Error("that line is gone");
-  if (!canNopeEntry(s, e, c.now)) throw new Error("that can no longer be answered");
-  if (!nopeCancelsCard(s, c.geo, e, me, c.now))
-    throw new Error("a Nope does not answer that line on its own — cancel the turn instead");
+  if (!e) refuse("that line is gone");
+  if (!nopeCancelsCard(s, c.geo, e, me, c.now)) {
+    if (!canNopeEntry(s, e, c.now)) refuse("that can no longer be answered");
+    refuse("a Nope does not answer that line on its own — cancel the turn instead");
+  }
   nopeEntry(c, jid, me);
 }
 
-export { vpCards };
+/** Cancel the turn in progress. The forced player's obligation goes through here too. */
+export function nopeTurnNow(c: Ctx, me: number): void {
+  const s = c.s;
+  if (s.forcedNope && s.forcedNope.pid === me) { serveForcedNope(c, me); return; }
+  if (s.cur === me) refuse("you cannot Nope your own turn");
+  if (s.phase.startsWith("setup")) refuse("nothing to Nope yet");
+  if (s.implodeTurn === s.turnCounter) refuse("an imploded turn cannot be Noped");
+  if (!canNopeTurnNow(s, me)) refuse("there is no turn to cancel");
+  nopeWholeTurn(c, me, s.cur);
+}

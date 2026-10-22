@@ -8,21 +8,22 @@
 
    The result is still a GameState, so every query the UI makes (what is
    answerable, who owes what, what is legal) works on it unchanged. The one
-   thing it cannot do is rewind: snapshots are replaced by an empty marker
-   that keeps "this line is still open" true. A client never applies an
-   action to a view; it sends the action to whoever holds the real state.
+   thing it cannot do is rewind: snapshots are replaced by a marker that
+   keeps "this line is still open" true, and the engine refuses, by name, to
+   restore one. A client never applies an action to a view; it sends the
+   action to whoever holds the real state.
    ══════════════════════════════════════════════════════════════════════ */
-import type { Card, GameEvent, GameState, JournalEntry, Snapshot } from "./types";
+import type { Card, GameEvent, GameState, JournalEntry, RedactedSnapshot } from "./types";
 
-/** Stands in for a snapshot on the wire. Truthy, empty, never restored. */
-export const REDACTED_SNAP = Object.freeze({}) as unknown as Snapshot;
+/** Stands in for a snapshot on the wire: the line is still open, the board behind it is not sent. */
+const REDACTED: RedactedSnapshot = Object.freeze({ redacted: true });
 
 export const hiddenCard = (id = -1): Card => ({ id, key: "hidden", flavor: null, boughtTurn: -2 });
 
-export function redactEntry(e: JournalEntry): JournalEntry {
+function redactEntry(e: JournalEntry): JournalEntry {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { snap, stolen, fromHex, ...pub } = e;
-  return { ...pub, snap: snap ? REDACTED_SNAP : null } as JournalEntry;
+  return { ...pub, snap: snap ? REDACTED : null };
 }
 
 /** Redact a state for one seat. `null` is a spectator who sees nothing private. */

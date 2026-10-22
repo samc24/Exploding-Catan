@@ -14,6 +14,11 @@ const mine = viewFor(state, 0);   // Blue's cards are hidden
 See `docs/ARCHITECTURE.md` at the repository root for the design, and
 `test/` for the rules written as examples.
 
+The package is consumed as TypeScript source by the other workspaces (Vite,
+tsx and Vitest all resolve it). Nothing outside this monorepo imports it
+yet; if that is ever wanted, a `dist/` build or a classic-script bundle
+(`esbuild --bundle --format=iife`, ~60 KB minified) is a two-line addition.
+
 | file | what |
 |---|---|
 | `types.ts` | every type; `GameState` is plain JSON |

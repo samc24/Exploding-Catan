@@ -2,13 +2,12 @@
    TURN FLOW — setup, building, dice, production, the seven, the robber,
    ending a turn, victory, and the clocks
    ══════════════════════════════════════════════════════════════════════ */
-import { COST, IMPLODE_MS, RES, RES_NAME, TURN_TICK_MS, TURN_TICK_SLACK, bundleText, emptyBundle } from "./constants";
+import { COST, DICE_KEEP, IMPLODE_MS, RES, RES_NAME, TURN_TICK_MS, TURN_TICK_SLACK, bundleText, emptyBundle } from "./constants";
 import {
-  canPlaceRoad, canPlaceSettlement, cur, fastStart, openingRound, feed, freshTurnRecord, give, holds, log, noteGain, pay,
-  player, totalRes, totalVP, updateLargestArmy, updateLongestRoad, type Ctx,
+  cur, fastStart, openingRound, feed, freshTurnRecord, give, holds, log, noteGain, pay, refuse, totalRes, totalVP,
+  updateLargestArmy, updateLongestRoad, type Ctx,
 } from "./state";
 import { beginHandover, handoverActive, implodeActive, implodeRevealing, logAction, snapAll } from "./journal";
-import { nopeWholeTurn } from "./answers";
 import type { Bundle, GameState, Player, RobberMove } from "./types";
 
 /* ── setup ─────────────────────────────────────────────────────────── */
@@ -16,62 +15,70 @@ export function beginSetupStep(c: Ctx): void {
   const s = c.s;
   s.cur = s.setupOrder[s.setupIdx];
   s.phase = s.setupIdx < s.players.length ? "setup1" : "setup2";
-  s.setupNeed = "settlement";
-  s.setupLastVertex = null;
-  s.select = { kind: "settlement", setup: true };
+  s.select = { kind: "settlement" };
 }
 
-/* Paid BEFORE the snapshot, here and in placeCity and placeRoad: a Nope undoes
-   what you built; it does not refund it. */
-export function placeSettlement(c: Ctx, vid: number, setup: boolean): void {
+/** An opening settlement. Normally only the second one pays out; fast track pays for both. */
+export function placeSetupSettlement(c: Ctx, vid: number): void {
   const s = c.s;
   const p = cur(c);
-  if (!setup) pay(c, p, COST.settlement);
+  s.vOwner[vid] = s.cur;
+  s.vType[vid] = "settlement";
+  p.settlements++;
+  log(c, `${p.name} settles.`);
+  if (s.phase === "setup2" || fastStart(s)) {
+    const got = emptyBundle();
+    const opening: { hid: number; pid: number; r: Exclude<keyof Bundle, never>; n: number }[] = [];
+    for (const hid of c.geo.vertices[vid].hexes) {
+      const t = s.terrain[hid];
+      if (t === "desert") continue;
+      got[t] += give(c, p, t, 1);
+      opening.push({ hid, pid: s.cur, r: t, n: 1 });
+    }
+    c.events.push({ type: "production", sources: opening, paid: s.players.map((_, i) => (i === s.cur ? got : emptyBundle())) });
+    log(c, `${p.name} starts with ${bundleText(got) || "nothing"}.`);
+    feed(c, `${p.name} settles and starts with ${bundleText(got) || "nothing"}`, "buy");
+  } else {
+    feed(c, `${p.name} places their first settlement`, "info");
+  }
+  // Fast track + places settlements only; the roads come afterwards, all at once.
+  if (s.mode === "fastplus") {
+    s.select = null;
+    s.setupIdx++;
+    if (s.setupIdx >= s.setupOrder.length) beginOpeningRoads(c);
+    else beginSetupStep(c);
+    return;
+  }
+  s.select = { kind: "road", fromVertex: vid };
+}
+/** The road that goes with an opening settlement. */
+export function placeSetupRoad(c: Ctx, eid: number): void {
+  const s = c.s;
+  s.eOwner[eid] = s.cur;
+  cur(c).roads++;
+  log(c, `${cur(c).name} lays a road.`);
+  s.select = null;
+  s.setupIdx++;
+  if (s.setupIdx >= s.setupOrder.length) finishSetup(c);
+  else beginSetupStep(c);
+}
+
+/* Paid BEFORE the snapshot, in all three builds: a Nope undoes what you
+   built; it does not refund it. */
+export function buildSettlement(c: Ctx, vid: number): void {
+  const s = c.s;
+  const p = cur(c);
+  pay(c, p, COST.settlement);
   const snapBefore = snapAll(s);
   s.vOwner[vid] = s.cur;
   s.vType[vid] = "settlement";
   p.settlements++;
-
-  if (setup) {
-    s.setupLastVertex = vid;
-    log(c, `${p.name} settles.`);
-    // Normally only the second settlement pays out. Fast track pays for both.
-    if (s.phase === "setup2" || fastStart(s)) {
-      const got = emptyBundle();
-      const opening: { hid: number; pid: number; r: Exclude<keyof Bundle, never>; n: number }[] = [];
-      for (const hid of c.geo.vertices[vid].hexes) {
-        const t = s.terrain[hid];
-        if (t === "desert") continue;
-        got[t] += give(c, p, t, 1);
-        opening.push({ hid, pid: s.cur, r: t, n: 1 });
-      }
-      c.events.push({ type: "production", sources: opening, paid: s.players.map((_, i) => (i === s.cur ? got : emptyBundle())) });
-      log(c, `${p.name} starts with ${bundleText(got) || "nothing"}.`);
-      feed(c, `${p.name} settles and starts with ${bundleText(got) || "nothing"}`, "buy");
-    } else {
-      feed(c, `${p.name} places their first settlement`, "info");
-    }
-    // Fast track + places settlements only; the roads come afterwards, all at once.
-    if (s.mode === "fastplus") {
-      s.select = null;
-      s.setupIdx++;
-      if (s.setupIdx >= s.setupOrder.length) beginOpeningRoads(c);
-      else beginSetupStep(c);
-      return;
-    }
-    s.setupNeed = "road";
-    s.select = { kind: "road", fromVertex: vid };
-    return;
-  }
-
   s.turnRec.verts.push({ vid, prevType: null });
-  log(c, `${p.name} builds a settlement.`);
-  logAction(c, `${p.name} builds a settlement`, "buy", { snap: snapBefore });
+  logAction(c, `${p.name} builds a settlement`, "buy", { snap: snapBefore, log: true });
   updateLongestRoad(c); // an opponent's settlement can cut a road
-  afterBuild(c);
+  checkVictory(c);
 }
-
-export function placeCity(c: Ctx, vid: number): void {
+export function buildCity(c: Ctx, vid: number): void {
   const s = c.s;
   const p = cur(c);
   pay(c, p, COST.city);
@@ -80,31 +87,20 @@ export function placeCity(c: Ctx, vid: number): void {
   p.settlements--;
   p.cities++;
   s.turnRec.verts.push({ vid, prevType: "settlement" });
-  log(c, `${p.name} upgrades to a city.`);
-  logAction(c, `${p.name} upgrades to a city`, "buy", { snap: snapBefore });
-  afterBuild(c);
+  logAction(c, `${p.name} upgrades to a city`, "buy", { snap: snapBefore, log: true });
+  checkVictory(c);
 }
-
-export function placeRoad(c: Ctx, eid: number, setup: boolean): void {
+export function buildRoad(c: Ctx, eid: number): void {
   const s = c.s;
   const p = cur(c);
-  if (!setup) pay(c, p, COST.road);
+  pay(c, p, COST.road);
   const snapBefore = snapAll(s);
   s.eOwner[eid] = s.cur;
   p.roads++;
-  if (setup) {
-    log(c, `${p.name} lays a road.`);
-    s.select = null;
-    s.setupIdx++;
-    if (s.setupIdx >= s.setupOrder.length) finishSetup(c);
-    else beginSetupStep(c);
-    return;
-  }
   s.turnRec.edges.push(eid);
-  log(c, `${p.name} builds a road.`);
-  logAction(c, `${p.name} builds a road`, "buy", { snap: snapBefore });
+  logAction(c, `${p.name} builds a road`, "buy", { snap: snapBefore, log: true });
   updateLongestRoad(c);
-  afterBuild(c);
+  checkVictory(c);
 }
 
 export function finishSetup(c: Ctx): void {
@@ -124,7 +120,6 @@ export function finishSetup(c: Ctx): void {
 export function beginOpeningRoads(c: Ctx): void {
   const s = c.s;
   s.phase = "setup3";
-  s.setupNeed = "road";
   s.select = null;
   s.cur = s.firstPlayer;
   s.roadsOwed = s.players.map(() => 2);
@@ -151,10 +146,6 @@ export function placeOpeningRoad(c: Ctx, eid: number, pid: number): boolean {
   return true;
 }
 
-export function afterBuild(c: Ctx): void {
-  checkVictory(c);
-}
-
 /* ── dice / production ─────────────────────────────────────────────── */
 export function doRoll(c: Ctx): void {
   const s = c.s;
@@ -167,9 +158,9 @@ export function doRoll(c: Ctx): void {
     d2 = 1 + c.rng.int(6);
   }
   s.rolled = [d1, d2];
-  s.rollId++;
   const sum = d1 + d2;
   s.diceLog.push(sum);
+  while (s.diceLog.length > DICE_KEEP) s.diceLog.shift();
   log(c, `${cur(c).name} rolls ${sum} (${d1}+${d2}).`);
 
   if (sum === 7) {
@@ -180,18 +171,13 @@ export function doRoll(c: Ctx): void {
     startSevenSequence(c, s.cur, rollEntry.id);
     return;
   }
-  const out = produce(c, sum);
-  logAction(c, rollSummary(c, cur(c), d1, d2, out.paid), "roll", { snap: snapBefore, payload: { sum } });
+  const gains = produce(c, sum);
+  logAction(c, `${cur(c).name} rolls ${sum} (${d1}+${d2}) — ${gains || "nobody produces"}`, "roll", { snap: snapBefore, payload: { sum } });
   s.phase = "main";
 }
-function rollSummary(c: Ctx, p: Player, d1: number, d2: number, paid: Bundle[]): string {
-  const bits = c.s.players
-    .map((q) => { const t = bundleText(paid[q.id]); return t ? `${q.name}: ${t}` : null; })
-    .filter(Boolean);
-  return `${p.name} rolls ${d1 + d2} (${d1}+${d2})` + (bits.length ? ` — ${bits.join(" · ")}` : " — nobody produces");
-}
 
-export function produce(c: Ctx, sum: number): { paid: Bundle[]; notes: string[] } {
+/** Pay out a roll. Returns the one-line summary of who got what. */
+export function produce(c: Ctx, sum: number): string {
   const s = c.s;
   const owed = s.players.map(() => emptyBundle());
   const paid = s.players.map(() => emptyBundle());
@@ -221,13 +207,13 @@ export function produce(c: Ctx, sum: number): { paid: Bundle[]; notes: string[] 
     }
     for (const p of claimants) paid[p.id][r] += give(c, p, r, owed[p.id][r]);
   }
-  const gains = s.players.map((p) => { const t = bundleText(paid[p.id]); return t ? `${p.name}: ${t}` : null; }).filter(Boolean);
-  log(c, gains.length ? gains.join(" · ") : "Nobody produces.");
+  const gains = s.players.map((p) => { const t = bundleText(paid[p.id]); return t ? `${p.name}: ${t}` : null; }).filter(Boolean).join(" · ");
+  log(c, gains || "Nobody produces.");
   for (const n of notes) log(c, n);
   // Only what was actually paid flies: a resource the bank was short of never left it.
   const flown = sources.filter((src) => paid[src.pid][src.r] > 0).map((src) => ({ ...src, n: Math.min(src.n, paid[src.pid][src.r]) }));
   c.events.push({ type: "production", sources: flown, paid });
-  return { paid, notes };
+  return gains;
 }
 
 /* ── 7: discard, then robber ───────────────────────────────────────── */
@@ -277,11 +263,11 @@ export function discardOwed(s: GameState): { pid: number; n: number; jid: number
 export function performDiscard(c: Ctx, pid: number, bundle: Bundle): void {
   const s = c.s;
   const owed = discardOwed(s);
-  if (!owed || owed.pid !== pid) throw new Error("no discard owed by this seat");
+  if (!owed || owed.pid !== pid) refuse("no discard owed by this seat");
   const total = RES.reduce((t, r) => t + bundle[r], 0);
-  if (total !== owed.n) throw new Error(`must discard exactly ${owed.n}`);
+  if (total !== owed.n) refuse(`must discard exactly ${owed.n}`);
   const p = s.players[pid];
-  for (const r of RES) if (bundle[r] < 0 || bundle[r] > p.res[r]) throw new Error("cannot discard what you do not hold");
+  for (const r of RES) if (bundle[r] < 0 || bundle[r] > p.res[r]) refuse("cannot discard what you do not hold");
   c.events.push({ type: "cards", from: pid, to: null, bundle: { ...bundle }, hidden: false });
   for (const r of RES) { p.res[r] -= bundle[r]; s.bank[r] += bundle[r]; }
   log(c, `${p.name} discards ${owed.n}.`);
@@ -317,8 +303,8 @@ export function nextRobberMove(c: Ctx): boolean {
 export function robberPlaced(c: Ctx, hid: number): void {
   const s = c.s;
   const sel = s.select;
-  if (!sel || sel.kind !== "robber") throw new Error("no robber to place");
-  if (hid === s.robber) throw new Error("the robber must move");
+  if (!sel || sel.kind !== "robber") refuse("no robber to place");
+  if (hid === s.robber) refuse("the robber must move");
   const move: RobberMove = { actor: sel.actor, knight: sel.knight, noDefuse: sel.noDefuse, fromHex: s.robber };
   if (sel.credit !== undefined) move.credit = sel.credit;
   s.robber = hid;
@@ -337,8 +323,8 @@ export function robberPlaced(c: Ctx, hid: number): void {
 export function victimPicked(c: Ctx, target: number): void {
   const s = c.s;
   const sel = s.select;
-  if (!sel || sel.kind !== "victim") throw new Error("no victim to choose");
-  if (!sel.candidates.includes(target)) throw new Error("that player is not on the hex");
+  if (!sel || sel.kind !== "victim") refuse("no victim to choose");
+  if (!sel.candidates.includes(target)) refuse("that player is not on the hex");
   s.select = null;
   doSteal(c, s.players[sel.actor], s.players[target], sel.move);
 }
@@ -402,7 +388,6 @@ export function doEndTurn(c: Ctx): void {
   stopTurnTimer(c);
   const ended = s.turnCounter;
   s.trade = null;
-  s.playing = null;
   if (s.extraTurn) {
     s.extraTurn = false;
     beginHandover(c, ended);
@@ -443,13 +428,8 @@ export function advancePlayer(c: Ctx): void {
   s.turnRec = freshTurnRecord();
   clearImplodeClock(c);
   s.trade = null;
-  s.playing = null;
-
   // Final sweep: a crossing can happen while the PREVIOUS turn was resolving.
-  if (!s.sweeping) {
-    s.sweeping = true;
-    try { checkVictory(c); } finally { s.sweeping = false; }
-  }
+  checkVictory(c);
 }
 
 /* ── victory ───────────────────────────────────────────────────────── */
@@ -497,13 +477,6 @@ function forcedWinNope(c: Ctx, winner: Player, pid: number): void {
     actor: winner.id, target: pid, nopeable: false, notice: true, show: "winnoped",
   });
   // The forced player answers with a `nopeTurn` action; nothing else may move until they do.
-}
-
-/** The forced player serving their obligation. */
-export function serveForcedNope(c: Ctx, pid: number): void {
-  const f = c.s.forcedNope;
-  if (!f || f.pid !== pid) throw new Error("you are not the one being forced");
-  nopeWholeTurn(c, pid, f.winner);
 }
 
 export function declareWinner(c: Ctx, pid: number): void {
@@ -619,8 +592,3 @@ export function canRollNow(s: GameState, now: number): string | null {
   if (handoverActive(s, now)) return "the last turn is still open to an answer";
   return null;
 }
-export function pickVictimCandidates(c: Ctx): number[] {
-  const sel = c.s.select;
-  return sel && sel.kind === "victim" ? sel.candidates : [];
-}
-export { player, canPlaceRoad, canPlaceSettlement };

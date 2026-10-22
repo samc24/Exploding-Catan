@@ -3,7 +3,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 import { KITTEN, OFF_TURN, RES, TARGETED, bundleText, emptyBundle } from "./constants";
 import {
-  cardsFromPool, cur, feed, findCard, heldBack, log, noteGain, player, removeCardById, totalRes, type Ctx,
+  cardsFromPool, feed, findCard, heldBack, log, noteGain, player, refuse, removeCardById, totalRes, type Ctx,
 } from "./state";
 import { implodeActive, logAction, snapAll } from "./journal";
 import { beginRobberMove, checkVictory, owesAnswer, settleAttackDue, startImplodeClock } from "./turn";
@@ -12,10 +12,10 @@ import type { Bundle, Card, CardKey, CardPlay, GameState, Player } from "./types
 /* ── buying ────────────────────────────────────────────────────────── */
 export function buyCards(c: Ctx, p: Player, spend: Bundle): number {
   const s = c.s;
-  for (const r of RES) if (spend[r] < 0 || spend[r] > p.res[r]) throw new Error("cannot spend what you do not hold");
+  for (const r of RES) if (spend[r] < 0 || spend[r] > p.res[r]) refuse("cannot spend what you do not hold");
   const res = cardsFromPool(spend);
   const n = Math.min(res.cards, s.deck.length);
-  if (n < 1) throw new Error("any 3 different resources buys a card");
+  if (n < 1) refuse("any 3 different resources buys a card");
   for (const r of RES) { p.res[r] -= res.spent[r]; s.bank[r] += res.spent[r]; }
   c.events.push({ type: "cards", from: p.id, to: null, bundle: res.spent, hidden: false });
   for (let k = 0; k < n; k++) drawKitten(c, p);
@@ -64,6 +64,7 @@ export function playableWhenDrawn(card: Card): boolean {
   return card.key === "defuse";
 }
 export function cardIsPlayable(s: GameState, card: Card): boolean {
+  if (card.key === "hidden") return false; // somebody else's, seen from here
   if (card.boughtTurn === s.turnCounter && !playableWhenDrawn(card)) return false;
   if (KITTEN[card.key].kind === "vp") return false;
   if (s.phase === "over" || s.phase.startsWith("setup")) return false;
@@ -73,7 +74,7 @@ export function cardIsPlayable(s: GameState, card: Card): boolean {
 export function canPlayToPile(s: GameState, key: CardKey, me: number): boolean {
   if (s.phase === "over" || s.phase.startsWith("setup")) return false;
   const def = KITTEN[key];
-  if (!def) return false;
+  if (!def || key === "hidden") return false;
   if (def.kind === "vp") return false;
   if (heldBack(s, key)) return false;
   if (def.kind === "response") return false; // answered, not played
@@ -89,13 +90,10 @@ export function playCard(c: Ctx, ownerId: number, cardId: number): void {
   const s = c.s;
   const p = player(c, ownerId);
   const card = findCard(p, cardId);
-  if (!card) throw new Error("no such card in hand");
-  if (!cardIsPlayable(s, card)) throw new Error("that card cannot be played now");
+  if (!card) refuse("no such card in hand");
+  if (!cardIsPlayable(s, card)) refuse("that card cannot be played now");
   const def = KITTEN[card.key];
-  if (!canPlayToPile(s, card.key, ownerId)) throw new Error(`${def.name} cannot be played now`);
-
-  // Out of the hand and onto the screen NOW, not when whatever it waits for is answered.
-  s.playing = { pid: ownerId, id: card.id, key: card.key };
+  if (!canPlayToPile(s, card.key, ownerId)) refuse(`${def.name} cannot be played now`);
 
   if (def.kind === "target") {
     s.select = { kind: "seat", actor: ownerId, cardId: card.id, key: card.key };
@@ -106,7 +104,6 @@ export function playCard(c: Ctx, ownerId: number, cardId: number): void {
     log(c, `${p.name} is choosing two number tokens to swap.`);
     return;
   }
-  s.playing = null;
   playResolved(c, { card, actor: ownerId, target: null, payload: {} });
 }
 
@@ -123,12 +120,11 @@ export function seatPickable(s: GameState, pid: number): boolean {
 export function seatPicked(c: Ctx, target: number): void {
   const s = c.s;
   const sel = s.select;
-  if (!sel || sel.kind !== "seat") throw new Error("nothing is being aimed");
-  if (!seatPickable(s, target)) throw new Error("that seat cannot be chosen");
+  if (!sel || sel.kind !== "seat") refuse("nothing is being aimed");
+  if (!seatPickable(s, target)) refuse("that seat cannot be chosen");
   const actor = s.players[sel.actor];
   const card = findCard(actor, sel.cardId);
   s.select = null;
-  s.playing = null;
   if (!card) return; // the hand moved under the question
   if (card.key === "favor") {
     s.select = { kind: "favor", actor: sel.actor, target, cardId: card.id, synthetic: false };
@@ -140,9 +136,9 @@ export function seatPicked(c: Ctx, target: number): void {
 export function favorDemanded(c: Ctx, want: Bundle): void {
   const s = c.s;
   const sel = s.select;
-  if (!sel || sel.kind !== "favor") throw new Error("no Favor is being named");
+  if (!sel || sel.kind !== "favor") refuse("no Favor is being named");
   const total = RES.reduce((t, r) => t + want[r], 0);
-  if (total !== 3 || RES.some((r) => want[r] < 0)) throw new Error("name exactly 3 cards");
+  if (total !== 3 || RES.some((r) => want[r] < 0)) refuse("name exactly 3 cards");
   s.select = null;
   if (sel.synthetic) {
     playResolved(c, { card: { key: "favor", id: -1, flavor: null, boughtTurn: -1, synthetic: true }, actor: sel.actor, target: sel.target, payload: { want: { ...want } } }, { quiet: true });
@@ -158,13 +154,12 @@ export function favorDemanded(c: Ctx, want: Bundle): void {
 export function alterPicked(c: Ctx, hid: number): void {
   const s = c.s;
   const sel = s.select;
-  if (!sel || sel.kind !== "alter") throw new Error("no numbers are being swapped");
-  if (s.numbers[hid] === null || s.numbers[hid] === undefined) throw new Error("that hex has no number");
+  if (!sel || sel.kind !== "alter") refuse("no numbers are being swapped");
+  if (s.numbers[hid] === null || s.numbers[hid] === undefined) refuse("that hex has no number");
   if (sel.first === null) { sel.first = hid; return; }
   if (sel.first === hid) { sel.first = null; return; }
   const a = sel.first, b = hid;
   s.select = null;
-  s.playing = null;
   if (sel.purpose.kind === "play") {
     const actor = s.players[sel.actor];
     const card = findCard(actor, sel.purpose.cardId);
@@ -181,10 +176,10 @@ export function cancelSelect(c: Ctx, seat: number): void {
   if (!sel) return;
   // Only a pick that was the player's own choice to start can be thought
   // better of. A robber, a victim or a reflected Defuse is owed.
-  if (sel.kind === "seat" && sel.actor === seat) { s.select = null; s.playing = null; return; }
-  if (sel.kind === "alter" && sel.actor === seat && sel.purpose.kind === "play") { s.select = null; s.playing = null; return; }
-  if (sel.kind === "favor" && sel.actor === seat && !sel.synthetic) { s.select = null; s.playing = null; return; }
-  throw new Error("that cannot be cancelled");
+  if (sel.kind === "seat" && sel.actor === seat) { s.select = null; return; }
+  if (sel.kind === "alter" && sel.actor === seat && sel.purpose.kind === "play") { s.select = null; return; }
+  if (sel.kind === "favor" && sel.actor === seat && !sel.synthetic) { s.select = null; return; }
+  refuse("that cannot be cancelled");
 }
 
 /* ── resolution ────────────────────────────────────────────────────── */
@@ -224,12 +219,12 @@ export function playResolved(c: Ctx, base: CardPlay, opts: PlayOpts = {}): void 
   const text = describeCard(c, base);
   if (!opts.quiet) {
     logAction(c, text, aggressive ? "attack" : "info", {
-      actor: base.actor, target: base.target, card: base.card, payload: base.payload, snap, show: base.card.key,
+      actor: base.actor, target: base.target, card: base.card, payload: base.payload, snap, show: base.card.key, log: true,
     });
   } else {
     feed(c, text, aggressive ? "attack" : "info");
+    log(c, text + ".");
   }
-  log(c, text + ".");
   resolveCard(c, base, opts);
 }
 
@@ -316,5 +311,3 @@ function resolveCard(c: Ctx, action: CardPlay, opts: PlayOpts): void {
 function lastJournalId(s: GameState): number | null {
   return s.journal.length ? s.journal[s.journal.length - 1].id : null;
 }
-
-export { cur };

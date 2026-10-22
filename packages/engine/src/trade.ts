@@ -2,7 +2,7 @@
    TRADING — with the bank, and an open offer to the table
    ══════════════════════════════════════════════════════════════════════ */
 import { RES, bundleText, bundleTotal } from "./constants";
-import { feed, give, hasBundle, log, noteGain, player, take, tradeRate, type Ctx } from "./state";
+import { feed, give, hasBundle, log, noteGain, player, refuse, take, tradeRate, type Ctx } from "./state";
 import { logAction, snapAll } from "./journal";
 import type { Bundle } from "./types";
 
@@ -13,15 +13,15 @@ export function bankTrade(c: Ctx, seat: number, giveLots: Bundle, get: Bundle): 
   const s = c.s;
   const p = player(c, seat);
   const lots = bundleTotal(giveLots), units = bundleTotal(get);
-  if (lots < 1 || lots !== units) throw new Error("lots and cards must match");
+  if (lots < 1 || lots !== units) refuse("lots and cards must match");
   const spend: Bundle = { wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 };
   for (const r of RES) {
-    if (giveLots[r] < 0 || get[r] < 0) throw new Error("bad trade");
+    if (giveLots[r] < 0 || get[r] < 0) refuse("bad trade");
     spend[r] = giveLots[r] * tradeRate(s, p, r);
-    if (spend[r] > p.res[r]) throw new Error(`not enough ${r} to give`);
+    if (spend[r] > p.res[r]) refuse(`not enough ${r} to give`);
   }
   // What goes out comes back in first, so the bank can always pay.
-  for (const r of RES) if (get[r] > s.bank[r] + spend[r]) throw new Error(`the bank is out of ${r}`);
+  for (const r of RES) if (get[r] > s.bank[r] + spend[r]) refuse(`the bank is out of ${r}`);
   const snapBefore = snapAll(s);
   for (const r of RES) if (spend[r]) take(c, p, r, spend[r]);
   for (const r of RES) if (get[r]) give(c, p, r, get[r]);
@@ -34,12 +34,12 @@ export function bankTrade(c: Ctx, seat: number, giveLots: Bundle, get: Bundle): 
 export function offerTrade(c: Ctx, seat: number, offer: Bundle, want: Bundle): void {
   const s = c.s;
   const p = player(c, seat);
-  if (s.trade) throw new Error("an offer is already on the table");
+  if (s.trade) refuse("an offer is already on the table");
   const any = RES.some((r) => offer[r] > 0) || RES.some((r) => want[r] > 0);
-  if (!any) throw new Error("offer something");
+  if (!any) refuse("offer something");
   for (const r of RES) {
-    if (offer[r] < 0 || want[r] < 0 || want[r] > WANT_CAP) throw new Error("bad offer");
-    if (offer[r] > p.res[r]) throw new Error(`you do not hold ${offer[r]} ${r}`);
+    if (offer[r] < 0 || want[r] < 0 || want[r] > WANT_CAP) refuse("bad offer");
+    if (offer[r] > p.res[r]) refuse(`you do not hold ${offer[r]} ${r}`);
   }
   const replies: Record<number, "wait" | "cant"> = {};
   for (const q of s.players) {
@@ -53,9 +53,9 @@ export function offerTrade(c: Ctx, seat: number, offer: Bundle, want: Bundle): v
 
 export function answerTrade(c: Ctx, seat: number, accept: boolean): void {
   const t = c.s.trade;
-  if (!t) throw new Error("no offer to answer");
-  if (seat === t.from) throw new Error("that is your own offer");
-  if (t.replies[seat] !== "wait") throw new Error("you have already answered");
+  if (!t) refuse("no offer to answer");
+  if (seat === t.from) refuse("that is your own offer");
+  if (t.replies[seat] !== "wait") refuse("you have already answered");
   t.replies[seat] = accept ? "yes" : "no";
 }
 
@@ -63,12 +63,12 @@ export function answerTrade(c: Ctx, seat: number, accept: boolean): void {
 export function acceptTrade(c: Ctx, seat: number, withSeat: number): void {
   const s = c.s;
   const t = s.trade;
-  if (!t || t.from !== seat) throw new Error("no offer of yours is open");
-  if (t.replies[withSeat] !== "yes") throw new Error("they have not accepted");
+  if (!t || t.from !== seat) refuse("no offer of yours is open");
+  if (t.replies[withSeat] !== "yes") refuse("they have not accepted");
   const p = player(c, seat), q = player(c, withSeat);
   // Both sides are checked for the goods first, since a Nope may have moved them.
-  if (!hasBundle(q, t.want)) { t.replies[withSeat] = "cant"; throw new Error("they no longer have what you want"); }
-  if (!hasBundle(p, t.offer)) { s.trade = null; throw new Error("you no longer have what you offered"); }
+  if (!hasBundle(q, t.want)) { t.replies[withSeat] = "cant"; refuse("they no longer have what you want"); }
+  if (!hasBundle(p, t.offer)) { s.trade = null; refuse("you no longer have what you offered"); }
   const snapBefore = snapAll(s);
   for (const r of RES) {
     p.res[r] -= t.offer[r]; q.res[r] += t.offer[r]; noteGain(c, q, r, t.offer[r]);
@@ -86,6 +86,6 @@ export function acceptTrade(c: Ctx, seat: number, withSeat: number): void {
 
 export function cancelTrade(c: Ctx, seat: number): void {
   const t = c.s.trade;
-  if (!t || t.from !== seat) throw new Error("no offer of yours is open");
+  if (!t || t.from !== seat) refuse("no offer of yours is open");
   c.s.trade = null;
 }

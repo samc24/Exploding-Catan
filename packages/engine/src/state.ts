@@ -2,14 +2,14 @@
    GAME STATE — creation and the small helpers everything else leans on
    ══════════════════════════════════════════════════════════════════════ */
 import {
-  BOARD, COST, ENGINE_VERSION, KITTEN, KNIGHT_FLAVOR, LIMIT, LOG_KEEP, MODES, PLAYER_COLORS,
+  BOARD, COST, DECK_KEYS, ENGINE_VERSION, KITTEN, KNIGHT_FLAVOR, LIMIT, LOG_KEEP, MODES, PLAYER_COLORS,
   PLAYER_NAMES, RES, emptyBundle,
 } from "./constants";
 import { dealTerrain, geometry, placePorts, type Geometry } from "./board";
 import { Rng } from "./rng";
 import type {
-  BoardKey, Building, BuildKind, Bundle, Card, CardKey, FeedKind, GameConfig, GameEvent, GameState,
-  Player, Res, TurnRecord,
+  BoardKey, BuildKind, Bundle, Card, CardKey, FeedKind, GameConfig, GameEvent, GameState,
+  Player, Res, TurnPointer, TurnRecord,
 } from "./types";
 
 /* Everything a rule needs while it runs: the state being mutated (always a
@@ -40,7 +40,6 @@ export function player(c: Ctx, id: number): Player {
 export function log(c: Ctx, text: string): void {
   c.s.log.push(text);
   while (c.s.log.length > LOG_KEEP) c.s.log.shift();
-  c.events.push({ type: "log", text });
 }
 export function feed(c: Ctx, text: string, kind: FeedKind, ms?: number): void {
   c.events.push(ms === undefined ? { type: "feed", text, kind } : { type: "feed", text, kind, ms });
@@ -59,9 +58,6 @@ export function openingRound(s: GameState): boolean {
 }
 export function heldBack(s: GameState, key: CardKey): boolean {
   return (key === "attack" || key === "explode") && openingRound(s);
-}
-export function inSetup(c: Ctx): boolean {
-  return c.s.phase.startsWith("setup");
 }
 
 /* ── resources / bank ──────────────────────────────────────────────── */
@@ -242,13 +238,14 @@ export function removeCardById(p: Player, id: number): Card | null {
 export function holds(p: Player, key: CardKey): boolean {
   return p.cards.some((c) => c.key === key);
 }
-/** Take one card of a kind out of a hand and onto the discard. Returns it. */
-export function spendCard(c: Ctx, p: Player, key: CardKey): Card | null {
+/** Take one card of a kind out of a hand and onto the discard. Returns the
+    record a journal entry keeps of what paid for it. */
+export function spendCard(c: Ctx, p: Player, key: CardKey): { pid: number; key: CardKey; id: number | null } {
   const i = p.cards.findIndex((x) => x.key === key);
-  if (i < 0) return null;
+  if (i < 0) return { pid: p.id, key, id: null };
   const card = p.cards.splice(i, 1)[0];
   c.s.discard.push(card);
-  return card;
+  return { pid: p.id, key, id: card.id };
 }
 
 /* ── setup ─────────────────────────────────────────────────────────── */
@@ -275,7 +272,7 @@ export function createGame(cfg: GameConfig, seed: number): GameState {
 
   const deck: Card[] = [];
   let knightN = 0;
-  for (const key of Object.keys(KITTEN) as CardKey[]) {
+  for (const key of DECK_KEYS) {
     for (let i = 0; i < KITTEN[key].count; i++) {
       const c: Card = { key, id: deck.length, flavor: null, boughtTurn: -2 };
       if (key === "knight") c.flavor = KNIGHT_FLAVOR[Math.floor(knightN++ / 2)];
@@ -315,23 +312,23 @@ export function createGame(cfg: GameConfig, seed: number): GameState {
     deck, discard: [], bank,
     robber: desert,
     cur: first, dir: 1, turnCounter: 0, firstPlayer: first,
-    phase: "setup1", setupNeed: "settlement", setupLastVertex: null,
+    phase: "setup1",
     setupOrder: buildSetupOrder(n, first), setupIdx: 0, roadsOwed: null,
-    rolled: null, rollId: 0, extraTurn: false,
+    rolled: null, extraTurn: false,
     roadLens: players.map(() => 0),
     longestRoad: { owner: null, len: 0 },
     largestArmy: { owner: null, n: 0 },
     handoverUntil: 0, handoverTurn: -1,
     seven: null, attackDue: [], robberDue: [],
-    select: { kind: "settlement", setup: true },
-    forcedNope: null, playing: null, trade: null,
+    select: { kind: "settlement" },
+    forcedNope: null, trade: null,
     pile: [], diceLog: [],
     turnRec: freshTurnRecord(),
     turnTimerUntil: 0, turnTickAt: 0,
     journal: [], journalId: 0,
-    revealed: false, sweeping: false,
+    revealed: false,
     implodeTurn: -1, implodeBy: null, implodeUntil: 0, implodeFrom: 0,
-    rewinds: 0, log: [], winner: null,
+    log: [], winner: null,
   };
 
   if (s.mode === "fastplus") dealOpeningKittens(s, rng);
@@ -348,7 +345,7 @@ export function createGame(cfg: GameConfig, seed: number): GameState {
    Kitten. boughtTurn is -1: always there, so playable from the first turn. */
 function dealOpeningKittens(s: GameState, rng: Rng): void {
   const pool: CardKey[] = [];
-  for (const key of Object.keys(KITTEN) as CardKey[]) {
+  for (const key of DECK_KEYS) {
     if (key === "implode") continue;
     for (let i = 0; i < KITTEN[key].count; i++) pool.push(key);
   }
@@ -362,6 +359,7 @@ function dealOpeningKittens(s: GameState, rng: Rng): void {
   s.log.push("Fast track + — everybody opens holding one kitten card.");
 }
 
-export function buildingAt(s: GameState, vid: number): Building | null {
-  return s.vType[vid];
+/** Where the turn is standing, for a Nope that may have to put it back. */
+export function turnPointer(s: GameState): TurnPointer {
+  return { cur: s.cur, phase: s.phase, turnCounter: s.turnCounter, rolled: s.rolled ? [s.rolled[0], s.rolled[1]] : null, extraTurn: s.extraTurn };
 }

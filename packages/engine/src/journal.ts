@@ -6,11 +6,12 @@
    Nope played later rewinds to that snapshot, which is what lets a player
    answer without first announcing that they hold the card.
    ══════════════════════════════════════════════════════════════════════ */
-import { HANDOVER_MS, JOURNAL_KEEP, NOPE_REACH, TARGETED } from "./constants";
+import { HANDOVER_MS, JOURNAL_KEEP, NOPE_REACH, PILE_KEEP, TARGETED } from "./constants";
 import type { Geometry } from "./board";
-import { feed, holds, inSetup, type Ctx } from "./state";
-import type {
-  Card, CardKey, CardPayload, CardPlay, EntryKind, GameState, JournalEntry, ShowKind, Snapshot, TurnPointer,
+import { holds, refuse, type Ctx } from "./state";
+import {
+  isSnapshot, type Card, type CardKey, type CardPayload, type CardPlay, type EntryKind, type GameState,
+  type JournalEntry, type ShowKind, type Snapshot, type SnapshotOrRedacted, type TurnPointer,
 } from "./types";
 
 export function snapAll(s: GameState): Snapshot {
@@ -52,7 +53,9 @@ export function snapAll(s: GameState): Snapshot {
 
 /** Put the board back. The snapshots carry the board, not the clock: whose
     turn it is and what phase is NOT restored here. */
-export function restoreAll(s: GameState, x: Snapshot): void {
+export function restoreAll(s: GameState, snap: SnapshotOrRedacted | null): void {
+  if (!isSnapshot(snap)) refuse("a redacted view cannot be rewound");
+  const x = snap;
   s.players.forEach((p, i) => {
     p.res = { ...x.res[i] };
     p.cards = x.hands[i].map((c) => ({ ...c }));
@@ -80,15 +83,13 @@ export function restoreAll(s: GameState, x: Snapshot): void {
   s.seven = x.seven ? { actor: x.seven.actor, jid: x.seven.jid, queue: x.seven.queue.slice() } : null;
   s.robberDue = x.robberDue.map((m) => ({ ...m }));
   s.attackDue = x.attackDue.map((m) => ({ ...m }));
-  if (x.rec) {
-    s.turnRec = {
-      edges: x.rec.edges.slice(),
-      verts: x.rec.verts.map((v) => ({ ...v })),
-      drawn: x.rec.drawn.slice(),
-      knights: x.rec.knights,
-      gained: { ...x.rec.gained },
-    };
-  }
+  s.turnRec = {
+    edges: x.rec.edges.slice(),
+    verts: x.rec.verts.map((v) => ({ ...v })),
+    drawn: x.rec.drawn.slice(),
+    knights: x.rec.knights,
+    gained: { ...x.rec.gained },
+  };
 }
 
 export interface LogOpts {
@@ -96,7 +97,7 @@ export interface LogOpts {
   target?: number | null;
   card?: Card | null;
   payload?: CardPayload | null;
-  snap?: Snapshot | null;
+  snap?: SnapshotOrRedacted | null;
   turnBack?: TurnPointer | null;
   spent?: { pid: number; key: CardKey; id: number | null } | null;
   redo?: CardPlay | null;
@@ -112,6 +113,8 @@ export interface LogOpts {
   /** A card to put on the pile that is not this entry's own: the Imploding Kitten. */
   pileCard?: Card | null;
   ms?: number;
+  /** Also write the line, with a full stop, to the detailed log. */
+  log?: boolean;
 }
 
 /** Record an action and announce it. Returns the entry. */
@@ -145,6 +148,7 @@ export function logAction(c: Ctx, text: string, kind: EntryKind, opts: LogOpts =
   pileAdd(s, e, opts.pileCard ?? null);
   while (s.journal.length > JOURNAL_KEEP) s.journal.shift();
   trimSnapshots(s);
+  if (opts.log) { s.log.push(text + "."); }
   c.events.push(opts.ms === undefined ? { type: "feed", text, kind, jid: e.id } : { type: "feed", text, kind, jid: e.id, ms: opts.ms });
   if (e.show) c.events.push({ type: "show", what: e.show, pid: e.actor, jid: e.id });
   return e;
@@ -169,7 +173,7 @@ function pileAdd(s: GameState, e: JournalEntry, extra: Card | null): void {
   const put = spent ?? card;
   if (!put) return;
   s.pile.push({ jid: e.id, card: { ...put }, cancelled: false });
-  while (s.pile.length > 200) s.pile.shift();
+  while (s.pile.length > PILE_KEEP) s.pile.shift();
 }
 function findSpent(s: GameState, id: number): Card | null {
   for (let i = s.discard.length - 1; i >= 0; i--) if (s.discard[i].id === id) return s.discard[i];
@@ -312,7 +316,7 @@ export function turnStartSnap(s: GameState): Snapshot | null {
     if (e.turn !== s.turnCounter) continue;
     if (e.notice) continue;
     if (e.nopeable === false) { snap = null; continue; }
-    if (!snap && e.snap) snap = e.snap;
+    if (!snap && isSnapshot(e.snap)) snap = e.snap;
   }
   return snap;
 }
@@ -321,7 +325,7 @@ export function turnOpenSnap(s: GameState): Snapshot | null {
   for (const e of s.journal) {
     if (e.turn !== s.turnCounter) continue;
     if (e.notice) continue;
-    if (e.snap) return e.snap;
+    if (isSnapshot(e.snap)) return e.snap;
   }
   return null;
 }
@@ -338,8 +342,3 @@ export function notThisTurnsDoing(s: GameState, ownerId: number): Record<number,
   return out;
 }
 
-export function announceStands(c: Ctx, text: string): void {
-  feed(c, `↺ ${text} — stands after all`, "defend");
-}
-
-export { inSetup };
