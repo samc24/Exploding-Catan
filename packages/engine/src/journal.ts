@@ -144,9 +144,20 @@ export function logAction(c: Ctx, text: string, kind: EntryKind, opts: LogOpts =
   s.journal.push(e);
   pileAdd(s, e, opts.pileCard ?? null);
   while (s.journal.length > JOURNAL_KEEP) s.journal.shift();
+  trimSnapshots(s);
   c.events.push(opts.ms === undefined ? { type: "feed", text, kind, jid: e.id } : { type: "feed", text, kind, jid: e.id, ms: opts.ms });
   if (e.show) c.events.push({ type: "show", what: e.show, pid: e.actor, jid: e.id });
   return e;
+}
+
+/* A snapshot is only ever read while its entry can still be answered, or
+   while its turn can still be cancelled: the turn in progress, the one that
+   just handed over, and one more for a counter-Nope that hands a turn back.
+   Older snapshots are dead weight — a full copy of the board each — and
+   every action clones the whole state, so they are dropped here. */
+export function trimSnapshots(s: GameState): void {
+  const keepFrom = s.turnCounter - 2;
+  for (const e of s.journal) if (e.snap && e.turn < keepFrom) e.snap = null;
 }
 
 /* ── the discard pile ──────────────────────────────────────────────── */

@@ -20,9 +20,39 @@ import { closeModal, modalOpen, openModal } from "./ui/dialogs";
 import { newGameDialog } from "./ui/newgame";
 import { showRules } from "./ui/rules";
 import { cardArt, cardBack, has, preload } from "./art";
+import { createTable, nextBotAction, isBot as tableHasBot, type Table } from "@exploding-catan/bots";
 
 /* ── screen-local state (never rules) ─────────────────────────────── */
 const ui: BoardUI = { seat: 0, armed: null };
+/* The bots at this table. Which seats are bots is a table setting, not a
+   rule, so it lives beside the game rather than in it. */
+const BOTS_KEY = "exploding-catan:bots";
+let table: Table = createTable([], 0);
+/** Bots deliberately move slowly, so a Nope can be reached for before the line scrolls away. */
+const BOT_PACE = 2200;
+let botTimer: number | null = null;
+function isBot(seat: number): boolean { return tableHasBot(table, seat); }
+function setBots(seats: number[], seed: number): void {
+  table = createTable(seats, seed);
+  try { localStorage.setItem(BOTS_KEY, JSON.stringify({ seats, seed })); } catch { /* fine */ }
+}
+/** Ask the driver for the next bot move, apply it, and come back after a beat. */
+function botTick(): void {
+  botTimer = null;
+  const s = store.get();
+  if (!s || s.phase === "over" || !table.bots.size || modalOpen()) return;
+  const a = nextBotAction(table, s, Date.now());
+  if (a) {
+    const err = store.dispatch(a);
+    if (err) console.warn("bot action refused:", a, err);
+  }
+  scheduleBots(a ? BOT_PACE : 400);
+}
+function scheduleBots(ms: number): void {
+  if (!table.bots.size) return;
+  if (botTimer !== null) clearTimeout(botTimer);
+  botTimer = window.setTimeout(botTick, ms);
+}
 let manualSeat: number | null = null;   // a seat the person chose to look at
 const feed = new Feed();
 let showcaseTimer: number | null = null;
@@ -46,11 +76,17 @@ function waitingOn(s: GameState): number {
   if (s.trade) { const w = Object.entries(s.trade.replies).find(([, r]) => r === "wait"); if (w) return Number(w[0]); return s.trade.from; }
   return s.cur;
 }
+function firstHuman(s: GameState): number {
+  const h = s.players.find((p) => !isBot(p.id));
+  return h ? h.id : s.cur;
+}
 function viewSeat(s: GameState): number {
   const w = waitingOn(s);
   // A manual look-around holds unless the table is stopped dead waiting on one seat.
   const hardWait = !!discardOwed(s) || !!s.forcedNope || (!!s.select && "actor" in s.select) || s.phase === "setup3";
-  if (manualSeat !== null && !hardWait && manualSeat < s.players.length) return manualSeat;
+  if (manualSeat !== null && !hardWait && manualSeat < s.players.length && !isBot(manualSeat)) return manualSeat;
+  // Never a bot's hand: while a bot is playing or deciding, the screen stays on a person.
+  if (isBot(w)) return manualSeat !== null && !isBot(manualSeat) ? manualSeat : firstHuman(s);
   return w;
 }
 let lastCur = -1;
@@ -198,14 +234,14 @@ function render(): void {
   if (view !== ui.seat) { ui.armed = null; panelCb.composer = null; }
   ui.seat = view;
 
-  drawSeats($("seats"), s, view, (pid) => {
+  drawSeats($("seats"), s, view, isBot, (pid) => {
     const sel = s.select;
     if (sel && sel.kind === "seat" && sel.actor === view) { act({ type: "pickSeat", seat: view, target: pid }); return; }
     manualSeat = pid === waitingOn(s) ? null : pid;
     render();
   });
   drawBoard($("board") as unknown as SVGSVGElement, s, ui, boardCb);
-  drawBottom($("bottom"), s, view, now, {
+  drawBottom($("bottom"), s, view, now, isBot, {
     roll: () => act({ type: "roll", seat: view }),
     endTurn: () => act({ type: "endTurn", seat: view }),
     buy: () => { panelCb.composer = panelCb.composer === "buy" ? null : "buy"; render(); },
@@ -266,12 +302,15 @@ function scheduleTicks(s: GameState): void {
 function stopTicks(): void { if (tickHandle !== null) { clearInterval(tickHandle); tickHandle = null; } }
 
 /* ── boot ──────────────────────────────────────────────────────────── */
-function startGame(cfg: Parameters<typeof store.newGame>[0], seed?: number): void {
+function startGame(cfg: Parameters<typeof store.newGame>[0], botSeats: number[], seed?: number): void {
   feed.reset();
   manualSeat = null;
   panelCb.scratch = {};
   panelCb.composer = null;
-  store.newGame(cfg, seed);
+  const theSeed = seed ?? ((Math.random() * 2 ** 32) >>> 0);
+  setBots(botSeats, theSeed);
+  store.newGame(cfg, theSeed);
+  scheduleBots(600);
 }
 store.subscribe((s, events, action) => {
   if (s) onEvents(s, events);
@@ -279,6 +318,8 @@ store.subscribe((s, events, action) => {
   if (s && (s.cur !== lastCur)) { lastCur = s.cur; manualSeat = null; }
   if (action && action.type !== "tick") { ui.armed = null; }
   render();
+  // Anything a person did may have handed the bots something to do.
+  if (action && action.type !== "tick") scheduleBots(BOT_PACE);
 });
 $("newBtn").onclick = () => newGameDialog(startGame, !!store.get());
 $("rulesBtn").onclick = showRules;
@@ -297,6 +338,12 @@ document.addEventListener("keydown", (e) => {
 });
 
 preload().then(() => {
-  if (store.restore()) { const s = store.get()!; feed.lines = []; for (const e of s.journal.slice(-30)) feed.lines.push({ text: e.text, kind: e.kind, jid: e.id }); render(); }
-  else newGameDialog(startGame, false);
+  if (store.restore()) {
+    const s = store.get()!;
+    try { const b = JSON.parse(localStorage.getItem(BOTS_KEY) || "null") as { seats: number[]; seed: number } | null; if (b) table = createTable(b.seats, b.seed); } catch { /* no bots */ }
+    feed.lines = [];
+    for (const e of s.journal.slice(-30)) feed.lines.push({ text: e.text, kind: e.kind, jid: e.id });
+    render();
+    scheduleBots(800);
+  } else newGameDialog(startGame, false);
 });

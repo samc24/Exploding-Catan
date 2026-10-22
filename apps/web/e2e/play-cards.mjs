@@ -8,6 +8,8 @@ page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("404")) errors.push("console: " + m.text()); });
 await page.goto("http://localhost:5173/", { waitUntil: "networkidle" });
 const st = () => page.evaluate(() => JSON.parse(localStorage.getItem("exploding-catan:game")));
+// An all-human table: switch every bot seat off.
+while (await page.locator('#modal button:has-text("bot")').count()) { await page.locator('#modal button:has-text("bot")').first().click(); await page.waitForTimeout(50); }
 await page.fill('#modal input[placeholder="random"]', "7");
 await page.click('#modal button:has-text("Start game")');
 await page.waitForTimeout(300);

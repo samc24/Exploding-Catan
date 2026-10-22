@@ -17,14 +17,14 @@ export interface HandCallbacks {
   cancelSelect(): void;
 }
 
-export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, cb: HandCallbacks): void {
+export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, isBot: (pid: number) => boolean, cb: HandCallbacks): void {
   clear(root);
   const p = s.players[view];
   const mine = s.cur === view;
 
   const who = h("div", { class: "who" },
     h("b", { style: { color: p.color } }, p.name),
-    h("i", null, mine && s.phase !== "over" ? "your turn" : s.phase === "over" ? "game over" : `${s.players[s.cur].name} is playing`),
+    h("i", null, mine && s.phase !== "over" ? "your turn" : s.phase === "over" ? "game over" : `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing"}`),
     timerEnabled(s) && s.turnTimerUntil ? timerEl(s, now) : null,
   );
 

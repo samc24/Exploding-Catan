@@ -3,17 +3,19 @@ import { h } from "./dom";
 import { closeModal, openModal } from "./dialogs";
 
 const KEY = "exploding-catan:newgame";
-interface Saved { names: string[]; n: number; mode: Mode; board: BoardKey | "auto"; win: number; timer: number }
-const DEFAULT: Saved = { names: ["", "", "", "", "", ""], n: 4, mode: "normal", board: "auto", win: 10, timer: 0 };
+interface Saved { names: string[]; bots: boolean[]; n: number; mode: Mode; board: BoardKey | "auto"; win: number; timer: number }
+const DEFAULT: Saved = { names: ["", "", "", "", "", ""], bots: [false, true, true, true, true, true], n: 4, mode: "normal", board: "auto", win: 10, timer: 0 };
 const FALLBACK = ["Red", "Blue", "Orange", "White", "Green", "Purple"];
 
-export function newGameDialog(onStart: (cfg: GameConfig, seed?: number) => void, canCancel: boolean): void {
+export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], seed?: number) => void, canCancel: boolean): void {
   let st: Saved = DEFAULT;
   try { st = { ...DEFAULT, ...(JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Saved>) }; } catch { /* defaults */ }
+  if (!Array.isArray(st.bots) || st.bots.length < 6) st.bots = DEFAULT.bots.slice();
   const render = () => {
     const names = h("div", null, Array.from({ length: st.n }, (_, i) => h("label", null,
       h("span", { class: "swatch", style: { background: ["#d94b4b", "#4b7fd9", "#e08a2e", "#e8e8e8", "#59b364", "#a86fd0"][i], borderRadius: "50%" } }),
       h("input", { type: "text", maxlength: "16", placeholder: FALLBACK[i], value: st.names[i] ?? "", oninput: (e: Event) => { st.names[i] = (e.target as HTMLInputElement).value; } }),
+      h("button", { class: "sm" + (st.bots[i] ? " on" : ""), title: "Let a bot play this seat", onclick: () => { st.bots[i] = !st.bots[i]; render(); } }, st.bots[i] ? "🤖 bot" : "👤 human"),
     )));
     const seg = <T extends string>(opts: { v: T; label: string; title?: string }[], cur: T, set: (v: T) => void) =>
       h("div", { class: "seg" }, opts.map((o) => h("button", { class: "sm" + (o.v === cur ? " on" : ""), title: o.title ?? "", onclick: () => { set(o.v); render(); } }, o.label)));
@@ -40,7 +42,8 @@ export function newGameDialog(onStart: (cfg: GameConfig, seed?: number) => void,
         const raw = seedIn.value.trim();
         const seed = raw ? (/^\d+$/.test(raw) ? Number(raw) >>> 0 : hash(raw)) : undefined;
         closeModal();
-        onStart(cfg, seed);
+        const botSeats = Array.from({ length: st.n }, (_, i) => i).filter((i) => st.bots[i]);
+        onStart(cfg, botSeats, seed);
       } },
     ];
     openModal("New game", body, btns);

@@ -8,10 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "e2e": "node e2e/play-turns.mjs && node e2e/play-cards.mjs"
+    "e2e": "node e2e/play-turns.mjs && node e2e/play-cards.mjs && node e2e/play-bots.mjs"
   },
   "dependencies": {
-    "@exploding-catan/engine": "*"
+    "@exploding-catan/engine": "*",
+    "@exploding-catan/bots": "*"
   },
   "devDependencies": {
     "vite": "^6.0.0"

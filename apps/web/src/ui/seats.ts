@@ -2,7 +2,7 @@ import { totalRes, publicVP, totalVP, seatPickable, discardOwed, type GameState 
 import { clear, h } from "./dom";
 import { avatarArt, has } from "../art";
 
-export function drawSeats(root: HTMLElement, s: GameState, view: number, onSeat: (pid: number) => void): void {
+export function drawSeats(root: HTMLElement, s: GameState, view: number, isBot: (pid: number) => boolean, onSeat: (pid: number) => void): void {
   clear(root);
   const owed = discardOwed(s);
   for (const p of s.players) {
@@ -19,11 +19,11 @@ export function drawSeats(root: HTMLElement, s: GameState, view: number, onSeat:
       class: "seat" + (p.id === s.cur ? " cur" : "") + (mine ? " me" : "") + (pickable ? " pickable" : ""),
       style: { "--c": p.color } as unknown as Record<string, string>,
       onclick: () => onSeat(p.id),
-      title: mine ? "Your seat" : `View as ${p.name}`,
+      title: mine ? "Your seat" : isBot(p.id) ? `${p.name} is a bot` : `View as ${p.name}`,
     },
       h("div", { class: "avatar", style: av ? { backgroundImage: `url(${av})` } : null }, av ? "" : p.name[0]),
       h("div", { class: "who" },
-        h("div", { class: "name" }, p.name, p.id === s.cur && s.phase !== "over" ? " ·  playing" : ""),
+        h("div", { class: "name" }, isBot(p.id) ? "🤖 " : "", p.name, p.id === s.cur && s.phase !== "over" ? " ·  playing" : ""),
         h("div", { class: "stats" },
           h("span", { title: "resource cards" }, "🂠 ", h("b", null, String(totalRes(p)))),
           h("span", { title: "kitten cards" }, "🐱 ", h("b", null, String(p.cards.length))),

@@ -9,6 +9,8 @@ page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + 
 await page.goto("http://localhost:5173/", { waitUntil: "networkidle" });
 await page.screenshot({ path: `${OUT}/01-newgame.png` });
 // Start a 4 player normal game with a fixed seed
+// An all-human table: switch every bot seat off.
+while (await page.locator('#modal button:has-text("bot")').count()) { await page.locator('#modal button:has-text("bot")').first().click(); await page.waitForTimeout(50); }
 await page.fill('#modal input[placeholder="random"]', "7");
 await page.click('#modal button:has-text("Start game")');
 await page.waitForTimeout(300);

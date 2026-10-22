@@ -9,7 +9,7 @@ service, without losing the rules that make it the game it is.
 ```
 packages/
   engine/      pure TypeScript rules engine — no DOM, no network, no clock
-  bots/        (next) the AI, as a client of the engine
+  bots/        the AI, as a client of the engine: decide(bot, state) → action
 apps/
   web/         the browser UI: Vite + TypeScript, plain DOM and SVG, built on
                the engine. Hot-seat today; the same screens will be driven by
@@ -100,6 +100,27 @@ which composer is open) lives in `main.ts` and never touches the rules.
 `e2e/` holds headless-Chrome smoke tests that play through setup, turns, and
 every kitten card flow and fail on any page error.
 
+## The bots
+
+`packages/bots` is the original `ai.js` strategy, ported to pure functions.
+`decide(bot, state, now)` returns the single action a bot wants to take —
+a setup placement, a discard it owes, a reply to a trade, a reaction with a
+Nope or Defuse, or the next step of its own turn — and `nextBotAction(table,
+state, now)` picks which bot goes first. The host (today the web app, later
+the server) applies that action through the engine like any other and asks
+again after a pacing delay. Nothing in the bots mutates state or touches the
+page, so the same code drives a browser game, a server game and a test.
+
+Each bot carries its own seeded RNG, so a table of bots is a pure function
+of its seeds: the self-play test plays whole games across seeds, player
+counts, modes and boards, checks every action it chose was legal, checks the
+bank balances, and replays a seed to prove determinism.
+
+Fairness is a tested property, not a promise: at every decision in a game
+the test permutes the deck and replaces every other hand with different cards
+and requires the identical decision. A bot sees piece positions, resource
+counts, played knights, public VP, the journal and its own hand. Nothing else.
+
 ## Multiplayer
 
 The original runs the whole game in one player's browser and mirrors state
@@ -121,6 +142,7 @@ npm run typecheck
 npm run lint
 ```
 
-Rules changes go in `packages/engine` with a test. Anything that is a
+Rules changes go in `packages/engine` with a test. Bot strategy changes go
+in `packages/bots`; `npm test -w packages/bots` plays the games. Anything that is a
 faithful port of a rule from the original is also a candidate to send back
 upstream as a focused PR against `index.html`.
