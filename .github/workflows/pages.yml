@@ -27,7 +27,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # The game server the Online dialog connects to (render.yaml); people then only type a room code.
       - run: npm run build -w apps/web
+        env:
+          VITE_SERVER_URL: wss://exploding-catan.onrender.com
       - name: Assemble site
         run: |
           mkdir -p _site/new

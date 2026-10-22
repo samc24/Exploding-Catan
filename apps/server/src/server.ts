@@ -167,7 +167,8 @@ export function startServer(opts: ServerOptions = {}) {
 
 function serveStatic(req: IncomingMessage, res: ServerResponse, dir: string | null, rooms: Map<string, Room>): void {
   const url = new URL(req.url ?? "/", "http://x");
-  if (url.pathname === "/health") { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ ok: true, rooms: rooms.size })); return; }
+  // Any origin may ask: the web app on Pages knocks here to wake a sleeping host before connecting.
+  if (url.pathname === "/health") { res.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*", "cache-control": "no-store" }); res.end(JSON.stringify({ ok: true, rooms: rooms.size })); return; }
   if (!dir) { res.writeHead(404); res.end("no static dir"); return; }
   let p = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
   if (p.endsWith("/")) p += "index.html";

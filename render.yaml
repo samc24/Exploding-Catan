@@ -1,0 +1,18 @@
+# The game server on Render's free plan: the Dockerfile as-is, serving the
+# web app and the WebSocket on one port. Free services sleep after fifteen
+# idle minutes (a game in progress keeps one awake) and have no disk, so
+# DATA_DIR is left unset: rooms live in memory until the next sleep. The
+# web app on Pages points at wss://exploding-catan.onrender.com
+# (VITE_SERVER_URL in pages.yml). fly.toml is the paid, always-on option.
+services:
+  - type: web
+    name: exploding-catan
+    runtime: docker
+    plan: free
+    region: ohio
+    branch: master
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "8787"
