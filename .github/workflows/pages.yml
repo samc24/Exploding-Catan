@@ -1,5 +1,5 @@
-# Publishes the fork's GitHub Pages site once CI is green on master: the
-# original game at the root, and the new app at /new/.
+# Publishes the web app to GitHub Pages once CI is green on master. /new/,
+# where the app lived while the original game held the root, redirects up.
 name: Pages
 on:
   workflow_run:
@@ -31,8 +31,14 @@ jobs:
       - name: Assemble site
         run: |
           mkdir -p _site/new
-          cp -R legacy/. _site/
-          cp -R apps/web/dist/. _site/new/
+          cp -R apps/web/dist/. _site/
+          cat > _site/new/index.html <<'HTML'
+          <!doctype html><meta charset="utf-8"><title>Exploding Catan</title>
+          <meta http-equiv="refresh" content="0; url=../">
+          <link rel="canonical" href="../">
+          <script>location.replace("../" + location.search + location.hash)</script>
+          <p>Moved: <a href="../">play here</a>.</p>
+          HTML
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
