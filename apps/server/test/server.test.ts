@@ -5,7 +5,7 @@ import { geometry, canPlaceSettlement, type GameState } from "@exploding-catan/e
 import { startServer } from "../src/server";
 
 let srv: ReturnType<typeof startServer>;
-beforeAll(() => { srv = startServer({ port: 0, log: () => {}, botPace: 2 }); });
+beforeAll(() => { srv = startServer({ port: 0, log: () => {}, botPace: 2, allowClientSeed: true }); });
 afterAll(async () => { await srv.close(); });
 
 /** A tiny test client: send, and wait for the next message of a kind. */
@@ -140,7 +140,7 @@ describe("persistence", () => {
   it("a restarted server restores the room, the game and the seats, and bots carry on", async () => {
     const { MemoryStore } = await import("../src/store");
     const store = new MemoryStore();
-    const first = startServer({ port: 0, log: () => {}, botPace: 2, store });
+    const first = startServer({ port: 0, log: () => {}, botPace: 2, store, allowClientSeed: true });
     const savedSrv = srv; srv = first;
     const a = await hello("Ann");
     a.send({ t: "create", seats: 3, config: { ...config, winPoints: 10 } });
@@ -158,7 +158,7 @@ describe("persistence", () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(store.rooms.has(code)).toBe(true);
     // Second process, same store.
-    const second = startServer({ port: 0, log: () => {}, botPace: 2, store });
+    const second = startServer({ port: 0, log: () => {}, botPace: 2, store, allowClientSeed: true });
     srv = second;
     expect(second.rooms.has(code)).toBe(true);
     const back = await hello("Ann", a.token);
@@ -187,8 +187,8 @@ describe("persistence", () => {
     const dir = mkdtempSync(join(tmpdir(), "ec-store-"));
     try {
       const fs1 = new FileStore(dir, 10);
-      fs1.saveRoom({ code: "ABCD", hostUid: "u1", config, seats: [{ uid: "u1", name: "Ann", bot: false }, { uid: null, name: "Blue (bot)", bot: true }], seed: 7, state: null, members: ["u1"], savedAt: 1 });
-      fs1.saveRoom({ code: "ABCD", hostUid: "u1", config, seats: [{ uid: "u1", name: "Ann", bot: false }, { uid: null, name: "Blue (bot)", bot: true }], seed: 8, state: null, members: ["u1"], savedAt: 2 });
+      fs1.saveRoom({ code: "ABCD", hostUid: "u1", config, seats: [{ uid: "u1", name: "Ann", bot: false }, { uid: null, name: "Blue (bot)", bot: true }], seed: 7, state: null, savedAt: 1 });
+      fs1.saveRoom({ code: "ABCD", hostUid: "u1", config, seats: [{ uid: "u1", name: "Ann", bot: false }, { uid: null, name: "Blue (bot)", bot: true }], seed: 8, state: null, savedAt: 2 });
       fs1.saveSession({ token: "t-1", uid: "u1", name: "Ann", room: "ABCD" });
       fs1.flush();
       const fs2 = new FileStore(dir);
@@ -199,9 +199,88 @@ describe("persistence", () => {
       fs2.deleteRoom("ABCD");
       expect(fs2.loadRooms()).toEqual([]);
       // Names that are not plain identifiers are refused rather than written.
-      fs2.saveRoom({ code: "../x", hostUid: "", config, seats: [], seed: 0, state: null, members: [], savedAt: 0 });
+      fs2.saveRoom({ code: "../x", hostUid: "", config, seats: [], seed: 0, state: null, savedAt: 0 });
       fs2.flush();
       expect(fs2.loadRooms()).toEqual([]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe("edges", () => {
+  it("hands the host role on when the host leaves, and to anybody when the host is gone", async () => {
+    const a = await hello("Ann"), b = await hello("Ben");
+    a.send({ t: "create", seats: 2, config });
+    const code = (await a.next("room")).room.code;
+    b.send({ t: "join", code }); await b.next("room");
+    b.drain("room");
+    a.send({ t: "leave" }); await a.next("left");
+    const r = await b.next("room");
+    expect(r.room.host).toBe(true);
+    // Ben leaves too; a newcomer to the empty room may run it.
+    b.send({ t: "leave" }); await b.next("left");
+    const c = await hello("Cal");
+    c.send({ t: "join", code });
+    expect((await c.next("room")).room.host).toBe(true);
+    a.close(); b.close(); c.close();
+  });
+  it("refuses a wrong protocol version, then accepts a right one on the same socket", async () => {
+    const c = new C(); await c.open();
+    c.send({ t: "hello", v: 0, name: "Old" });
+    expect((await c.next("error")).message).toMatch(/protocol/);
+    c.send({ t: "hello", v: 1, name: "Old" });
+    expect((await c.next("welcome")).name).toBe("Old");
+    c.close();
+  });
+  it("refuses actions from a spectator, ticks from anybody, and a client seed unless allowed", async () => {
+    const a = await hello("Ann"), w = await hello("Watcher");
+    a.send({ t: "create", seats: 2, config });
+    const code = (await a.next("room")).room.code;
+    a.send({ t: "bot", seat: 1, on: true });
+    a.drain("room");
+    a.send({ t: "start", seed: 1 });
+    await a.next("state");
+    w.send({ t: "join", code });
+    await w.next("room");
+    w.send({ t: "action", action: { type: "roll", seat: 0 } });
+    expect((await w.next("refused")).error).toMatch(/watching/);
+    a.send({ t: "action", action: { type: "tick" } });
+    expect((await a.next("refused")).error).toMatch(/not yours/);
+    a.close(); w.close();
+  });
+  it("a second tab with the same token replaces the first without unseating the player", async () => {
+    const a = await hello("Ann");
+    a.send({ t: "create", seats: 2, config });
+    const code = (await a.next("room")).room.code;
+    const closed = new Promise<number>((res) => a.ws.once("close", (c) => res(c)));
+    const a2 = await hello("Ann", a.token);
+    expect(await closed).toBe(4000);
+    const r = await a2.next("room");
+    expect(r.room.seat).toBe(0);
+    expect(srv.rooms.get(code)!.info(srv.rooms.get(code)!.hostUid).seats[0].connected).toBe(true);
+    a2.close();
+  });
+  it("sweeps an idle room from memory and from the store", async () => {
+    const { MemoryStore } = await import("../src/store");
+    const store = new MemoryStore();
+    const quick = startServer({ port: 0, log: () => {}, store, roomIdleMs: 150 });
+    const saved = srv; srv = quick;
+    const a = await hello("Ann");
+    a.send({ t: "create", seats: 2, config });
+    const code = (await a.next("room")).room.code;
+    expect(store.rooms.has(code)).toBe(true);
+    a.close();
+    await new Promise((r) => setTimeout(r, 500));
+    expect(quick.rooms.has(code)).toBe(false);
+    expect(store.rooms.has(code)).toBe(false);
+    expect([...store.sessions.values()][0].room).toBeNull();
+    await quick.close();
+    srv = saved;
+  });
+  it("clamps a client's config", async () => {
+    const a = await hello("Ann");
+    a.send({ t: "create", seats: 2, config: { mode: "weird" as never, board: "huge" as never, winPoints: 99, turnSeconds: 5 } });
+    const r = (await a.next("room")).room;
+    expect(r.config).toEqual({ mode: "normal", board: "auto", winPoints: 20, turnSeconds: 0 });
+    a.close();
   });
 });

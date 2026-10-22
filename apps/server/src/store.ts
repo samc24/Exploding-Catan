@@ -22,8 +22,6 @@ export interface RoomSnapshot {
   seats: SeatRecord[];
   seed: number;
   state: GameState | null;
-  /** The uids who were in the room, so they can find their way back. */
-  members: string[];
   savedAt: number;
 }
 export interface SessionRecord { token: string; uid: string; name: string; room: string | null }
@@ -70,9 +68,12 @@ export class FileStore implements RoomStore {
   saveSession(rec: SessionRecord): void { this.later("sessions/" + rec.token, () => this.write("sessions", rec.token, rec)); }
   flush(): void {
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-    const jobs = [...this.pending.values()];
+    const jobs = [...this.pending.entries()];
     this.pending.clear();
-    for (const job of jobs) job();
+    // A full disk or a detached volume must not take the game down with it.
+    for (const [key, job] of jobs) {
+      try { job(); } catch (err) { console.warn(`could not write ${key}: ${err instanceof Error ? err.message : err}`); }
+    }
   }
   private later(key: string, job: () => void): void {
     this.pending.set(key, job);

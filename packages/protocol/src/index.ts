@@ -8,6 +8,7 @@
    trusting their own.
    ══════════════════════════════════════════════════════════════════════ */
 import type { Action, BoardKey, GameEvent, GameState, Mode } from "@exploding-catan/engine";
+import { MODES } from "@exploding-catan/engine";
 
 export const PROTOCOL_VERSION = 1;
 
@@ -61,6 +62,8 @@ export type ServerMsg =
   | { t: "room"; room: RoomInfo; now: number }
   | { t: "left" }
   | { t: "state"; state: GameState; events: GameEvent[]; seat: number | null; now: number }
+  /** The clocks moved and nothing else did. A few bytes instead of a whole state. */
+  | { t: "clock"; turnTimerUntil: number; turnTickAt: number; implodeUntil: number; implodeFrom: number; now: number }
   | { t: "refused"; error: string; action?: Action }
   | { t: "error"; message: string }
   | { t: "chat"; seat: number | null; name: string; text: string; at: number }
@@ -69,5 +72,34 @@ export type ServerMsg =
 
 export const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 to read aloud
 export const MAX_CHAT = 140;
+export const NAME_MAX = 16;
+
+/** A display name as the server will keep it: printable, no angle brackets, at most NAME_MAX. */
+export function cleanName(n: unknown): string {
+  return Array.from(String(n ?? ""))
+    .filter((ch) => ch.charCodeAt(0) >= 32 && ch !== "<" && ch !== ">")
+    .join("")
+    .trim()
+    .slice(0, NAME_MAX);
+}
+
+export const WIN_POINTS = { min: 3, max: 20, default: 10 };
+export const TURN_SECONDS = { min: 20, max: 600 };
+
+/** Whatever a client sent, as a config the engine accepts. Unknown values fall back. */
+export function normalizeRoomConfig(raw: unknown, base?: RoomConfig): RoomConfig {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof RoomConfig, unknown>>;
+  const mode = typeof r.mode === "string" && r.mode in MODES ? (r.mode as Mode) : base?.mode ?? "normal";
+  const board = r.board === "small" || r.board === "large" || r.board === "auto" ? r.board : base?.board ?? "auto";
+  const wp = Number(r.winPoints);
+  const winPoints = Number.isInteger(wp) ? Math.min(WIN_POINTS.max, Math.max(WIN_POINTS.min, wp)) : base?.winPoints ?? WIN_POINTS.default;
+  const ts = Number(r.turnSeconds);
+  const turnSeconds = Number.isInteger(ts) && ts >= TURN_SECONDS.min ? Math.min(TURN_SECONDS.max, ts) : 0;
+  return { mode, board, winPoints, turnSeconds: r.turnSeconds === undefined && base ? base.turnSeconds : turnSeconds };
+}
+
+export function defaultAvatar(seat: number): string {
+  return String(1 + ((seat * 7) % 26));
+}
 /** The tray. Anything else is refused, so a bot or a client cannot be given a wider vocabulary. */
 export const EMOJIS = ["😂", "😹", "😏", "🤡", "💀", "😭", "😱", "🙄", "🔥", "🧠", "👏", "🤝", "🙏", "🥱", "🐔", "💩", "🖕", "👶"];
