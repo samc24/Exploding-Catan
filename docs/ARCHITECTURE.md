@@ -20,8 +20,8 @@ apps/
 index.html, ai.js, net.js     the original game, untouched, still served by Pages
 ```
 
-Published by the Pages workflow: the original at the site root, the new app
-under `/new/`.
+Published by the Pages workflow from `master`: the original at the site
+root, the new app under `/new/`. Work happens on branches off `master`.
 
 The original files stay at the repository root for now so the published site
 keeps working while the new code grows beside it. When `apps/web` reaches

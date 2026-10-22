@@ -1,9 +1,9 @@
 # Publishes the fork's GitHub Pages site: the original game at the root, and
-# the new app at /new/. Deploys from dev while that is where the work is.
+# the new app at /new/. Deploys from master.
 name: Pages
 on:
   push:
-    branches: [dev]
+    branches: [master]
   workflow_dispatch:
 permissions:
   contents: read
