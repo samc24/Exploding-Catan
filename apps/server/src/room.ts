@@ -11,7 +11,7 @@ import {
   type Action, type GameConfig, type GameEvent, type GameState,
 } from "@exploding-catan/engine";
 import { createTable, nextBotAction, type Table } from "@exploding-catan/bots";
-import { CODE_CHARS, MAX_CHAT, type RoomConfig, type RoomInfo, type ServerMsg } from "@exploding-catan/protocol";
+import { CODE_CHARS, EMOJIS, MAX_CHAT, type RoomConfig, type RoomInfo, type ServerMsg } from "@exploding-catan/protocol";
 import type { RoomSnapshot } from "./store";
 
 export interface Client {
@@ -236,6 +236,18 @@ export class Room {
     const clean = String(text).slice(0, MAX_CHAT).trim();
     if (!clean) return;
     const msg: ServerMsg = { t: "chat", seat: this.seatOf(uid), name: c.name, text: clean, at: Date.now() };
+    for (const x of this.clients.values()) if (x.connected) x.send(msg);
+  }
+
+  /** An emoji thrown at the table. Seated players only, from the tray only, not too often. */
+  private lastEmote = new Map<string, number>();
+  emote(uid: string, emoji: string): void {
+    const seat = this.seatOf(uid);
+    if (seat === null || !EMOJIS.includes(emoji)) return;
+    const now = Date.now();
+    if (now - (this.lastEmote.get(uid) ?? 0) < 1500) return;
+    this.lastEmote.set(uid, now);
+    const msg: ServerMsg = { t: "emote", seat, emoji, at: now };
     for (const x of this.clients.values()) if (x.connected) x.send(msg);
   }
 

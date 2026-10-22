@@ -91,6 +91,11 @@ await ben.click('#sidetabs button[data-tab="chat"]');
 await ben.waitForSelector('#chatlog div:has-text("hello from Ann")', { timeout: 3000 });
 await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
 await ben.screenshot({ path: `${OUT}/online-04-ben.png` });
+// An emoji from Ann lands over Ann's seat on Ben's screen.
+await ann.click("#emojiBtn");
+await ann.locator("#emojiTray button").first().click();
+await ben.waitForSelector("#seats .seat .bubble", { timeout: 3000 });
+console.log("emote seen on Ben's screen:", await ben.locator("#seats .seat .bubble").textContent());
 // Reload Ben: the seat comes back.
 await ben.reload({ waitUntil: "networkidle" });
 await ben.waitForSelector("#board .hex", { timeout: 8000 });

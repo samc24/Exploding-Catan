@@ -16,6 +16,7 @@ export interface NetHandlers {
   room(room: RoomInfo | null): void;
   state(state: GameState, events: GameEvent[], seat: number | null): void;
   chat(seat: number | null, name: string, text: string, at: number): void;
+  emote(seat: number, emoji: string): void;
   refused(error: string): void;
   error(message: string): void;
   connection(up: boolean): void;
@@ -102,6 +103,7 @@ export class Net {
       case "refused": this.handlers.refused(m.error); break;
       case "error": this.handlers.error(m.message); break;
       case "chat": this.handlers.chat(m.seat, m.name, m.text, m.at); break;
+      case "emote": this.handlers.emote(m.seat, m.emoji); break;
       case "pong": this.offset = m.now - Date.now(); break;
     }
   }
@@ -120,4 +122,5 @@ export class Net {
   leave(): void { this.send({ t: "leave" }); this.room = null; this.seat = null; }
   action(action: Action): void { this.send({ t: "action", action }); }
   chat(text: string): void { this.send({ t: "chat", text }); }
+  emote(emoji: string): void { this.send({ t: "emote", emoji }); }
 }

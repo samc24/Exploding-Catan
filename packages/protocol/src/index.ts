@@ -53,6 +53,7 @@ export type ClientMsg =
   | { t: "restart" }
   | { t: "action"; action: Action }
   | { t: "chat"; text: string }
+  | { t: "emote"; emoji: string }
   | { t: "ping" };
 
 export type ServerMsg =
@@ -63,7 +64,10 @@ export type ServerMsg =
   | { t: "refused"; error: string; action?: Action }
   | { t: "error"; message: string }
   | { t: "chat"; seat: number | null; name: string; text: string; at: number }
+  | { t: "emote"; seat: number; emoji: string; at: number }
   | { t: "pong"; now: number };
 
 export const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no I/O/0/1 to read aloud
 export const MAX_CHAT = 140;
+/** The tray. Anything else is refused, so a bot or a client cannot be given a wider vocabulary. */
+export const EMOJIS = ["😂", "😹", "😏", "🤡", "💀", "😭", "😱", "🙄", "🔥", "🧠", "👏", "🤝", "🙏", "🥱", "🐔", "💩", "🖕", "👶"];

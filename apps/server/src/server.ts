@@ -103,6 +103,7 @@ export function startServer(opts: ServerOptions = {}) {
           case "start": hostOnly(room, s); room.start(msg.seed); return;
           case "restart": hostOnly(room, s); room.restart(); return;
           case "chat": room.chat(s.uid, msg.text); return;
+          case "emote": room.emote(s.uid, msg.emoji); return;
           case "action": { const err = room.act(s.uid, msg.action); if (err) send({ t: "refused", error: err, action: msg.action }); return; }
         }
       } catch (err) {

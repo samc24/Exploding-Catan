@@ -190,3 +190,26 @@ button.on{border-color:var(--accent);color:var(--accent)}
   .cardface{width:44px;height:62px}
   #panels{max-width:calc(100vw - 24px);left:12px;right:12px}
 }
+
+/* ── cards in flight ── */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+.flyer{position:absolute;will-change:transform;opacity:0}
+.fly-res{width:26px;height:36px;border-radius:4px;background-size:cover;background-position:center;box-shadow:0 4px 14px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25)}
+.fly-res.back{background:linear-gradient(135deg,#6b5a3a,#2e2618)}
+.fly-kit{width:44px;height:62px;border-radius:6px;background-size:cover;background-position:center;background-color:#2a2f3a;box-shadow:0 6px 18px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.25)}
+/* ── the side panel on a phone: a drawer ── */
+#sideBtn{display:none}
+@media (max-width:800px){
+  #sideBtn{display:inline-block}
+  #side{display:none;position:absolute;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:30;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+  #side.open{display:flex}
+}
+
+/* ── emotes ── */
+#emojiTray{position:absolute;top:44px;right:12px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(6,36px);gap:4px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+#emojiTray button{font-size:20px;padding:4px 0;line-height:1;border:0;background:transparent}
+#emojiTray button:hover{background:var(--panel2)}
+.seat{overflow:visible}
+.seat .bubble{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);font-size:34px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:bubble 3s forwards;pointer-events:none;z-index:25}
+.seat .bubble::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
+@keyframes bubble{0%{opacity:0;transform:translate(-50%,-80%) scale(.6)}12%{opacity:1;transform:translate(-50%,-100%) scale(1.08)}20%{transform:translate(-50%,-100%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-120%)}}

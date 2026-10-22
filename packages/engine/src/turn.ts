@@ -224,7 +224,9 @@ export function produce(c: Ctx, sum: number): { paid: Bundle[]; notes: string[] 
   const gains = s.players.map((p) => { const t = bundleText(paid[p.id]); return t ? `${p.name}: ${t}` : null; }).filter(Boolean);
   log(c, gains.length ? gains.join(" · ") : "Nobody produces.");
   for (const n of notes) log(c, n);
-  c.events.push({ type: "production", sources, paid });
+  // Only what was actually paid flies: a resource the bank was short of never left it.
+  const flown = sources.filter((src) => paid[src.pid][src.r] > 0).map((src) => ({ ...src, n: Math.min(src.n, paid[src.pid][src.r]) }));
+  c.events.push({ type: "production", sources: flown, paid });
   return { paid, notes };
 }
 

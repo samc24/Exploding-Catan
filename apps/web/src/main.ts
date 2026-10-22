@@ -21,7 +21,8 @@ import { newGameDialog } from "./ui/newgame";
 import { showRules } from "./ui/rules";
 import { cardArt, cardBack, has, preload } from "./art";
 import { createTable, nextBotAction, isBot as tableHasBot, type Table } from "@exploding-catan/bots";
-import type { RoomInfo } from "@exploding-catan/protocol";
+import { playEvents } from "./ui/fx";
+import { EMOJIS, type RoomInfo } from "@exploding-catan/protocol";
 import { Net } from "./net";
 import { connectDialog, lobbyDialog, roomDialog } from "./ui/lobby";
 
@@ -185,6 +186,9 @@ function onEntry(e: JournalEntry): void {
 /* ── events → things on screen ─────────────────────────────────────── */
 function onEvents(s: GameState, events: GameEvent[]): void {
   feed.take(events);
+  // Flights are measured against the screen as it is BEFORE this render
+  // moves things, which is where the cards visibly were.
+  try { playEvents(s, events, viewSeat(s)); } catch { /* decoration only */ }
   for (const ev of events) {
     if (ev.type === "show") showcase(s, ev.what, ev.pid);
     if (ev.type === "hint" && ev.seat === ui.seat) hint(ev.text);
@@ -246,6 +250,7 @@ function render(): void {
     manualSeat = pid === waitingOn(s) ? null : pid;
     render();
   });
+  paintBubbles();
   ui.spectator = net.online && net.seat === null;
   drawBoard($("board") as unknown as SVGSVGElement, s, ui, boardCb);
   drawBottom($("bottom"), s, view, now, isBot, {
@@ -341,6 +346,41 @@ function drawChat(): void {
   for (const l of chatLines.slice(-80)) log.append(h("div", null, h("b", { style: { color: l.seat !== null ? ["#d94b4b", "#4b7fd9", "#e08a2e", "#e8e8e8", "#59b364", "#a86fd0"][l.seat] : "var(--dim)" } }, l.name), l.text));
   log.scrollTop = log.scrollHeight;
 }
+/* ── emotes: a bubble over a seat for a few seconds ── */
+const bubbles = new Map<number, { emoji: string; until: number }>();
+function showEmote(seat: number, emoji: string): void {
+  bubbles.set(seat, { emoji, until: Date.now() + 3000 });
+  paintBubbles();
+  setTimeout(paintBubbles, 3100);
+}
+function paintBubbles(): void {
+  const now = Date.now();
+  for (const [seat, b] of bubbles) if (b.until < now) bubbles.delete(seat);
+  const seats = $("seats").children;
+  for (let i = 0; i < seats.length; i++) {
+    const el = seats[i] as HTMLElement;
+    const old = el.querySelector(".bubble");
+    const b = bubbles.get(i);
+    if (!b) { old?.remove(); continue; }
+    if (old && old.textContent === b.emoji) continue;
+    old?.remove();
+    el.append(h("span", { class: "bubble" }, b.emoji));
+  }
+}
+let lastEmoteAt = 0;
+function throwEmote(emoji: string): void {
+  if (Date.now() - lastEmoteAt < 1500) return;
+  lastEmoteAt = Date.now();
+  if (net.online) { if (net.seat !== null) net.emote(emoji); return; }
+  showEmote(ui.seat, emoji);
+}
+{
+  const tray = $("emojiTray");
+  for (const e of EMOJIS) tray.append(h("button", { onclick: () => { throwEmote(e); tray.hidden = true; } }, e));
+  $("emojiBtn").onclick = () => { tray.hidden = !tray.hidden; };
+  document.addEventListener("pointerdown", (ev) => { if (!tray.hidden && !tray.contains(ev.target as Node) && ev.target !== $("emojiBtn")) tray.hidden = true; });
+}
+
 const net = new Net({
   room(room: RoomInfo | null) {
     if (!room) { if (lobbyShowing) { closeModal(); lobbyShowing = false; } goLocal(); if (net.connected) roomDialog(net); return; }
@@ -356,6 +396,7 @@ const net = new Net({
   },
   state(s, events) { feed.take([]); store.receive(s, events); },
   chat(seat, name, text) { chatLines.push({ seat, name, text }); drawChat(); if ($("chat").hidden) $("chatTab").classList.add("on"); },
+  emote(seat, emoji) { showEmote(seat, emoji); },
   refused(error) { hint(error, true); },
   error(message) { hint(message, true); },
   connection(up) { const tag = $("netTag"); tag.hidden = !up && !net.url; tag.textContent = up ? "online" : "reconnecting…"; tag.className = up ? "" : "off"; },
@@ -383,6 +424,7 @@ store.subscribe((s, events, action) => {
 });
 $("newBtn").onclick = () => newGameDialog(startGame, !!store.get());
 $("rulesBtn").onclick = showRules;
+$("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
   $("feed").hidden = b.dataset.tab !== "feed";
