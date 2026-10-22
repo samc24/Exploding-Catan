@@ -7,8 +7,9 @@ import { modalOpen } from "./ui/dialogs";
 import { showEmote } from "./emotes";
 
 const BOTS_KEY = "exploding-catan:bots";
-/** Bots deliberately move slowly, so a Nope can be reached for before the line scrolls away. */
-export const BOT_PACE = 2200;
+/** Bots deliberately move slowly: the cards they move can be watched landing,
+    and a Nope can be reached for before the line scrolls away. */
+export const BOT_PACE = 3000;
 let table: Table = createTable([], 0);
 let taunts: TauntMemory = createTauntMemory(0);
 let timer: number | null = null;

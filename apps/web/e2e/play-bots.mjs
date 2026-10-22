@@ -5,7 +5,7 @@ const { browser, page, errors } = await launch();
 await startLocal(page, { seed: "13", bots: [1, 2, 3] });
 let s = await state(page);
 console.log("first player:", s.firstPlayer, "cur:", s.cur);
-const deadline = Date.now() + 90_000;
+const deadline = Date.now() + 130_000; // bots pace themselves at 3 s a move
 let lastTurn = -1, shownBotHand = false;
 while (Date.now() < deadline) {
   s = await state(page);

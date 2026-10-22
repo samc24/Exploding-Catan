@@ -195,9 +195,9 @@ button.on{border-color:var(--accent);color:var(--accent)}
 /* ── cards in flight ── */
 #fxroot{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
 .flyer{position:absolute;will-change:transform;opacity:0}
-.fly-res{width:26px;height:36px;border-radius:4px;background-size:cover;background-position:center;box-shadow:0 4px 14px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25)}
+.fly-res{width:34px;height:48px;border-radius:4px;background-size:cover;background-position:center;box-shadow:0 4px 14px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25)}
 .fly-res.back{background:linear-gradient(135deg,#6b5a3a,#2e2618)}
-.fly-kit{width:44px;height:62px;border-radius:6px;background-size:cover;background-position:center;background-color:#2a2f3a;box-shadow:0 6px 18px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.25)}
+.fly-kit{width:60px;height:84px;border-radius:6px;background-size:cover;background-position:center;background-color:#2a2f3a;box-shadow:0 6px 18px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.25)}
 /* ── the side panel on a phone: a drawer ── */
 #sideBtn{display:none}
 #menu .phone{display:none}
@@ -250,8 +250,8 @@ button.on{border-color:var(--accent);color:var(--accent)}
 #menu .mrow span:last-child{color:var(--dim);min-width:32px;text-align:right}
 #menu button{text-align:left}
 /* ── dice tumble ── */
-.die.tumble{animation:tumble .55s cubic-bezier(.2,.8,.3,1.1)}
-@keyframes tumble{0%{transform:translateY(-18px) rotate(-200deg) scale(.7);opacity:0}55%{transform:translateY(3px) rotate(14deg) scale(1.08);opacity:1}75%{transform:translateY(-2px) rotate(-6deg)}100%{transform:none}}
+.die.tumble{animation:tumble .95s cubic-bezier(.2,.8,.3,1.05);transform-origin:center}
+@keyframes tumble{0%{transform:translateY(-30px) rotate(-420deg) scale(.6);opacity:0}25%{transform:translateY(-8px) rotate(-200deg) scale(1.7);opacity:1}55%{transform:translateY(4px) rotate(20deg) scale(1.55)}72%{transform:translateY(-3px) rotate(-8deg) scale(1.35)}100%{transform:none}}
 @media (prefers-reduced-motion:reduce){.die.tumble{animation:none}}
 
 /* ── the landing ── */
