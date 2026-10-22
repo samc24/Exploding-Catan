@@ -71,6 +71,7 @@ export function installDrag(): void {
     $("fxroot").append(ghost);
     drag = { card: pend.card, idx: pend.idx, from: pend.el, ghost, targets: targetsFor(s, pend.card) };
     pend.el.classList.add("lifted");
+    document.body.classList.add("dragging");
     mark(true, drag.targets);
     pend = null;
   }, { passive: false });
@@ -82,6 +83,7 @@ export function installDrag(): void {
     const target = cancelled ? null : hot(ev.clientX, ev.clientY);
     d.ghost.remove();
     d.from.classList.remove("lifted");
+    document.body.classList.remove("dragging");
     mark(false);
     swallowClickUntil = Date.now() + 300;
     if (!target) return;
