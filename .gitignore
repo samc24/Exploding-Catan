@@ -13,3 +13,6 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+
+# Vite cache
+**/.vite/
