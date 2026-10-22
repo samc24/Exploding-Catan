@@ -56,6 +56,12 @@ const vol = await page.evaluate(() => localStorage.getItem("exploding-catan:volu
 console.log("music volume:", volLabel, "saved", vol);
 if (volLabel !== "70%" || vol !== "0.7") errors.push("the volume slider did not take");
 // The real file, not the page the dev server falls back to for unknown paths.
+await page.locator("#sfxRow input[type=range]").fill("30"); await page.waitForTimeout(100);
+const fxVol = await page.evaluate(() => localStorage.getItem("exploding-catan:effects"));
+if (fxVol !== "0.3") errors.push("the effects slider did not take");
+const fx = await page.evaluate(async () => { const r = await fetch("./sfx/dice1.m4a"); return { ok: r.ok, type: r.headers.get("content-type") || "", bytes: (await r.arrayBuffer()).byteLength }; });
+console.log("sfx:", fx.type, fx.bytes, "bytes");
+if (!fx.ok || !/audio|mp4/.test(fx.type) || fx.bytes < 1000) errors.push("the sound effects are not served as audio");
 const track = await page.evaluate(async () => { const r = await fetch("./music/theme.mp3"); const type = r.headers.get("content-type") || ""; const bytes = (await r.arrayBuffer()).byteLength; return { ok: r.ok, type, bytes }; });
 console.log("soundtrack:", track.type, track.bytes, "bytes");
 if (!track.ok || !track.type.startsWith("audio/") || track.bytes < 1_000_000) errors.push("the soundtrack is not served as audio");

@@ -19,6 +19,7 @@ import { drawChat, net, resumeOnline, wireOnline } from "./online";
 import { BOT_PACE, pokeTaunts, restoreBots, scheduleBots } from "./bots-host";
 import { openNewGame } from "./game";
 import { installMusic } from "./music";
+import { installSfx } from "./sfx";
 
 setRenderer(render);
 setNoGameHandler(() => openNewGame(false));
@@ -61,6 +62,7 @@ installKeys();
 installDrag();
 installBoardView();
 installMusic();
+installSfx();
 installEmoteTray((emoji) => { if (net.online) { if (net.seat !== null) net.emote(emoji); } else showEmote(ui.seat, emoji); });
 wireOnline();
 
