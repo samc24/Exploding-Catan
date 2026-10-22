@@ -8,11 +8,13 @@ import { act, hint, panelCb, requestRender, ui } from "./screen";
 import { $, h } from "./ui/dom";
 import { closeModal, modalOpen, openModal } from "./ui/dialogs";
 import type { BoardCallbacks } from "./ui/board";
+import { sfx } from "./sfx";
 
 /** The board's two-click confirm: arm on the first click, act on the second. */
 function armOr(kind: string, id: number, go: () => void): void {
   if (ui.armed && ui.armed.kind === kind && ui.armed.id === id) { ui.armed = null; go(); return; }
   ui.armed = { kind, id };
+  sfx("arm");
   requestRender();
 }
 export const boardCb: BoardCallbacks = {

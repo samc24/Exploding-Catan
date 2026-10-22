@@ -19,3 +19,8 @@ coverage/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Session notes and Claude skills stay local for now
+CLAUDE.md
+WORK_NOTES.md
+.claude/

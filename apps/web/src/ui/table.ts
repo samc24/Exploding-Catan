@@ -3,10 +3,18 @@ import { KITTEN, MODES, type GameState } from "@exploding-catan/engine";
 import { $, clear, h } from "./dom";
 import { cardArt, cardBack, has } from "../art";
 
+let lastRoll = -1;
 export function drawTable(s: GameState): void {
   const dice = $("dice");
   clear(dice);
-  if (s.rolled) dice.append(h("div", { class: "die" }, String(s.rolled[0])), h("div", { class: "die red" }, String(s.rolled[1])));
+  if (s.rolled) {
+    // A new throw tumbles in; a repaint of the same throw does not.
+    const rollEntry = [...s.journal].reverse().find((e) => e.kind === "roll");
+    const fresh = !!rollEntry && rollEntry.id !== lastRoll;
+    if (rollEntry) lastRoll = rollEntry.id;
+    const cls = fresh ? " tumble" : "";
+    dice.append(h("div", { class: "die" + cls }, String(s.rolled[0])), h("div", { class: "die red" + cls, style: { animationDelay: "60ms" } }, String(s.rolled[1])));
+  } else lastRoll = -1;
 
   const pile = $("pile"); clear(pile);
   const top = [...s.pile].reverse().find((p) => !p.cancelled);

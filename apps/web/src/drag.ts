@@ -13,6 +13,7 @@ import { act, ui } from "./screen";
 import { $, h } from "./ui/dom";
 import { answerable } from "./ui/feed";
 import { offerAnswers, onCardOnEntry } from "./input";
+import { sfx } from "./sfx";
 
 const THRESHOLD = 6;
 interface Drag { card: Card; idx: number; from: HTMLElement; ghost: HTMLElement; targets: { nope: Set<number>; defuse: Set<number>; pile: boolean } }
@@ -71,6 +72,8 @@ export function installDrag(): void {
     $("fxroot").append(ghost);
     drag = { card: pend.card, idx: pend.idx, from: pend.el, ghost, targets: targetsFor(s, pend.card) };
     pend.el.classList.add("lifted");
+    document.body.classList.add("dragging");
+    sfx("arm", { rate: 1.2 });
     mark(true, drag.targets);
     pend = null;
   }, { passive: false });
@@ -82,9 +85,11 @@ export function installDrag(): void {
     const target = cancelled ? null : hot(ev.clientX, ev.clientY);
     d.ghost.remove();
     d.from.classList.remove("lifted");
+    document.body.classList.remove("dragging");
     mark(false);
     swallowClickUntil = Date.now() + 300;
     if (!target) return;
+    sfx("drop");
     const s = store.get();
     if (!s) return;
     if (target.matches("#pile .cardface")) {
