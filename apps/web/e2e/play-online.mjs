@@ -38,7 +38,7 @@ await ann.waitForTimeout(300);
 if (!(await ann.locator("#seats .seat").nth(2).textContent()).includes("🤖")) errors.push("the bot seat is not marked on Ann's screen");
 
 // Play the opening from whichever screen has spots; the bot places its own.
-const deadline = Date.now() + 60000;
+const deadline = Date.now() + 90000;
 let inMain = false;
 while (Date.now() < deadline && !inMain) {
   let acted = false;

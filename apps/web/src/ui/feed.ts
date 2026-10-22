@@ -1,4 +1,4 @@
-import { canNopeEntry, type GameEvent, type GameState, type JournalEntry } from "@exploding-catan/engine";
+import { answersFor, canNopeEntry, type GameEvent, type GameState, type JournalEntry } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
 
 export interface FeedLine { text: string; kind: string; jid: number | null; }
@@ -25,22 +25,35 @@ export class Feed {
 let lastSignature = "";
 export function resetFeedSignature(): void { lastSignature = ""; }
 
-/** The feed, newest at the bottom. Lines that are still answerable are marked, and clickable. */
-export function drawFeed(root: HTMLElement, s: GameState, feed: Feed, now: number, onEntry: (e: JournalEntry) => void): void {
+/** The lines THIS seat could answer right now, and with which card. */
+export function answerable(s: GameState, view: number, now: number): { nope: Set<number>; defuse: Set<number> } {
+  const p = s.players[view];
+  const has = (k: string) => !!p && p.cards.some((c) => c.key === k);
+  const jids = (key: "nope" | "defuse") => new Set(answersFor(s, key, view, now).flatMap((a) => ("jid" in a ? [a.jid] : [])));
+  return { nope: has("nope") ? jids("nope") : new Set(), defuse: has("defuse") ? jids("defuse") : new Set() };
+}
+
+/** The feed, newest at the bottom. A line this seat holds an answer to says
+    which card answers it, and is clickable (and a drop target). */
+export function drawFeed(root: HTMLElement, s: GameState, feed: Feed, view: number, now: number, onEntry: (e: JournalEntry) => void): void {
   const open = new Map<number, JournalEntry>();
   for (const e of s.journal) if (canNopeEntry(s, e, now)) open.set(e.id, e);
+  const mine = answerable(s, view, now);
   const lastLine = feed.lines[feed.lines.length - 1];
-  const signature = `${feed.lines.length}|${lastLine ? lastLine.text : ""}|${[...open.keys()].join(",")}`;
+  const signature = `${view}|${feed.lines.length}|${lastLine ? lastLine.text : ""}|${[...open.keys()].join(",")}|${[...mine.nope].join(",")}|${[...mine.defuse].join(",")}`;
   if (signature === lastSignature && root.childElementCount === feed.lines.length) return;
   lastSignature = signature;
   clear(root);
   for (const l of feed.lines) {
     const e = l.jid !== null ? open.get(l.jid) : undefined;
+    const withNope = e ? mine.nope.has(e.id) : false, withDefuse = e ? mine.defuse.has(e.id) : false;
+    const badge = withNope && withDefuse ? "Nope · Defuse" : withNope ? "Nope" : withDefuse ? "Defuse" : e ? "open" : null;
     root.append(h("div", {
-      class: "fl " + l.kind + (e ? " open" : ""),
+      class: "fl " + l.kind + (e ? " open" : "") + (withNope || withDefuse ? " mine" : ""),
+      dataset: e ? { jid: String(e.id) } : undefined,
       onclick: e ? () => onEntry(e) : null,
-      title: e ? "Still answerable — click to answer with a Nope or Defuse" : null,
-    }, l.text, e ? h("span", { class: "ans" }, "answerable") : null));
+      title: withNope || withDefuse ? "You hold an answer to this: click, or drop the card here" : e ? "Still open to an answer" : null,
+    }, l.text, badge ? h("span", { class: "ans" + (withNope || withDefuse ? "" : " faint") }, badge) : null));
   }
   root.scrollTop = root.scrollHeight;
 }

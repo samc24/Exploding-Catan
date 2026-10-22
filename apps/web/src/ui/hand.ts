@@ -45,7 +45,7 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     else if (live) cls += reaction ? " answer" : " live";
     else { cls += " dead"; why += c.boughtTurn === s.turnCounter ? " (bought this turn)" : ""; }
     const art = has(cardArt(c.key, c.flavor)) ? cardArt(c.key, c.flavor) : null;
-    hand.append(h("div", { class: cls, title: `${def.name}: ${why}`, style: art ? { backgroundImage: `url(${art})` } : null, onclick: () => cb.card(c) },
+    hand.append(h("div", { class: cls, title: `${def.name}: ${why}`, dataset: { idx: String(p.cards.indexOf(c)), card: String(c.id) }, style: art ? { backgroundImage: `url(${art})` } : null, onclick: () => cb.card(c) },
       live && reaction ? h("span", { class: "pip" }) : null,
       art ? "" : def.name + (c.flavor ? ` (${c.flavor})` : "")));
   }

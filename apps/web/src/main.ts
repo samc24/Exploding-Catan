@@ -12,9 +12,11 @@ import { showRules } from "./ui/rules";
 import { feed, setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
 import { onEvents, paintClocks, render } from "./render";
 import { installKeys } from "./input";
+import { installDrag } from "./drag";
+import { installBoardView } from "./boardview";
 import { installEmoteTray, showEmote } from "./emotes";
 import { drawChat, net, resumeOnline, wireOnline } from "./online";
-import { BOT_PACE, restoreBots, scheduleBots } from "./bots-host";
+import { BOT_PACE, pokeTaunts, restoreBots, scheduleBots } from "./bots-host";
 import { openNewGame } from "./game";
 
 setRenderer(render);
@@ -29,21 +31,28 @@ store.subscribe((s, events, action) => {
   if (s && s.cur !== lastCur) { lastCur = s.cur; if (manualSeat !== null) setManualSeat(null); }
   if (action && action.type !== "tick") ui.armed = null;
   render();
-  // Anything a person did may have handed the bots something to do.
-  if (action && action.type !== "tick") scheduleBots(BOT_PACE);
+  // Anything a person did may have handed the bots something to do, or to say.
+  if (action && action.type !== "tick") { pokeTaunts(); scheduleBots(BOT_PACE); }
 });
 
 $("newBtn").onclick = () => openNewGame(!!store.get());
 $("rulesBtn").onclick = showRules;
 $("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
+const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", dice: "dicepanel" };
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
-  $("feed").hidden = b.dataset.tab !== "feed";
-  $("log").hidden = b.dataset.tab !== "log";
-  $("chat").hidden = b.dataset.tab !== "chat";
+  for (const [tab, id] of Object.entries(PANES)) $(id).hidden = b.dataset.tab !== tab;
   if (b.dataset.tab === "chat") { drawChat(); setTimeout(() => $("chatin").focus(), 0); }
+  render();
 };
+if (document.fullscreenEnabled) {
+  const fs = $("fsBtn");
+  fs.hidden = false;
+  fs.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => { /* refused */ }); };
+}
 installKeys();
+installDrag();
+installBoardView();
 installEmoteTray((emoji) => { if (net.online) { if (net.seat !== null) net.emote(emoji); } else showEmote(ui.seat, emoji); });
 wireOnline();
 

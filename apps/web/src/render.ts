@@ -20,6 +20,7 @@ import { drawSeats } from "./ui/seats";
 import { drawBottom } from "./ui/hand";
 import { drawPanels } from "./ui/panels";
 import { drawFeed, drawLog } from "./ui/feed";
+import { drawDiceHistory } from "./ui/dice";
 import { drawTable, clearTable } from "./ui/table";
 import { showcase } from "./ui/showcase";
 import { standings } from "./ui/standings";
@@ -53,9 +54,15 @@ export function render(): void {
     cancelSelect: () => act({ type: "cancelSelect", seat: view }),
   }, !!ui.spectator);
   drawPanels($("panels"), s, view, panelCb);
-  drawFeed($("feed"), s, feed, now, onEntry);
+  drawFeed($("feed"), s, feed, view, now, onEntry);
   drawLog($("log"), s);
+  drawDiceHistory($("dicepanel"), s);
   drawTable(s);
+  // Which way round the table, which matters once a Reverse has been played.
+  const dir = $("dirTag");
+  dir.hidden = s.phase.startsWith("setup");
+  dir.textContent = s.dir === 1 ? "↻ clockwise" : "↺ reversed";
+  dir.classList.toggle("rev", s.dir === -1);
   paintImplodeClock(s, now);
   clockGate = gateOf(s, now);
   scheduleTicks(s);

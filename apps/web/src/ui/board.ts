@@ -20,6 +20,10 @@ export interface BoardUI {
   armed: { kind: string; id: number } | null;
   /** Watching only: nothing on the board is clickable. */
   spectator?: boolean;
+  /** The view: 1 is the whole board; pan is in board units. */
+  zoom: number;
+  panX: number;
+  panY: number;
 }
 
 const PIPS: Record<number, number> = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
@@ -32,7 +36,11 @@ export function drawBoard(root: SVGSVGElement, s: GameState, ui: BoardUI, cb: Bo
   const pad = R * 0.9;
   const minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad;
   const minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
-  root.setAttribute("viewBox", `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+  const w = maxX - minX, hgt = maxY - minY, z = Math.max(1, ui.zoom || 1);
+  const vw = w / z, vh = hgt / z;
+  const vx = minX + (w - vw) / 2 + (ui.panX || 0), vy = minY + (hgt - vh) / 2 + (ui.panY || 0);
+  root.setAttribute("viewBox", `${vx} ${vy} ${vw} ${vh}`);
+  root.dataset.extent = JSON.stringify({ w, h: hgt });
   root.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
   const defs = svg("defs");

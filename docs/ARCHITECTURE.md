@@ -107,9 +107,15 @@ that seat. Nothing is modal except menus, so nothing the game needs can be
 dismissed.
 
 Clicks on the board arm a spot on the first click and act on the second, the
-way the original does. Cards are clicked, not dragged: a reaction card opens
-the engine's `answersFor` list when there is more than one thing it could
-answer. Screen-local state (what is armed, which seat is being looked at,
+way the original does. A card can be clicked or dragged: onto the pile to
+play it (or to answer with it), onto an open log line to answer that line,
+or within the hand to reorder. A Nope or Defuse with more than one thing to
+answer opens a chooser built from the engine's `answersFor`, which gives each
+choice a label and a sentence saying what it does (including what a
+cancelled turn would lose, from `describeTurnGains`); hovering a choice
+lights the line or the seat it means. Feed lines say which card in your hand
+answers them. Bot taunts come from `packages/bots` as a pure function over
+the journal and are shown as emotes, locally and through the server. Screen-local state (what is armed, which seat is being looked at,
 which composer is open) lives in `main.ts` and never touches the rules.
 
 `e2e/` holds headless-Chrome smoke tests that play through setup, turns, and

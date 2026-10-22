@@ -188,7 +188,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
 }
 
 /* ── cards in flight ── */
-#fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+#fxroot{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
 .flyer{position:absolute;will-change:transform;opacity:0}
 .fly-res{width:26px;height:36px;border-radius:4px;background-size:cover;background-position:center;box-shadow:0 4px 14px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25)}
 .fly-res.back{background:linear-gradient(135deg,#6b5a3a,#2e2618)}
@@ -208,3 +208,36 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .seat .bubble{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);font-size:34px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:bubble 3s forwards;pointer-events:none;z-index:25}
 .seat .bubble::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
 @keyframes bubble{0%{opacity:0;transform:translate(-50%,-80%) scale(.6)}12%{opacity:1;transform:translate(-50%,-100%) scale(1.08)}20%{transform:translate(-50%,-100%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-120%)}}
+
+/* ── answering: the chooser, the lit line, the badges ── */
+.answer{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;margin-bottom:6px}
+.answer:hover{border-color:#8ad8f5;background:#26324a}
+.answer.turn{border-color:#6b2f2f}
+.answer.turn:hover{border-color:var(--danger);background:#3a2626}
+.answer b{font-size:13.5px}
+.answer span{color:var(--dim);font-size:12px;line-height:1.35}
+.fl.mine{box-shadow:0 0 0 1px #8ad8f5 inset}
+.fl .ans.faint{background:transparent;color:var(--dim);border:1px solid var(--line)}
+.fl.hl,.seat.hl{outline:2px solid var(--accent);outline-offset:1px;background:#2e2a1c}
+/* ── dragging ── */
+.kc.lifted{opacity:.35}
+.kc.ghost{position:absolute;transform:translate(-50%,-60%) rotate(-4deg) scale(1.12);pointer-events:none;box-shadow:0 18px 40px rgba(0,0,0,.7);z-index:70;cursor:grabbing}
+.droppable{box-shadow:0 0 0 2px var(--ok) !important}
+.dropping{box-shadow:0 0 0 3px var(--accent) !important;background:#2e2a1c !important}
+.hand.droppable{border-radius:8px;outline:2px dashed rgba(89,179,100,.6);outline-offset:4px;box-shadow:none !important}
+.kc{touch-action:none;cursor:grab}
+/* ── dice history ── */
+#dicepanel{flex:1;overflow-y:auto;padding:8px 10px;font-size:12px}
+.hist{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;align-items:end;height:120px;margin:6px 0 4px}
+.hist .bar{background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.hist .bar.red{background:var(--danger)}
+.hist .bar i{position:absolute;top:-16px;left:0;right:0;text-align:center;font-style:normal;font-size:10px;color:var(--dim)}
+.histlbl{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;text-align:center;color:var(--dim);font-size:11px;margin-bottom:10px}
+.recent{display:flex;flex-wrap:wrap;gap:4px}
+.recent span{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-weight:700}
+.recent span.seven{border-color:var(--danger);color:var(--danger)}
+/* ── direction, zoom, fullscreen ── */
+#dirTag{font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+#dirTag.rev{color:var(--accent);border-color:var(--accent)}
+#zoomWrap{position:absolute;left:12px;bottom:12px;display:flex;gap:4px;z-index:21}
+#board.panning{cursor:grabbing}

@@ -32,7 +32,7 @@ console.log("attackDue:", JSON.stringify(s.attackDue), "panel:", await page.loca
 await page.screenshot({ path: `${OUT}/12-discard.png` });
 await page.click('.kc[title^="Defuse"]'); await page.waitForTimeout(300);
 // More than one thing to answer (a robbery too): pick the Attack.
-if (!(await page.locator("#modal").isHidden())) { await page.locator('#modal .btns button', { hasText: "Attack" }).first().click(); await page.waitForTimeout(300); }
+if (!(await page.locator("#modal").isHidden())) { await page.locator('#modal .answer', { hasText: "Attack" }).first().click(); await page.waitForTimeout(300); }
 s = await state(page);
 console.log("after defuse: attackDue", JSON.stringify(s.attackDue), "last:", s.journal[s.journal.length - 1].text);
 if (!s.journal[s.journal.length - 1].text.includes("Defuses")) errors.push("the Defuse did not land");
@@ -53,8 +53,8 @@ console.log("favor done:", s.journal[s.journal.length - 1].text);
 await page.locator("#seats .seat").nth((me + 2) % 4).click(); await page.waitForTimeout(150);
 await page.click('.kc[title^="Nope"]'); await page.waitForTimeout(200);
 await page.screenshot({ path: `${OUT}/15-nope-choice.png` });
-console.log("nope choices:", await page.locator("#modal .btns button").allTextContents());
-await page.locator("#modal .btns button").first().click(); await page.waitForTimeout(300);
+console.log("nope choices:", await page.locator("#modal .answer b").allTextContents());
+await page.locator("#modal .answer").first().click(); await page.waitForTimeout(300);
 s = await state(page);
 console.log("after nope:", s.journal[s.journal.length - 1].text, "| cur", s.cur, "phase", s.phase);
 await page.screenshot({ path: `${OUT}/16-noped.png` });
@@ -85,6 +85,37 @@ s = await state(page);
 console.log("trade settled:", s.trade === null, s.journal[s.journal.length - 1].text);
 if (s.trade !== null) errors.push("the trade did not settle");
 
+// DRAG: the Skip card is dragged onto the discard pile, which plays it (the seat pick opens).
+{
+  const skip = page.locator('.kc[title^="Skip"]');
+  const a = await skip.boundingBox(), b = await page.locator("#pile .cardface").boundingBox();
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) { await page.mouse.move(a.x + ((b.x + b.width / 2) - a.x) * (i / 12), a.y + ((b.y + b.height / 2) - a.y) * (i / 12)); await page.waitForTimeout(16); }
+  const droppable = await page.locator("#pile .cardface.droppable").count();
+  await page.mouse.up(); await page.waitForTimeout(250);
+  s = await state(page);
+  console.log("dragged Skip to the pile: pile lit", droppable === 1, "| select", s.select && s.select.kind);
+  if (!s.select || s.select.kind !== "seat") errors.push("dragging a card onto the pile did not play it");
+  await page.screenshot({ path: `${OUT}/21-dragged.png` });
+  await page.keyboard.press("Escape"); await page.waitForTimeout(150); // put it back
+}
+// The chooser explains each answer: give the third player a Nope and open it.
+{
+  await page.evaluate(() => { const g = JSON.parse(localStorage.getItem("exploding-catan:game")); g.players[(g.cur + 2) % 4].cards.push({ id: 71000, key: "nope", flavor: null, boughtTurn: -1 }); localStorage.setItem("exploding-catan:game", JSON.stringify(g)); });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator("#seats .seat").nth((me + 2) % 4).click(); await page.waitForTimeout(150);
+  await page.click('.kc[title^="Nope"]'); await page.waitForTimeout(200);
+  const rows = await page.locator("#modal .answer").count();
+  const effects = await page.locator("#modal .answer span").allTextContents();
+  console.log("chooser rows:", rows, "| first effect:", (effects[0] || "").slice(0, 60));
+  if (rows < 1 || !effects.every((e) => e.length > 20)) errors.push("the Nope chooser does not explain its answers");
+  await page.hover("#modal .answer.turn");
+  if (!(await page.locator("#seats .seat.hl").count())) errors.push("hovering the whole-turn answer did not light the seat");
+  await page.screenshot({ path: `${OUT}/22-chooser.png` });
+  await page.keyboard.press("Escape");
+  await page.locator("#seats .seat").nth(me).click(); await page.waitForTimeout(100);
+}
 // BUY cards
 await page.click('#bottom button:has-text("Buy cards")'); await page.waitForTimeout(100);
 await page.screenshot({ path: `${OUT}/19-buy.png` });

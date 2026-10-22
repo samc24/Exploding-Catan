@@ -16,8 +16,8 @@ function reduced(): boolean {
   try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
 }
 function layer(): HTMLElement {
-  let el = document.getElementById("fx");
-  if (!el) { el = h("div", { id: "fx" }); document.body.append(el); }
+  let el = document.getElementById("fxroot");
+  if (!el) { el = h("div", { id: "fxroot" }); document.body.append(el); }
   return el;
 }
 function centre(el: Element | null): Point | null {

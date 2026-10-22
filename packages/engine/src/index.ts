@@ -9,7 +9,7 @@ export {
 } from "./state";
 export {
   canNopeEntry, canNopeFor, canNopeNow, canNopeTurnNow, canDefuseEntry, nopeCancelsCard, openEntries, openEntry,
-  entryById, handoverActive, implodeActive, implodeRevealing, isRobberEntry,
+  entryById, handoverActive, implodeActive, implodeRevealing, isRobberEntry, describeTurnGains,
 } from "./journal";
 export { owesAnswer, turnClockHeld, discardOwed, forcedNoperFor, openingRoadLegal, canRollNow, timerEnabled } from "./turn";
 export { canPlayToPile, cardIsPlayable, seatPickable, playableWhenDrawn } from "./cards";

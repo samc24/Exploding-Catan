@@ -13,7 +13,7 @@ import type { BoardUI } from "./ui/board";
 import type { PanelCallbacks } from "./ui/panels";
 import { Feed } from "./ui/feed";
 
-export const ui: BoardUI = { seat: 0, armed: null };
+export const ui: BoardUI = { seat: 0, armed: null, zoom: 1, panX: 0, panY: 0 };
 export const feed = new Feed();
 /** A seat the person chose to look at, or null to follow the table. */
 export let manualSeat: number | null = null;

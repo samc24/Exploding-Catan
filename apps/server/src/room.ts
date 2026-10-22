@@ -14,7 +14,10 @@ import {
   PLAYER_NAMES, applyAction, createGame, eventsFor, handoverActive, implodeActive, timerEnabled, viewFor,
   type Action, type GameConfig, type GameEvent, type GameState,
 } from "@exploding-catan/engine";
-import { addBot, createTable, hasBots, nextBotAction, removeBot, type Table } from "@exploding-catan/bots";
+import {
+  addBot, createTable, createTauntMemory, hasBots, heard, nextBotAction, nextTaunts, removeBot, type Table,
+  type TauntMemory,
+} from "@exploding-catan/bots";
 import {
   EMOJIS, MAX_CHAT, defaultAvatar, normalizeRoomConfig, type RoomConfig, type RoomInfo, type ServerMsg,
 } from "@exploding-catan/protocol";
@@ -52,6 +55,7 @@ export class Room {
   private botTimer: NodeJS.Timeout | null = null;
   private tickTimer: NodeJS.Timeout | null = null;
   private lastEmote = new Map<string, number>();
+  private taunts: TauntMemory = createTauntMemory(0);
 
   constructor(code: string, seats: number, config: RoomConfig, botPace = BOT_PACE) {
     this.code = code;
@@ -79,6 +83,7 @@ export class Room {
     room.state = snap.state;
     room.emptySince = Date.now();
     room.table = createTable(room.botSeats(), room.seed);
+    room.taunts = createTauntMemory(room.seed ^ 0x5eed, room.state ?? undefined);
     if (room.state) { room.scheduleBots(room.botPace); room.armTicks(); }
     return room;
   }
@@ -213,6 +218,7 @@ export class Room {
     if (this.config.board !== "auto") cfg.board = this.config.board;
     this.state = createGame(cfg, seed);
     this.table = createTable(this.botSeats(), seed);
+    this.taunts = createTauntMemory(seed ^ 0x5eed);
     this.changed();
     this.pushRoom();
     this.broadcastState([]);
@@ -250,7 +256,7 @@ export class Room {
     }
     this.broadcastState(r.events);
     this.changed();
-    if (action.type !== "tick") this.scheduleBots(this.botPace);
+    if (action.type !== "tick") { this.scheduleBots(this.botPace); this.botTaunts(); }
     this.armTicks();
     if (this.state.phase === "over") { this.stopTimers(); this.pushRoom(); }
     return null;
@@ -261,6 +267,14 @@ export class Room {
     const clean = String(text).slice(0, MAX_CHAT).trim();
     if (!clean) return;
     this.send({ t: "chat", seat: this.seatOf(uid), name: c.name, text: clean, at: Date.now() });
+    // Bots cannot read it and would not care if they could, which is roughly the answer it gets.
+    const back = heard(this.table, this.taunts, this.seatOf(uid), Date.now());
+    if (back) setTimeout(() => this.send({ t: "emote", seat: back.seat, emoji: back.emoji, at: Date.now() }), 900 + Math.random() * 1400);
+  }
+  /** The bots react to what the table just saw. */
+  private botTaunts(): void {
+    if (!this.state || !hasBots(this.table)) return;
+    for (const t of nextTaunts(this.table, this.taunts, this.state, Date.now())) this.send({ t: "emote", seat: t.seat, emoji: t.emoji, at: Date.now() });
   }
   /** An emoji thrown at the table. Seated players only, from the tray only, not too often. */
   emote(uid: string, emoji: string): void {

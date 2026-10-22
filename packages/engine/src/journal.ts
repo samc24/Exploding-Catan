@@ -307,6 +307,24 @@ export function canDefuseEntry(s: GameState, geo: Geometry, e: JournalEntry | un
   return TARGETED.has(e.card.key) && e.target === pid;
 }
 
+/* ── what a cancelled turn would cost ──────────────────────────────── */
+/** What the turn in progress has gained so far, in words: the stake of a
+    whole-turn Nope. Empty when nothing has been gained yet. */
+export function describeTurnGains(s: GameState): string {
+  const rec = s.turnRec;
+  const bits: string[] = [];
+  if (rec.edges.length) bits.push(`${rec.edges.length} road${rec.edges.length === 1 ? "" : "s"}`);
+  const setts = rec.verts.filter((v) => v.prevType === null).length;
+  const cities = rec.verts.length - setts;
+  if (setts) bits.push(`${setts} settlement${setts === 1 ? "" : "s"}`);
+  if (cities) bits.push(`${cities} cit${cities === 1 ? "y" : "ies"}`);
+  if (rec.drawn.length) bits.push(`${rec.drawn.length} kitten card${rec.drawn.length === 1 ? "" : "s"}`);
+  if (rec.knights) bits.push(`${rec.knights} knight${rec.knights === 1 ? "" : "s"}`);
+  const res = (Object.values(rec.gained) as number[]).reduce((a, b) => a + b, 0);
+  if (res) bits.push(`${res} resource${res === 1 ? "" : "s"}`);
+  return bits.join(", ");
+}
+
 /* ── where the turn began ──────────────────────────────────────────── */
 /** Where this turn was standing before it started. Anything un-Nopeable (the
     Imploding Kitten) draws a line under itself and moves the mark forward. */
