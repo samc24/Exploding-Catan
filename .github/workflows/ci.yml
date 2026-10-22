@@ -30,13 +30,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build -w apps/web
-      - name: Serve the build and the game server
+      - name: Serve the build and the game server, then play
         run: |
-          (npx vite preview --port 5173 --strictPort -w apps/web > /tmp/vite.log 2>&1 &)
-          (npx tsx apps/server/src/index.ts > /tmp/server.log 2>&1 &)
-          for i in $(seq 1 60); do curl -sf http://localhost:5173/ >/dev/null && curl -sf http://localhost:8787/health >/dev/null && break; sleep 1; done
-      - run: npm run e2e -w apps/web
-      - run: npm run e2e:online -w apps/web
+          set -e
+          (cd apps/web && nohup npx vite preview --port 5173 --strictPort > /tmp/vite.log 2>&1 &)
+          nohup npx tsx apps/server/src/index.ts > /tmp/server.log 2>&1 &
+          ready=0
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:5173/ >/dev/null && curl -sf http://localhost:8787/health >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" != "1" ]; then echo "servers did not come up"; cat /tmp/vite.log /tmp/server.log; exit 1; fi
+          npm run e2e -w apps/web
+          npm run e2e:online -w apps/web
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
