@@ -60,6 +60,17 @@ export function drawFeed(root: HTMLElement, s: GameState, feed: Feed, view: numb
   root.scrollTop = root.scrollHeight;
 }
 
+/* A phone shows the last `n` lines at the board's foot; the strip is only rebuilt when they change. */
+let lastTicker = "";
+export function drawTicker(root: HTMLElement, feed: Feed, n: number): void {
+  const lines = n > 0 ? feed.lines.slice(-n) : [];
+  const signature = lines.map((l) => l.kind + ":" + l.text).join("\n");
+  if (signature === lastTicker && root.childElementCount === lines.length) return;
+  lastTicker = signature;
+  clear(root);
+  for (const l of lines) root.append(h("div", { class: "tl " + l.kind }, l.text));
+}
+
 let lastLogLength = -1;
 export function drawLog(root: HTMLElement, s: GameState): void {
   if (root.hidden && root.childElementCount) return; // nobody is looking; catch up when they do

@@ -71,9 +71,14 @@ else {
   // Pass the phone: look as the partner, who sees the offer.
   await page.locator("#seats .seat").nth(partner.id).tap();
   await page.waitForTimeout(150);
-  const accept = page.locator('#panels button:has-text("Accept")');
+  const accept = page.locator('#panels button:has-text("Accept")').first();
+  await accept.waitFor({ timeout: 4000 }).catch(() => {});
   if (!(await accept.count())) fail("the partner's seat does not show the offer");
-  else { await accept.tap(); await page.waitForTimeout(150); }
+  else {
+    // A picture if the button is there but cannot be tapped, so a flake here can be read.
+    try { await accept.tap({ timeout: 6000 }); } catch (e) { await page.screenshot({ path: OUT + "phone-accept-fail.png" }); fail(`the Accept button could not be tapped: ${String(e.message).split("\n")[0]}`); }
+    await page.waitForTimeout(150);
+  }
   // Back to the offerer, who closes the deal with that partner.
   await page.locator("#seats .seat").nth(me).tap();
   await page.waitForTimeout(150);
@@ -96,4 +101,45 @@ if (await page.locator("#side.open").count()) fail("the log drawer did not close
 const hand = await page.evaluate(() => { const h = document.querySelector("#bottom .hand"); return h ? getComputedStyle(h).overflowX : null; });
 if (hand !== "auto" && hand !== "scroll") fail(`the hand is not a scrolling strip on a phone (overflow-x: ${hand})`);
 await page.screenshot({ path: OUT + "phone-end.png" });
+
+// ── upright: the board's furniture sits above the hexes, not on them ──
+const rects = () => page.evaluate(() => {
+  const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, r: b.right, b: b.bottom }; };
+  return { piles: r("#piles"), hexes: r("#board > g:nth-of-type(1)"), hex: r("#board polygon.hex"), boardArea: r("#boardArea"), bottom: r("#bottom"), seats: r("#seats"), ticker: r("#ticker") };
+});
+let g = await rects();
+if (!g.piles || !g.hexes || g.piles.b > g.hexes.y + 1) fail(`upright: the piles sit on the hexes (piles bottom ${g.piles?.b}, hexes top ${g.hexes?.y})`);
+if (!g.ticker || g.ticker.h < 30 || g.ticker.y < g.hexes.b - 1) fail(`upright: the log lines are missing or on the hexes (${JSON.stringify(g.ticker)})`);
+if (await page.locator("#zoomIn").isVisible()) fail("upright: the zoom buttons show on a phone");
+
+// ── on its side: the board takes the height, everything else a column on the right ──
+await page.setViewportSize({ width: 844, height: 390 });
+await page.waitForTimeout(500);
+await page.screenshot({ path: OUT + "phone-landscape.png" });
+g = await rects();
+const upright = (await page.locator("#board polygon.hex").first().boundingBox());
+if (!g.boardArea || g.boardArea.h < 380 || g.boardArea.w < 500) fail(`landscape: the board's room is ${JSON.stringify(g.boardArea)}`);
+if (!g.bottom || g.bottom.x < g.boardArea.r - 1) fail(`landscape: the hand is not beside the board (${JSON.stringify(g.bottom)})`);
+if (!g.seats || g.seats.x < g.boardArea.r - 1) fail(`landscape: the seats are not beside the board (${JSON.stringify(g.seats)})`);
+if (!upright || upright.width < 40) fail(`landscape: hexes are only ${upright?.width}px wide`);
+if (await page.locator("header h1").isVisible()) fail("landscape: the title takes a row it does not have");
+if (!(await inScreenAt("#bottom .actions", 844, 390))) fail("landscape: the action buttons are off screen");
+// The composer is a sheet down the side of the board, leaving some of it in view.
+const tradeBtn = page.locator('#bottom button:has-text("Trade")');
+if (await tradeBtn.count() && await tradeBtn.isEnabled()) {
+  await tradeBtn.tap(); await page.waitForTimeout(200);
+  const sheet = await page.locator("#panels .panel").first().boundingBox();
+  if (!sheet || sheet.x < 100 || sheet.x + sheet.width > g.boardArea.r + 1) fail(`landscape: the composer is not a side sheet inside the board's room: ${JSON.stringify(sheet)}`);
+  await page.screenshot({ path: OUT + "phone-landscape-trade.png" });
+  await tradeBtn.tap(); await page.waitForTimeout(150);
+}
+// A browser's own bar leaves even less: the seats give way, the rest stays put.
+await page.setViewportSize({ width: 844, height: 300 });
+await page.waitForTimeout(400);
+if (!(await inScreenAt("#bottom .actions", 844, 300))) fail("landscape, short: the action buttons are off screen");
+const seatsOverflow = await page.evaluate(() => { const s = document.querySelector("#seats"); return getComputedStyle(s).overflowY; });
+if (seatsOverflow !== "auto" && seatsOverflow !== "scroll") fail(`landscape: the seats do not scroll when short of room (overflow-y: ${seatsOverflow})`);
+await page.screenshot({ path: OUT + "phone-landscape-short.png" });
 await finish(browser, errors);
+
+async function inScreenAt(sel, w, h) { const b = await page.locator(sel).first().boundingBox(); return b && b.x >= 0 && b.y >= 0 && b.x + b.width <= w + 0.5 && b.y + b.height <= h + 0.5; }

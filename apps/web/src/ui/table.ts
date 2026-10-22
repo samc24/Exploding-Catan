@@ -52,7 +52,7 @@ export function drawTable(s: GameState): void {
   tag.textContent = MODES[s.mode].name;
 }
 export function clearTable(): void {
-  clear($("seats")); clear($("board")); clear($("bottom")); clear($("panels")); clear($("dice")); clear($("pile")); clear($("deck"));
+  clear($("seats")); clear($("board")); clear($("bottom")); clear($("panels")); clear($("dice")); clear($("pile")); clear($("deck")); clear($("ticker"));
   $("modeTag").hidden = true;
   $("clock").hidden = true;
 }

@@ -20,7 +20,7 @@ import { drawBoard } from "./ui/board";
 import { drawSeats } from "./ui/seats";
 import { drawBottom } from "./ui/hand";
 import { drawPanels } from "./ui/panels";
-import { drawFeed, drawLog } from "./ui/feed";
+import { drawFeed, drawLog, drawTicker } from "./ui/feed";
 import { drawDiceHistory } from "./ui/dice";
 import { drawTable, clearTable } from "./ui/table";
 import { showcase } from "./ui/showcase";
@@ -57,6 +57,8 @@ export function render(): void {
   }, !!ui.spectator);
   drawPanels($("panels"), s, view, panelCb);
   drawFeed($("feed"), s, feed, view, now, onEntry);
+  drawTicker($("ticker"), feed, fitTicker());
+  $("boardArea").classList.toggle("zoomed", ui.zoom > 1);
   drawLog($("log"), s);
   drawDiceHistory($("dicepanel"), s);
   drawTable(s);
@@ -68,6 +70,28 @@ export function render(): void {
   paintImplodeClock(s, now);
   clockGate = gateOf(s, now);
   scheduleTicks(s);
+}
+
+/* An upright phone is wider than the board is tall, so the board hangs from
+   the top of its room and the last log lines take what is left below it:
+   as many as fit (see the ticker in style.css for the line height), none
+   when fewer than two would. Elsewhere the ticker is not shown at all. */
+const UPRIGHT_PHONE = "(max-width:800px) and (orientation:portrait)";
+const TICKER_LINE_PX = 17, TICKER_MAX = 6;
+function fitTicker(): number {
+  const svg = $("board") as unknown as SVGSVGElement;
+  const ticker = $("ticker");
+  let upright = false;
+  try { upright = matchMedia(UPRIGHT_PHONE).matches; } catch { /* no media queries: a test runner */ }
+  svg.setAttribute("preserveAspectRatio", upright ? "xMidYMin meet" : "xMidYMid meet");
+  if (!upright) { ticker.style.height = ""; return 0; }
+  const vb = svg.viewBox.baseVal;
+  const cw = svg.clientWidth, ch = svg.clientHeight;
+  const drawn = vb.width > 0 ? Math.min(ch, cw * vb.height / vb.width) : ch;
+  const lines = Math.min(TICKER_MAX, Math.floor((ch - drawn - 16) / TICKER_LINE_PX));
+  const n = lines >= 2 ? lines : 0;
+  ticker.style.height = n ? `${n * TICKER_LINE_PX}px` : "0px";
+  return n;
 }
 
 /** Events from one action: flights, showcases, hints, sounds, the final table. */

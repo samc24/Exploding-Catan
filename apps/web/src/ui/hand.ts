@@ -83,7 +83,9 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
       );
     }
   } else {
-    actions.append(h("span", { class: "note" }, owesAnswer(s) ? "The table is waiting on an answer." : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
+    // On a phone the name line has no room for the status, so the note carries it (`.st`, shown there only).
+    const st = h("span", { class: "st" }, `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing"} `);
+    actions.append(h("span", { class: "note" }, st, owesAnswer(s) ? "The table is waiting on an answer." : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
   }
 
   root.append(who, res, hand, actions);
