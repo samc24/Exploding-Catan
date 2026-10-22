@@ -69,9 +69,12 @@ await ann.press("#chatin", "Enter");
 await ben.click('#sidetabs button[data-tab="chat"]');
 await ben.waitForSelector('#chatlog div:has-text("hello from Ann")', { timeout: 3000 });
 await ann.click("#emojiBtn");
+const emoji = (await ann.locator("#emojiTray button").first().textContent()).trim();
 await ann.locator("#emojiTray button").first().click();
-await ben.waitForSelector("#seats .seat .bubble", { timeout: 3000 });
-console.log("emote seen on Ben's screen:", await ben.locator("#seats .seat .bubble").textContent());
+// The bot may be taunting at the same moment, so look for Ann's emoji in particular.
+const bubble = ben.locator("#seats .seat .bubble", { hasText: emoji }).first();
+await bubble.waitFor({ timeout: 3000 });
+console.log("emote seen on Ben's screen:", await bubble.textContent());
 await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
 await ben.screenshot({ path: `${OUT}/online-04-ben.png` });
 await ben.reload({ waitUntil: "networkidle" });
