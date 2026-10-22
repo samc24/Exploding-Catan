@@ -1,0 +1,15 @@
+{
+  "name": "Exploding Catan",
+  "short_name": "Exploding Catan",
+  "description": "Catan with the development deck torn out and 54 kitten cards put in its place.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#171210",
+  "theme_color": "#221914",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

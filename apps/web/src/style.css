@@ -13,7 +13,7 @@
 [hidden]{display:none !important}
 html,body{height:100%;margin:0}
 body{
-  background:var(--bg); color:var(--ink);
+  background:var(--bg); color:var(--ink); -webkit-tap-highlight-color:transparent;
   font:14px/1.45 "Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
   display:flex; flex-direction:column; overflow:hidden;
   user-select:none; -webkit-user-select:none; touch-action:manipulation;
@@ -36,7 +36,7 @@ button.sm{padding:3px 8px;font-size:12px}
 button.on{border-color:var(--accent);color:var(--accent)}
 
 /* ── seats ── */
-#seats{display:flex;gap:10px;padding:10px 12px;background:linear-gradient(180deg,#1f1612,#1a120f);border-bottom:1px solid #4a3a30;flex:0 0 auto;overflow-x:auto}
+#seats{position:relative;display:flex;gap:10px;padding:10px 12px;background:linear-gradient(180deg,#1f1612,#1a120f);border-bottom:1px solid #4a3a30;flex:0 0 auto;overflow-x:auto}
 .seat{min-width:170px;flex:1 1 0;background:linear-gradient(180deg,#2f241f,#271d19);border:1px solid var(--line);border-radius:14px;padding:9px 12px;display:flex;gap:12px;align-items:center;cursor:pointer;position:relative;transition:box-shadow .15s,border-color .15s;overflow:visible;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .seat.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset,0 0 24px rgba(224,165,58,.25)}
 .seat.me{background:linear-gradient(180deg,#3d2c23,#31231d)}
@@ -124,6 +124,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .pick button{display:flex;align-items:center;gap:5px}
 .pick button .ct{font-weight:700;margin-left:2px}
 .pick button .ct.off{opacity:.35}
+.pick button .have{font-size:10px;color:var(--dim);font-weight:400}
 .warnbox{background:#3a2a1e;border:1px solid #7a5a2a;border-radius:8px;padding:8px 10px;font-size:12.5px}
 .tsum{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12.5px;flex-wrap:wrap}
 .tsum .arrow{color:var(--dim)}
@@ -190,18 +191,6 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .piece{stroke:#0e1116;stroke-width:1.2}
 #showcase .big.plain{background:linear-gradient(160deg,#5a3a22,#2a1a12);border:1px solid #8a6a4a}
 #showcase .big.plain b{font-size:26px}
-@media (max-width:800px){
-  #seats{padding:6px 8px}
-  .seat{min-width:150px;flex:0 0 auto;padding:6px 8px}
-  .seat .avatar{width:30px;height:30px}
-  .seat .stats{font-size:10.5px;gap:6px}
-  .seat .vp{font-size:18px}
-  #bottom{min-height:0;padding:6px 10px;gap:8px}
-  #bottom .who{min-width:0;flex-direction:row;align-items:baseline;gap:8px;width:100%}
-  .kc{width:46px;height:64px}
-  .chip{padding:2px 6px;font-size:12px}
-  #panels{max-width:calc(100vw - 24px);left:12px;right:12px}
-}
 
 /* ── cards in flight ── */
 #fxroot{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
@@ -211,11 +200,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .fly-kit{width:44px;height:62px;border-radius:6px;background-size:cover;background-position:center;background-color:#2a2f3a;box-shadow:0 6px 18px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.25)}
 /* ── the side panel on a phone: a drawer ── */
 #sideBtn{display:none}
-@media (max-width:800px){
-  #sideBtn{display:inline-block}
-  #side{display:none;position:absolute;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:30;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
-  #side.open{display:flex}
-}
+#menu .phone{display:none}
 
 /* ── emotes ── */
 #emojiTray{position:absolute;top:44px;right:12px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(6,36px);gap:4px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
@@ -330,3 +315,122 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .seatrow .lbl{flex:1;display:flex;align-items:center;gap:6px}
 .seatrow .tag{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);border:1px solid var(--line);border-radius:5px;padding:0 5px}
 .seatrow .tag.you{color:#2a1a0a;background:var(--accent);border-color:var(--accent)}
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHONES — one column, a strip of seats, the board, a compact hand, and
+   anything the table is waiting on as a sheet over the board's foot.
+   A phone on its side counts too (the second query); the block after this
+   one adjusts for the missing height.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width:800px), (max-width:1000px) and (max-height:520px){
+  html,body{height:100dvh}
+  header{flex-wrap:nowrap;gap:6px;padding:6px 10px;padding-top:max(6px,env(safe-area-inset-top))}
+  header h1{font-size:15px;white-space:nowrap}
+  #onlineBtn,#newBtn{display:none}
+  #menu .phone{display:block}
+  #dirTag .w{display:none}
+  /* the hint becomes a toast under the header */
+  #hint{position:fixed;left:50%;top:calc(46px + env(safe-area-inset-top));transform:translateX(-50%);z-index:45;margin:0;background:rgba(22,13,9,.92);border:1px solid var(--line);border-radius:10px;padding:6px 12px;max-width:92vw;text-align:center;font-size:13px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  #hint:empty{display:none}
+  /* seats: a strip that scrolls, the current one brought into view */
+  #seats{gap:6px;padding:6px 8px;scroll-snap-type:x proximity;scrollbar-width:none}
+  #seats::-webkit-scrollbar{display:none}
+  .seat{min-width:0;flex:0 0 auto;padding:5px 8px;gap:7px;border-radius:10px;scroll-snap-align:center}
+  .seat .portrait{width:30px !important;height:30px !important;font-size:13px !important;border-width:2px}
+  .seat .name{font-size:12.5px}
+  .seat .name .turn{display:none}
+  .seat .stats{font-size:10px;gap:5px}
+  .seat .vp{min-width:28px;height:28px;font-size:15px}
+  .seat .honours{margin-top:1px}
+  .seat .honour{font-size:9px;padding:0 4px}
+  .seat .tag{font-size:9px;top:-7px}
+  /* the board's corner furniture, smaller */
+  #dice{left:8px;top:8px;gap:4px}
+  .die{width:26px;height:26px;font-size:14px;border-radius:6px}
+  #piles{right:8px;top:8px;opacity:.45}
+  #piles:hover{transform:none}
+  .cardface{width:30px;height:42px;font-size:7px}
+  .cardface .ct{font-size:8px;padding:0 3px}
+  .pilelbl{font-size:8px}
+  #zoomWrap{left:auto;right:8px;bottom:8px}
+  #panels:not(:empty) ~ #zoomWrap{display:none}
+  #showcase .big{width:150px;height:210px}
+  #clock{font-size:12px;padding:4px 10px;max-width:88vw}
+  /* decisions and composers: a sheet at the foot of the board */
+  #panels{left:0;right:0;bottom:0;max-width:none;max-height:100%;overflow-y:auto;gap:0;overscroll-behavior:contain}
+  .panel{border-radius:16px 16px 0 0;padding:12px 12px 12px;border-bottom:0}
+  .panel + .panel{border-radius:0;border-top:1px solid var(--line)}
+  .panel .sub{font-size:12px}
+  .pick{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .pick button{flex-direction:column;justify-content:center;gap:2px;padding:7px 2px;font-size:11px;min-height:64px;line-height:1.2}
+  .pick button .swatch{width:20px;height:20px;border-radius:5px}
+  .pick button .ct{margin:0;font-size:12px}
+  .pick button small{font-size:10px}
+  .panel .btns button{flex:1;padding:10px 6px}
+  .counter button.sm{padding:6px 14px;font-size:15px}
+  /* the bottom bar: who, five chips, the hand, the buttons */
+  #bottom{min-height:0;padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:6px;display:grid;grid-template-columns:1fr;grid-template-areas:"who" "res" "hand" "actions"}
+  #bottom .who{grid-area:who;min-width:0;flex-direction:row;align-items:baseline;gap:8px;flex-wrap:wrap}
+  #bottom .who b{font-size:14px}
+  .resrow{grid-area:res;flex-wrap:nowrap;gap:5px}
+  .chip{flex:1 1 0;justify-content:center;padding:4px;gap:5px;font-size:13px}
+  .chip>span:not(.swatch){display:none}
+  .chip .swatch{width:16px;height:21px}
+  .hand{grid-area:hand;flex-wrap:nowrap;overflow-x:auto;min-height:0;padding:6px 2px 2px;align-items:flex-start;scrollbar-width:none}
+  .hand::-webkit-scrollbar{display:none}
+  .kc{width:50px;height:70px;flex:0 0 auto}
+  .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+  .kc.live:hover{box-shadow:0 0 0 2px var(--ok)}
+  .kc.answer:hover{box-shadow:0 0 0 2px #8ad8f5}
+  .actions{grid-area:actions;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;align-items:stretch}
+  .actions .note{max-width:none;font-size:12px;align-self:center}
+  .actions button{padding:10px 4px;font-size:13px;white-space:nowrap}
+  .turntimer{min-width:70px}
+  /* the side panel: a drawer */
+  #sideBtn{display:inline-block}
+  #side{display:none;position:absolute;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:30;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+  #side.open{display:flex}
+  /* menus and dialogs */
+  #emojiTray{left:8px;right:8px;top:48px;grid-template-columns:repeat(6,1fr)}
+  #emojiTray button{font-size:24px;padding:8px 0}
+  #menu{left:8px;right:8px;top:48px;min-width:0}
+  #modal{align-items:flex-end}
+  #modal .box{width:100vw;max-height:92dvh;border-radius:16px 16px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
+  #modal .btns button{flex:1;padding:10px}
+  .roomcode{font-size:32px;letter-spacing:8px}
+}
+/* A phone on its side: the seats become a thin strip and the hand sits beside the buttons. */
+@media (max-width:1000px) and (max-height:520px){
+  header{padding:3px 10px;padding-top:max(3px,env(safe-area-inset-top))}
+  #hint{top:calc(40px + env(safe-area-inset-top))}
+  #seats{padding:3px 8px;gap:5px}
+  .seat{padding:3px 7px;gap:6px}
+  .seat .stats,.seat .honours{display:none}
+  .seat .portrait{width:24px !important;height:24px !important;font-size:11px !important}
+  .seat .vp{min-width:24px;height:24px;font-size:13px}
+  #bottom{grid-template-columns:auto 1fr auto;grid-template-areas:"who res actions" "hand hand actions";padding:4px 10px;gap:4px 10px;align-items:center}
+  .resrow{gap:4px}
+  .chip{flex:0 1 auto;padding:3px 7px}
+  .hand{padding:2px}
+  .actions{grid-auto-flow:column}
+  .actions button{padding:8px 10px}
+  .kc{width:40px;height:56px}
+  .pick button{min-height:54px;padding:5px 2px}
+  .panel{padding:10px 12px}
+  .panel .btns button{padding:8px 6px}
+  #dice{left:6px;top:6px}
+  .die{width:24px;height:24px;font-size:13px}
+  #piles{right:6px;top:6px}
+  .cardface{width:26px;height:36px}
+  #emojiTray{left:auto;right:8px;width:min(320px,60vw)}
+  #menu{left:auto;right:8px;min-width:240px}
+  #modal .box{max-height:100dvh}
+}
+/* Fingers, not pointers: bigger things to hit. */
+@media (pointer:coarse){
+  .spot.road{stroke-width:13}
+  .spot.hexpick{stroke-width:4}
+  button.sm{min-height:32px}
+  .answer{padding:11px 12px}
+  .fl.open{padding:8px 9px}
+}

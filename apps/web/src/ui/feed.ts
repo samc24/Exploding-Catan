@@ -1,5 +1,6 @@
 import { answersFor, canNopeEntry, type GameEvent, type GameState, type JournalEntry } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
+import { tap } from "./tap";
 
 export interface FeedLine { text: string; kind: string; jid: number | null; }
 /** Chat lines ride in the feed too; they are never answerable. */
@@ -53,7 +54,7 @@ export function drawFeed(root: HTMLElement, s: GameState, feed: Feed, view: numb
       class: "fl " + l.kind + (e ? " open" : "") + (withNope || withDefuse ? " mine" : ""),
       dataset: e ? { jid: String(e.id) } : undefined,
       onclick: e ? () => onEntry(e) : null,
-      title: withNope || withDefuse ? "You hold an answer to this: click, or drop the card here" : e ? "Still open to an answer" : null,
+      title: withNope || withDefuse ? `You hold an answer to this: ${tap}, or drop the card here` : e ? "Still open to an answer" : null,
     }, l.text, badge ? h("span", { class: "ans" + (withNope || withDefuse ? "" : " faint") }, badge) : null));
   }
   root.scrollTop = root.scrollHeight;

@@ -15,7 +15,7 @@ import { act, feed, hint, panelCb, setManualSeat, ui } from "./screen";
 import { boardCb, onCard, onEntry } from "./input";
 import { paintBubbles } from "./emotes";
 import { openNewGame } from "./game";
-import { $ } from "./ui/dom";
+import { $, h } from "./ui/dom";
 import { drawBoard } from "./ui/board";
 import { drawSeats } from "./ui/seats";
 import { drawBottom } from "./ui/hand";
@@ -63,7 +63,7 @@ export function render(): void {
   // Which way round the table, which matters once a Reverse has been played.
   const dir = $("dirTag");
   dir.hidden = s.phase.startsWith("setup");
-  dir.textContent = s.dir === 1 ? "↻ clockwise" : "↺ reversed";
+  dir.replaceChildren(s.dir === 1 ? "↻" : "↺", h("span", { class: "w" }, s.dir === 1 ? " clockwise" : " reversed"));
   dir.classList.toggle("rev", s.dir === -1);
   paintImplodeClock(s, now);
   clockGate = gateOf(s, now);

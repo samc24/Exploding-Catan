@@ -12,7 +12,10 @@ npm run e2e -w apps/web
 settle what is owed, fail on any page error). `play-turns.mjs` starts a game, plays the opening, rolls and ends several
 turns. `play-cards.mjs` injects kitten cards and walks Attack → Defuse →
 discard, Favor, Nope, Alter the Future, an open trade and a purchase.
-Screenshots land in `e2e/shots/` (ignored by git).
+`play-bots.mjs` lets three bots play a table. `play-phone.mjs` is a 390×844
+touch screen: it drives a bank trade and a player trade by taps and checks
+the phone layout holds (one header row, the composer as a sheet, the hand a
+strip, the log a drawer). Screenshots land in `e2e/shots/` (ignored by git).
 
 `play-online.mjs` (`npm run e2e:online -w apps/web`) needs the game server
 too (`npm run dev -w apps/server`). It opens two browsers, hosts and joins a

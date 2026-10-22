@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "e2e": "node e2e/play-turns.mjs && node e2e/play-cards.mjs && node e2e/play-bots.mjs",
+    "e2e": "node e2e/play-turns.mjs && node e2e/play-cards.mjs && node e2e/play-bots.mjs && node e2e/play-phone.mjs",
     "e2e:online": "node e2e/play-online.mjs"
   },
   "dependencies": {

@@ -7,6 +7,7 @@ import {
 } from "@exploding-catan/engine";
 import { clear, svg } from "./dom";
 import { has, hexArt } from "../art";
+import { COARSE } from "./tap";
 
 export interface BoardCallbacks {
   vertex(vid: number): void;
@@ -40,7 +41,7 @@ export function drawBoard(root: SVGSVGElement, s: GameState, ui: BoardUI, cb: Bo
   const vw = w / z, vh = hgt / z;
   const vx = minX + (w - vw) / 2 + (ui.panX || 0), vy = minY + (hgt - vh) / 2 + (ui.panY || 0);
   root.setAttribute("viewBox", `${vx} ${vy} ${vw} ${vh}`);
-  root.dataset.extent = JSON.stringify({ w, h: hgt });
+  root.dataset.extent = JSON.stringify({ w, h: hgt, x: minX, y: minY });
   root.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
   const defs = svg("defs");
@@ -142,7 +143,7 @@ function spots(s: GameState, geo: Geometry, ui: BoardUI, cb: BoardCallbacks, lay
 
   const vertexSpot = (vid: number, kind: string) => {
     const v = geo.vertices[vid];
-    layer.append(svg("circle", { cx: v.x, cy: v.y, r: 9, class: "spot" + (armed(kind, vid) ? " armed" : ""), onclick: (ev: Event) => { ev.stopPropagation(); cb.vertex(vid); } }));
+    layer.append(svg("circle", { cx: v.x, cy: v.y, r: COARSE ? 13 : 9, class: "spot" + (armed(kind, vid) ? " armed" : ""), onclick: (ev: Event) => { ev.stopPropagation(); cb.vertex(vid); } }));
   };
   const edgeSpot = (eid: number, kind: string) => {
     const e = geo.edges[eid];

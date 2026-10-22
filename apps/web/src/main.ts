@@ -55,9 +55,17 @@ store.subscribe((s, events, action) => {
 });
 
 $("newBtn").onclick = () => openNewGame(!!store.get());
+// On a phone the header has no room for these two; the menu carries them.
+$("menuNew").onclick = () => { $("menu").hidden = true; openNewGame(!!store.get()); };
+$("menuOnline").onclick = () => { $("menu").hidden = true; $("onlineBtn").click(); };
 $("homeBtn").onclick = () => { if (landingShowing()) hideLanding(); else landing(); };
 $("rulesBtn").onclick = () => { $("menu").hidden = true; showRules(); };
 $("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
+// The drawer (phones) closes on a tap anywhere outside it.
+document.addEventListener("pointerdown", (ev) => {
+  const side = $("side"), t = ev.target as Node;
+  if (side.classList.contains("open") && !side.contains(t) && !$("sideBtn").contains(t) && !$("modal").contains(t)) { side.classList.remove("open"); $("sideBtn").classList.remove("on"); }
+});
 const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", dice: "dicepanel" };
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);

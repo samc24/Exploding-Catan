@@ -5,6 +5,10 @@
    line, the hand reorders. Clicking still works; a press that moves less
    than a few pixels is a click. While a card is in the air, every place it
    may legally go is outlined.
+
+   A finger is different: a short press that moves scrolls the hand (the
+   cards sit in a strip on a phone), and only a press held still for a
+   moment picks the card up.
    ══════════════════════════════════════════════════════════════════════ */
 import { canPlayToPile, cardIsPlayable, type Card, type GameState } from "@exploding-catan/engine";
 import { store } from "./store";
@@ -16,9 +20,13 @@ import { offerAnswers, onCardOnEntry } from "./input";
 import { sfx } from "./sfx";
 
 const THRESHOLD = 6;
+/** How long a finger holds still before the card lifts. */
+const HOLD_MS = 280;
 interface Drag { card: Card; idx: number; from: HTMLElement; ghost: HTMLElement; targets: { nope: Set<number>; defuse: Set<number>; pile: boolean } }
-let pend: { x: number; y: number; card: Card; idx: number; el: HTMLElement } | null = null;
+interface Pend { x: number; y: number; card: Card; idx: number; el: HTMLElement; touch: boolean; scrolling: boolean; lastX: number }
+let pend: Pend | null = null;
 let drag: Drag | null = null;
+let holdTimer: number | null = null;
 let swallowClickUntil = 0;
 
 function cardAt(el: Element | null): { card: Card; idx: number; el: HTMLElement } | null {
@@ -55,29 +63,56 @@ function hot(x: number, y: number): HTMLElement | null {
   return t;
 }
 
+/** The card leaves the hand: a ghost under the pointer, the targets lit. */
+function lift(x: number, y: number): void {
+  const p = pend;
+  pend = null;
+  clearHold();
+  if (!p) return;
+  const s = store.get();
+  if (!s) return;
+  const ghost = h("div", { class: "kc ghost", style: { backgroundImage: p.el.style.backgroundImage, left: x + "px", top: y + "px" } }, p.el.style.backgroundImage ? "" : p.el.textContent);
+  $("fxroot").append(ghost);
+  drag = { card: p.card, idx: p.idx, from: p.el, ghost, targets: targetsFor(s, p.card) };
+  p.el.classList.add("lifted");
+  document.body.classList.add("dragging");
+  sfx("arm", { rate: 1.2 });
+  if (p.touch) try { navigator.vibrate?.(10); } catch { /* not everywhere */ }
+  mark(true, drag.targets);
+}
+function clearHold(): void { if (holdTimer !== null) { clearTimeout(holdTimer); holdTimer = null; } }
+
 export function installDrag(): void {
   document.addEventListener("pointerdown", (ev) => {
     if (ev.button !== 0) return;
     const c = cardAt(ev.target as Element);
     if (!c) return;
-    pend = { x: ev.clientX, y: ev.clientY, card: c.card, idx: c.idx, el: c.el };
+    const touch = ev.pointerType === "touch";
+    pend = { x: ev.clientX, y: ev.clientY, card: c.card, idx: c.idx, el: c.el, touch, scrolling: false, lastX: ev.clientX };
+    clearHold();
+    if (touch) holdTimer = window.setTimeout(() => { if (pend && !pend.scrolling) lift(pend.x, pend.y); }, HOLD_MS);
   });
   document.addEventListener("pointermove", (ev) => {
     if (drag) { drag.ghost.style.left = ev.clientX + "px"; drag.ghost.style.top = ev.clientY + "px"; hot(ev.clientX, ev.clientY); ev.preventDefault(); return; }
     if (!pend) return;
+    if (pend.touch) {
+      // A finger that moved before the hold is scrolling the strip of cards.
+      const strip = pend.el.closest<HTMLElement>(".hand");
+      if (pend.scrolling) { if (strip) strip.scrollLeft += pend.lastX - ev.clientX; pend.lastX = ev.clientX; return; }
+      if (Math.hypot(ev.clientX - pend.x, ev.clientY - pend.y) < THRESHOLD) return;
+      pend.scrolling = true;
+      pend.lastX = ev.clientX;
+      clearHold();
+      return;
+    }
     if (Math.hypot(ev.clientX - pend.x, ev.clientY - pend.y) < THRESHOLD) return;
-    const s = store.get();
-    if (!s) { pend = null; return; }
-    const ghost = h("div", { class: "kc ghost", style: { backgroundImage: pend.el.style.backgroundImage, left: ev.clientX + "px", top: ev.clientY + "px" } }, pend.el.style.backgroundImage ? "" : pend.el.textContent);
-    $("fxroot").append(ghost);
-    drag = { card: pend.card, idx: pend.idx, from: pend.el, ghost, targets: targetsFor(s, pend.card) };
-    pend.el.classList.add("lifted");
-    document.body.classList.add("dragging");
-    sfx("arm", { rate: 1.2 });
-    mark(true, drag.targets);
-    pend = null;
+    lift(ev.clientX, ev.clientY);
   }, { passive: false });
+  // While a card is in the air the page must not scroll under it.
+  document.addEventListener("touchmove", (ev) => { if (drag) ev.preventDefault(); }, { passive: false });
   const end = (ev: PointerEvent, cancelled = false) => {
+    clearHold();
+    if (pend?.scrolling) swallowClickUntil = Date.now() + 300;
     pend = null;
     if (!drag) return;
     const d = drag;
