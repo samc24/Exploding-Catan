@@ -135,3 +135,73 @@ describe("rooms", () => {
     a.close(); b.close();
   });
 });
+
+describe("persistence", () => {
+  it("a restarted server restores the room, the game and the seats, and bots carry on", async () => {
+    const { MemoryStore } = await import("../src/store");
+    const store = new MemoryStore();
+    const first = startServer({ port: 0, log: () => {}, botPace: 2, store });
+    const savedSrv = srv; srv = first;
+    const a = await hello("Ann");
+    a.send({ t: "create", seats: 3, config: { ...config, winPoints: 10 } });
+    const code = (await a.next("room")).room.code;
+    a.send({ t: "bot", seat: 1, on: true }); a.send({ t: "bot", seat: 2, on: true });
+    a.send({ t: "stand" }); a.send({ t: "bot", seat: 0, on: true }); // Ann hosts and watches
+    a.drain("room");
+    a.send({ t: "start", seed: 4 });
+    const before = await a.next("state");
+    // Let the table move a little, then pull the plug.
+    await new Promise((r) => setTimeout(r, 1500));
+    a.drain("state");
+    const turnBefore = first.rooms.get(code)!.state!.turnCounter;
+    await first.close();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(store.rooms.has(code)).toBe(true);
+    // Second process, same store.
+    const second = startServer({ port: 0, log: () => {}, botPace: 2, store });
+    srv = second;
+    expect(second.rooms.has(code)).toBe(true);
+    const back = await hello("Ann", a.token);
+    const room = await back.next("room");
+    expect(room.room.seat).toBeNull();
+    expect(room.room.host).toBe(true);
+    expect(room.room.seats.filter((x) => x.bot).length).toBe(3);
+    const st = await back.next("state");
+    expect(st.state.board).toBe(before.state.board);
+    expect(st.state.terrain).toEqual(before.state.terrain);
+    expect(st.state.turnCounter).toBeGreaterThanOrEqual(turnBefore);
+    // Bots keep playing in the new process.
+    const t0 = Date.now();
+    while (second.rooms.get(code)!.state!.turnCounter < turnBefore + 2 && Date.now() - t0 < 15000) await new Promise((r) => setTimeout(r, 200));
+    expect(second.rooms.get(code)!.state!.turnCounter).toBeGreaterThanOrEqual(turnBefore + 2);
+    back.close(); a.close();
+    await second.close();
+    srv = savedSrv;
+  }, 40000);
+
+  it("FileStore round-trips rooms and sessions through a directory", async () => {
+    const { FileStore } = await import("../src/store");
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "ec-store-"));
+    try {
+      const fs1 = new FileStore(dir, 10);
+      fs1.saveRoom({ code: "ABCD", hostUid: "u1", config, seats: [{ uid: "u1", name: "Ann", bot: false }, { uid: null, name: "Blue (bot)", bot: true }], seed: 7, state: null, members: ["u1"], savedAt: 1 });
+      fs1.saveRoom({ code: "ABCD", hostUid: "u1", config, seats: [{ uid: "u1", name: "Ann", bot: false }, { uid: null, name: "Blue (bot)", bot: true }], seed: 8, state: null, members: ["u1"], savedAt: 2 });
+      fs1.saveSession({ token: "t-1", uid: "u1", name: "Ann", room: "ABCD" });
+      fs1.flush();
+      const fs2 = new FileStore(dir);
+      const rooms = fs2.loadRooms();
+      expect(rooms.length).toBe(1);
+      expect(rooms[0].seed).toBe(8); // the later write won
+      expect(fs2.loadSessions()).toEqual([{ token: "t-1", uid: "u1", name: "Ann", room: "ABCD" }]);
+      fs2.deleteRoom("ABCD");
+      expect(fs2.loadRooms()).toEqual([]);
+      // Names that are not plain identifiers are refused rather than written.
+      fs2.saveRoom({ code: "../x", hostUid: "", config, seats: [], seed: 0, state: null, members: [], savedAt: 0 });
+      fs2.flush();
+      expect(fs2.loadRooms()).toEqual([]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});

@@ -14,8 +14,10 @@ RUN npm run build -w apps/web
 
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production PORT=8787
+ENV NODE_ENV=production PORT=8787 DATA_DIR=/data
 COPY --from=build /app .
+# Rooms and sessions live here between restarts. Mount a volume on it.
+VOLUME /data
 EXPOSE 8787
 HEALTHCHECK --interval=30s CMD wget -qO- http://localhost:8787/health || exit 1
 CMD ["npx", "tsx", "apps/server/src/index.ts"]

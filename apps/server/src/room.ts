@@ -12,6 +12,7 @@ import {
 } from "@exploding-catan/engine";
 import { createTable, nextBotAction, type Table } from "@exploding-catan/bots";
 import { CODE_CHARS, MAX_CHAT, type RoomConfig, type RoomInfo, type ServerMsg } from "@exploding-catan/protocol";
+import type { RoomSnapshot } from "./store";
 
 export interface Client {
   uid: string;
@@ -46,16 +47,49 @@ export class Room {
   private tickTimer: NodeJS.Timeout | null = null;
   private seed = 0;
   botPace = BOT_PACE;
+  /** Everybody who has ever sat here, so a restart can tell them apart from strangers. */
+  members = new Set<string>();
+  /** Called after anything worth keeping changed. The server persists it. */
+  onChange: ((room: Room) => void) | null = null;
 
-  constructor(code: string, host: Client, seats: number, config: RoomConfig, botPace = BOT_PACE) {
+  constructor(code: string, host: Client | null, seats: number, config: RoomConfig, botPace = BOT_PACE) {
     this.code = code;
     this.botPace = botPace;
-    this.hostUid = host.uid;
+    this.hostUid = host ? host.uid : "";
     this.config = config;
     this.seats = Array.from({ length: Math.min(6, Math.max(2, seats)) }, () => ({ uid: null, name: null, bot: false }));
-    this.clients.set(host.uid, host);
-    this.sit(host, 0);
+    if (host) {
+      this.clients.set(host.uid, host);
+      this.members.add(host.uid);
+      this.sit(host, 0);
+    }
   }
+
+  /* ── surviving a restart ───────────────────────────────────────────── */
+  toSnapshot(): RoomSnapshot {
+    return {
+      code: this.code, hostUid: this.hostUid, config: this.config,
+      seats: this.seats.map((s) => ({ ...s })), seed: this.seed, state: this.state,
+      members: [...this.members], savedAt: Date.now(),
+    };
+  }
+  /** A room as it was saved: nobody connected yet, bots and clocks running again. */
+  static fromSnapshot(snap: RoomSnapshot, botPace = BOT_PACE): Room {
+    const room = new Room(snap.code, null, snap.seats.length, snap.config, botPace);
+    room.hostUid = snap.hostUid;
+    room.seats = snap.seats.map((s) => ({ ...s }));
+    room.seed = snap.seed;
+    room.state = snap.state;
+    room.members = new Set(snap.members);
+    room.emptySince = Date.now();
+    if (room.state) {
+      room.table = createTable(room.seats.map((x, i) => (x.bot ? i : -1)).filter((i) => i >= 0), room.seed);
+      room.scheduleBots(room.botPace);
+      room.armTicks();
+    }
+    return room;
+  }
+  private changed(): void { if (this.onChange) this.onChange(this); }
 
   /* ── membership ───────────────────────────────────────────────────── */
   seatOf(uid: string): number | null {
@@ -64,6 +98,7 @@ export class Room {
   }
   join(c: Client): void {
     this.clients.set(c.uid, c);
+    this.members.add(c.uid);
     this.emptySince = null;
     // Back to the seat they held, else the first free chair.
     if (this.seatOf(c.uid) === null) {
@@ -80,6 +115,7 @@ export class Room {
     const prev = this.seatOf(c.uid);
     if (prev !== null) this.seats[prev] = { uid: null, name: null, bot: false };
     this.seats[seat] = { uid: c.uid, name: c.name, bot: false };
+    this.members.add(c.uid);
     if (this.state) this.state.players[seat].name = c.name;
     this.pushRoom();
   }
@@ -111,6 +147,7 @@ export class Room {
   }
   reconnect(c: Client): void {
     this.clients.set(c.uid, c);
+    this.members.add(c.uid);
     c.connected = true;
     this.emptySince = null;
     const seat = this.seatOf(c.uid);
@@ -187,6 +224,7 @@ export class Room {
     if (!r.ok) return r.error;
     this.state = r.state;
     this.broadcastState(r.events);
+    this.changed();
     if (action.type !== "tick") this.scheduleBots(this.botPace);
     this.armTicks();
     if (this.state.phase === "over") { this.stopTimers(); this.pushRoom(); }
@@ -253,6 +291,7 @@ export class Room {
   pushRoom(): void {
     const now = Date.now();
     for (const c of this.clients.values()) if (c.connected) c.send({ t: "room", room: this.info(c.uid), now });
+    this.changed();
   }
   private sendState(uid: string, events: GameEvent[]): void {
     const c = this.clients.get(uid);

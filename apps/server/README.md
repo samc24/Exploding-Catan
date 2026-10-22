@@ -11,7 +11,9 @@ npm run dev -w apps/server        # ws://localhost:8787, serves apps/web/dist if
 curl localhost:8787/health
 ```
 
-Environment: `PORT` (default 8787), `STATIC_DIR` (default `apps/web/dist`).
+Environment: `PORT` (default 8787), `STATIC_DIR` (default `apps/web/dist`),
+`DATA_DIR` (where rooms and sessions are kept between restarts; unset, nothing
+is kept and a restart ends every game).
 
 ## Deploying
 

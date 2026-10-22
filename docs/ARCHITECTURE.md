@@ -143,7 +143,15 @@ client judges time windows by it.
 `packages/protocol` is the whole contract: `hello`, `create`/`join`, `sit`,
 `bot`, `start`, `action`, `chat` one way; `room`, `state`, `refused`,
 `chat` the other. One image (see `Dockerfile`) serves the web app and the
-WebSocket on one port. Rooms are in memory for now.
+WebSocket on one port.
+
+Rooms and sessions are persisted through a five-method `RoomStore`
+interface: every room is written after every change (coalesced, atomic),
+every session when it is made, and all of it is read back on boot, with the
+bots and clocks picking up where they stopped. `FileStore` keeps JSON files
+in `DATA_DIR`; `MemoryStore` is for tests. SQLite, Redis or a KV would be a
+second class behind the same interface. A deploy therefore costs players a
+reconnect, not the game.
 
 The host-in-browser code (`net.js`) still works against the legacy UI and is
 not being extended.
