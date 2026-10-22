@@ -15,6 +15,5 @@ export {
 export { owesAnswer, turnClockHeld, discardOwed, forcedNoperFor, openingRoadLegal, canRollNow, timerEnabled } from "./turn";
 export { canPlayToPile, cardIsPlayable, seatPickable, playableWhenDrawn } from "./cards";
 export { applyAction } from "./reduce";
-export { viewFor, eventsFor } from "./view";
-export type { GameView, PlayerView, JournalView } from "./view";
+export { viewFor, eventsFor, redactEntry, hiddenCard, REDACTED_SNAP } from "./view";
 export { answersFor } from "./answers-query";

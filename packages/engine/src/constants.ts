@@ -28,6 +28,8 @@ export interface KittenDef {
 }
 // 54 cards. Reverse's count is inferred: 54 − (all others) = 5.
 export const KITTEN: Record<CardKey, KittenDef> = {
+  // Never in the deck: what another player's card looks like from your seat.
+  hidden: { name: "Kitten card", count: 0, kind: "vp", text: "Face down." },
   implode: {
     name: "Imploding Kitten",
     count: 1,

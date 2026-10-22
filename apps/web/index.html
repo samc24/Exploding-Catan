@@ -13,6 +13,8 @@
     <span id="hint"></span>
     <div class="spacer"></div>
     <span id="modeTag" hidden></span>
+    <span id="netTag" hidden></span>
+    <button class="sm" id="onlineBtn">Online</button>
     <button class="sm" id="rulesBtn">Rules</button>
     <button class="sm" id="newBtn">New Game</button>
   </header>
@@ -27,9 +29,10 @@
       <div id="clock" hidden></div>
     </div>
     <div id="side">
-      <div id="sidetabs"><button class="sm on" data-tab="feed">Game log</button><button class="sm" data-tab="log">Details</button></div>
+      <div id="sidetabs"><button class="sm on" data-tab="feed">Game log</button><button class="sm" data-tab="log">Details</button><button class="sm" data-tab="chat" id="chatTab" hidden>Chat</button></div>
       <div id="feed"></div>
       <div id="log" hidden></div>
+      <div id="chat" hidden><div id="chatlog"></div><form id="chatrow"><input id="chatin" maxlength="140" placeholder="Say something…" autocomplete="off"><button class="sm" type="submit">Send</button></form></div>
     </div>
   </div>
   <div id="bottom"></div>

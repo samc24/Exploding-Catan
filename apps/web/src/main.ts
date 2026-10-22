@@ -21,9 +21,14 @@ import { newGameDialog } from "./ui/newgame";
 import { showRules } from "./ui/rules";
 import { cardArt, cardBack, has, preload } from "./art";
 import { createTable, nextBotAction, isBot as tableHasBot, type Table } from "@exploding-catan/bots";
+import type { RoomInfo } from "@exploding-catan/protocol";
+import { Net } from "./net";
+import { connectDialog, lobbyDialog, roomDialog } from "./ui/lobby";
 
 /* ── screen-local state (never rules) ─────────────────────────────── */
 const ui: BoardUI = { seat: 0, armed: null };
+/** The clock every window is judged by: the server's when online, else ours. */
+function clock(): number { return net.online ? net.now() : Date.now(); }
 /* The bots at this table. Which seats are bots is a table setting, not a
    rule, so it lives beside the game rather than in it. */
 const BOTS_KEY = "exploding-catan:bots";
@@ -49,7 +54,7 @@ function botTick(): void {
   scheduleBots(a ? BOT_PACE : 400);
 }
 function scheduleBots(ms: number): void {
-  if (!table.bots.size) return;
+  if (!table.bots.size || net.online) return;
   if (botTimer !== null) clearTimeout(botTimer);
   botTimer = window.setTimeout(botTick, ms);
 }
@@ -81,6 +86,7 @@ function firstHuman(s: GameState): number {
   return h ? h.id : s.cur;
 }
 function viewSeat(s: GameState): number {
+  if (net.online) return net.seat ?? s.cur;
   const w = waitingOn(s);
   // A manual look-around holds unless the table is stopped dead waiting on one seat.
   const hardWait = !!discardOwed(s) || !!s.forcedNope || (!!s.select && "actor" in s.select) || s.phase === "setup3";
@@ -145,7 +151,7 @@ function onCard(c: Card): void {
 }
 function offerAnswers(key: "nope" | "defuse", me: number, onlyJid?: number): void {
   const s = store.get()!;
-  let answers = answersFor(s, key, me, Date.now());
+  let answers = answersFor(s, key, me, clock());
   if (onlyJid !== undefined) answers = answers.filter((a) => "jid" in a && a.jid === onlyJid);
   if (!answers.length) { hint(`Nothing your ${KITTEN[key].name} can answer right now.`); return; }
   const go = (a: (typeof answers)[number]) => {
@@ -166,8 +172,8 @@ function onEntry(e: JournalEntry): void {
   const s = store.get()!, me = ui.seat;
   const p = s.players[me];
   const hasNope = p.cards.some((c) => c.key === "nope"), hasDef = p.cards.some((c) => c.key === "defuse");
-  const nope = hasNope ? answersFor(s, "nope", me, Date.now()).filter((a) => "jid" in a && a.jid === e.id) : [];
-  const def = hasDef ? answersFor(s, "defuse", me, Date.now()).filter((a) => "jid" in a && a.jid === e.id) : [];
+  const nope = hasNope ? answersFor(s, "nope", me, clock()).filter((a) => "jid" in a && a.jid === e.id) : [];
+  const def = hasDef ? answersFor(s, "defuse", me, clock()).filter((a) => "jid" in a && a.jid === e.id) : [];
   if (!nope.length && !def.length) { hint("You hold nothing that answers that line."); return; }
   openModal("Answer this?", h("p", null, e.text), [
     ...(def.length ? [{ label: "🛡 Defuse it", fn: () => { closeModal(); act({ type: "defuse", seat: me, jid: e.id }); } }] : []),
@@ -222,7 +228,7 @@ function standings(): void {
 /* ── render ────────────────────────────────────────────────────────── */
 function render(): void {
   const s = store.get();
-  const now = Date.now();
+  const now = clock();
   panelCb.now = now;
   if (!s) {
     clear($("seats")); clear($("board")); clear($("bottom")); clear($("panels")); clear($("dice")); clear($("pile")); clear($("deck"));
@@ -240,6 +246,7 @@ function render(): void {
     manualSeat = pid === waitingOn(s) ? null : pid;
     render();
   });
+  ui.spectator = net.online && net.seat === null;
   drawBoard($("board") as unknown as SVGSVGElement, s, ui, boardCb);
   drawBottom($("bottom"), s, view, now, isBot, {
     roll: () => act({ type: "roll", seat: view }),
@@ -249,7 +256,7 @@ function render(): void {
     trade: () => { panelCb.composer = panelCb.composer === "trade" ? null : "trade"; render(); },
     card: onCard,
     cancelSelect: () => act({ type: "cancelSelect", seat: view }),
-  });
+  }, !!ui.spectator);
   drawPanels($("panels"), s, view, panelCb);
   drawFeed($("feed"), s, feed, now, onEntry);
   drawLog($("log"), s);
@@ -273,27 +280,29 @@ function render(): void {
   tag.textContent = MODES[s.mode].name;
 
   // the imploding kitten's clock
-  const clock = $("clock");
+  const clockEl = $("clock");
   if (implodeActive(s) && s.phase !== "over") {
     const waiting = implodeRevealing(s, now);
     const left = waiting ? 20 : Math.max(0, Math.ceil((s.implodeUntil - now) / 1000));
-    clock.hidden = false;
-    clock.className = !waiting && left <= 5 ? "urgent" : "";
-    clock.innerHTML = `💥 <b>${s.players[s.cur].name}</b> imploded — un-Nopeable<span>${waiting ? "20s begins when the card lands" : left + "s left in this turn"}</span>`;
-  } else clock.hidden = true;
+    clockEl.hidden = false;
+    clockEl.className = !waiting && left <= 5 ? "urgent" : "";
+    clockEl.innerHTML = `💥 <b>${s.players[s.cur].name}</b> imploded — un-Nopeable<span>${waiting ? "20s begins when the card lands" : left + "s left in this turn"}</span>`;
+  } else clockEl.hidden = true;
 
   scheduleTicks(s);
 }
 
 /* The host clock: only while something is counting. */
 function scheduleTicks(s: GameState): void {
-  const need = (timerEnabled(s) && s.turnTimerUntil > 0) || implodeActive(s) || handoverActive(s, Date.now());
+  const need = (timerEnabled(s) && s.turnTimerUntil > 0) || implodeActive(s) || handoverActive(s, clock());
   if (need && tickHandle === null) {
     tickHandle = window.setInterval(() => {
       const cur = store.get();
       if (!cur) { stopTicks(); return; }
-      if ((timerEnabled(cur) && cur.turnTimerUntil > 0) || implodeActive(cur)) store.dispatch({ type: "tick", hidden: document.hidden });
-      else if (handoverActive(cur, Date.now())) { /* just keep repainting until it ends */ render(); }
+      // Online the server keeps the clocks; this screen only repaints them.
+      if (!net.online && ((timerEnabled(cur) && cur.turnTimerUntil > 0) || implodeActive(cur))) store.dispatch({ type: "tick", hidden: document.hidden });
+      else if (net.online && ((timerEnabled(cur) && cur.turnTimerUntil > 0) || implodeActive(cur) || handoverActive(cur, clock()))) render();
+      else if (handoverActive(cur, clock())) { /* just keep repainting until it ends */ render(); }
       else { stopTicks(); render(); }
     }, 250);
   }
@@ -303,6 +312,7 @@ function stopTicks(): void { if (tickHandle !== null) { clearInterval(tickHandle
 
 /* ── boot ──────────────────────────────────────────────────────────── */
 function startGame(cfg: Parameters<typeof store.newGame>[0], botSeats: number[], seed?: number): void {
+  if (net.online) { net.leave(); goLocal(); }
   feed.reset();
   manualSeat = null;
   panelCb.scratch = {};
@@ -312,6 +322,56 @@ function startGame(cfg: Parameters<typeof store.newGame>[0], botSeats: number[],
   store.newGame(cfg, theSeed);
   scheduleBots(600);
 }
+/* ── online ─────────────────────────────────────────────────────────── */
+const ONLINE_KEY = "exploding-catan:online";
+let lobbyShowing = false;
+const chatLines: { name: string; text: string; seat: number | null }[] = [];
+function goLocal(): void {
+  store.remote = null;
+  store.clear();
+  chatLines.length = 0;
+  $("chatTab").hidden = true;
+  try { localStorage.removeItem(ONLINE_KEY); } catch { /* fine */ }
+  if (!store.restore()) newGameDialog(startGame, false);
+  else render();
+}
+function drawChat(): void {
+  const log = $("chatlog");
+  clear(log);
+  for (const l of chatLines.slice(-80)) log.append(h("div", null, h("b", { style: { color: l.seat !== null ? ["#d94b4b", "#4b7fd9", "#e08a2e", "#e8e8e8", "#59b364", "#a86fd0"][l.seat] : "var(--dim)" } }, l.name), l.text));
+  log.scrollTop = log.scrollHeight;
+}
+const net = new Net({
+  room(room: RoomInfo | null) {
+    if (!room) { if (lobbyShowing) { closeModal(); lobbyShowing = false; } goLocal(); if (net.connected) roomDialog(net); return; }
+    try { localStorage.setItem(ONLINE_KEY, "1"); } catch { /* fine */ }
+    $("chatTab").hidden = false;
+    store.remote = (a) => net.action(a);
+    if (!room.started || room.over) {
+      // The table, open until the host starts. Redrawn on every change.
+      if (!room.over || !store.get() || lobbyShowing || !modalOpen()) { lobbyDialog(net, room); lobbyShowing = true; }
+    } else if (lobbyShowing) { closeModal(); lobbyShowing = false; }
+    if (!room.started) { store.clear(); }
+    render();
+  },
+  state(s, events) { feed.take([]); store.receive(s, events); },
+  chat(seat, name, text) { chatLines.push({ seat, name, text }); drawChat(); if ($("chat").hidden) $("chatTab").classList.add("on"); },
+  refused(error) { hint(error, true); },
+  error(message) { hint(message, true); },
+  connection(up) { const tag = $("netTag"); tag.hidden = !up && !net.url; tag.textContent = up ? "online" : "reconnecting…"; tag.className = up ? "" : "off"; },
+});
+$("onlineBtn").onclick = () => {
+  if (net.online && net.room) { lobbyDialog(net, net.room); lobbyShowing = true; return; }
+  if (net.connected) { roomDialog(net); return; }
+  connectDialog(net, () => roomDialog(net));
+};
+($("chatrow") as HTMLFormElement).onsubmit = (e) => {
+  e.preventDefault();
+  const input = $("chatin") as HTMLInputElement;
+  const text = input.value.trim();
+  if (text && net.online) { net.chat(text); input.value = ""; }
+};
+
 store.subscribe((s, events, action) => {
   if (s) onEvents(s, events);
   // A new turn starts with the screen on whoever is playing.
@@ -327,6 +387,8 @@ for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
   $("feed").hidden = b.dataset.tab !== "feed";
   $("log").hidden = b.dataset.tab !== "log";
+  $("chat").hidden = b.dataset.tab !== "chat";
+  if (b.dataset.tab === "chat") { drawChat(); setTimeout(() => $("chatin").focus(), 0); }
 };
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
@@ -337,7 +399,13 @@ document.addEventListener("keydown", (e) => {
   if (s && s.select && (s.select.kind === "seat" || (s.select.kind === "alter" && s.select.purpose.kind === "play"))) act({ type: "cancelSelect", seat: ui.seat });
 });
 
-preload().then(() => {
+preload().then(async () => {
+  // Back into the room we were in, if the page was reloaded mid-game.
+  let online = false;
+  try { online = localStorage.getItem(ONLINE_KEY) === "1"; } catch { /* no */ }
+  if (online && Net.defaultUrl() && Net.savedName()) {
+    try { await net.connect(Net.defaultUrl(), Net.savedName()); return; } catch { /* fall through to local */ }
+  }
   if (store.restore()) {
     const s = store.get()!;
     try { const b = JSON.parse(localStorage.getItem(BOTS_KEY) || "null") as { seats: number[]; seed: number } | null; if (b) table = createTable(b.seats, b.seed); } catch { /* no bots */ }

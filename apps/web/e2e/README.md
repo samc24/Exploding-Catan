@@ -12,3 +12,9 @@ npm run e2e -w apps/web
 turns. `play-cards.mjs` injects kitten cards and walks Attack → Defuse →
 discard, Favor, Nope, Alter the Future, an open trade and a purchase.
 Screenshots land in `e2e/shots/` (ignored by git).
+
+`play-online.mjs` (`npm run e2e:online -w apps/web`) needs the game server
+too (`npm run dev -w apps/server`). It opens two browsers, hosts and joins a
+table by code, adds a bot, plays the opening from both screens, checks each
+screen is on its own seat, sends a chat line across, and reloads one player
+to get their seat back.

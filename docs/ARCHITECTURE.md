@@ -14,8 +14,9 @@ apps/
   web/         the browser UI: Vite + TypeScript, plain DOM and SVG, built on
                the engine. Hot-seat today; the same screens will be driven by
                the server's per-seat views tomorrow.
-  server/      (later) authoritative multiplayer: runs the engine, sends each
-               seat its own redacted view over WebSockets
+  server/      authoritative multiplayer: owns every room's real state, runs
+               the engine and the bots, sends each seat its own redacted view
+  protocol/    (packages/) the wire contract between client and server
 index.html, ai.js, net.js     the original game, untouched, still served by Pages
 ```
 
@@ -128,10 +129,24 @@ through Firebase. That cannot go public: the host can read every hand, the
 game dies when the host's tab closes, and the database rules let anyone with a
 room code write anything.
 
-The plan is an authoritative server that runs this same engine. Clients send
-actions, the server validates them, applies them, and sends each seat its
-`viewFor`. The host-in-browser code (`net.js`) keeps working against the
-legacy UI until then and is not being extended.
+`apps/server` replaces that with an authoritative server running this same
+engine. A room owns the real `GameState`; clients send actions, the server
+stamps the sender's seat on them, applies them, and sends each seat
+`viewFor(state, seat)`: its own cards, face-down placeholders for everyone
+else's, a deck of the right length with nothing in it, and no snapshots. The
+view is still a `GameState`, so the web app renders and queries it with the
+same code it uses for a local game. Bots run on the server, so a table keeps
+playing with nobody's tab open, and a session token gets a reloading player
+their seat back. Every server message carries the server's clock, and the
+client judges time windows by it.
+
+`packages/protocol` is the whole contract: `hello`, `create`/`join`, `sit`,
+`bot`, `start`, `action`, `chat` one way; `room`, `state`, `refused`,
+`chat` the other. One image (see `Dockerfile`) serves the web app and the
+WebSocket on one port. Rooms are in memory for now.
+
+The host-in-browser code (`net.js`) still works against the legacy UI and is
+not being extended.
 
 ## Working on it
 

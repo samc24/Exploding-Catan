@@ -13,6 +13,7 @@ export type Bundle = Record<Res, number>;
 export type Port = Res | "3:1";
 
 export type CardKey =
+  | "hidden"
   | "implode"
   | "vp"
   | "skip"

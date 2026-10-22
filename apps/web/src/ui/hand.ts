@@ -17,14 +17,14 @@ export interface HandCallbacks {
   cancelSelect(): void;
 }
 
-export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, isBot: (pid: number) => boolean, cb: HandCallbacks): void {
+export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, isBot: (pid: number) => boolean, cb: HandCallbacks, spectator = false): void {
   clear(root);
   const p = s.players[view];
-  const mine = s.cur === view;
+  const mine = s.cur === view && !spectator;
 
   const who = h("div", { class: "who" },
     h("b", { style: { color: p.color } }, p.name),
-    h("i", null, mine && s.phase !== "over" ? "your turn" : s.phase === "over" ? "game over" : `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing"}`),
+    h("i", null, spectator ? "watching" : mine && s.phase !== "over" ? "your turn" : s.phase === "over" ? "game over" : `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing"}`),
     timerEnabled(s) && s.turnTimerUntil ? timerEl(s, now) : null,
   );
 
@@ -53,7 +53,9 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
 
   const actions = h("div", { class: "actions" });
   const sel = s.select;
-  if (s.phase === "over") {
+  if (spectator) {
+    actions.append(h("span", { class: "note" }, "You are watching. Sit in an empty seat from the table dialog to play."));
+  } else if (s.phase === "over") {
     actions.append(h("span", { class: "note" }, `${s.players[s.winner!].name} wins.`));
   } else if (s.phase.startsWith("setup")) {
     if (s.phase === "setup3") actions.append(h("span", { class: "note" }, s.roadsOwed && s.roadsOwed[view] > 0 ? `Place ${s.roadsOwed[view]} opening road${s.roadsOwed[view] === 1 ? "" : "s"} on your settlements.` : "Waiting for the others to place their roads."));

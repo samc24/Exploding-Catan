@@ -18,6 +18,8 @@ export interface BoardUI {
   seat: number;
   /** Two-click confirm: what the first click armed. */
   armed: { kind: string; id: number } | null;
+  /** Watching only: nothing on the board is clickable. */
+  spectator?: boolean;
 }
 
 const PIPS: Record<number, number> = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 8: 5, 9: 4, 10: 3, 11: 2, 12: 1 };
@@ -149,7 +151,7 @@ function spots(s: GameState, geo: Geometry, ui: BoardUI, cb: BoardCallbacks, lay
     layer.append(svg("polygon", { points: pts, class: "spot hexpick" + (armed(kind, hid) ? " armed" : ""), onclick: (ev: Event) => { ev.stopPropagation(); cb.hex(hid); } }));
   };
 
-  if (s.phase === "over") return;
+  if (s.phase === "over" || ui.spectator) return;
 
   // Setup placements belong to the current seat only.
   if (s.phase === "setup1" || s.phase === "setup2") {

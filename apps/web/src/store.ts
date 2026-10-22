@@ -12,6 +12,8 @@ export class Store {
   private s: GameState | null = null;
   private listeners: Listener[] = [];
   lastError: string | null = null;
+  /** Online: actions go to the server instead of the engine, and states come back from it. */
+  remote: ((a: Action) => void) | null = null;
 
   get(): GameState | null { return this.s; }
   subscribe(fn: Listener): () => void {
@@ -25,6 +27,7 @@ export class Store {
   }
   /** Apply an action. Returns the error text when the engine refused it. */
   dispatch(a: Action, now = Date.now()): string | null {
+    if (this.remote) { this.remote(a); return null; }
     if (!this.s) return "no game";
     const r = applyAction(this.s, a, now);
     if (!r.ok) { this.lastError = r.error; return r.error; }
@@ -34,7 +37,11 @@ export class Store {
     this.emit(r.events, a);
     return null;
   }
-  end(): void { this.s = null; localStorage.removeItem(SAVE_KEY); this.emit([], null); }
+  end(): void { this.s = null; try { localStorage.removeItem(SAVE_KEY); } catch { /* fine */ } this.emit([], null); }
+  /** A state handed to us by the server. */
+  receive(s: GameState, events: GameEvent[]): void { this.s = s; this.emit(events, null); }
+  /** Leaving a room: forget its state without touching the saved local game. */
+  clear(): void { this.s = null; this.emit([], null); }
   restore(): boolean {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
@@ -46,6 +53,7 @@ export class Store {
     } catch { return false; }
   }
   private save(): void {
+    if (this.remote) return;
     try { if (this.s) localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); } catch { /* storage may be unavailable */ }
   }
   private emit(events: GameEvent[], a: Action | null): void {
