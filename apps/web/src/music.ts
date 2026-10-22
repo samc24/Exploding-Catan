@@ -20,18 +20,17 @@ function apply(): void {
   if (armed && audio.paused) { if (!audio.src) audio.src = SRC; audio.play().catch(() => { /* waits for a click */ }); }
 }
 
+/** The volume row in the settings menu. */
 export function installMusic(): void {
   load();
-  const btn = $("musicBtn");
-  const pop = $("musicPop");
-  const slider = h("input", { type: "range", min: "0", max: "100", value: String(Math.round(volume * 100)), title: "Volume",
+  const row = $("musicRow");
+  const icon = h("span", { class: "micon" });
+  const slider = h("input", { type: "range", min: "0", max: "100", value: String(Math.round(volume * 100)), title: "Music volume",
     oninput: (e: Event) => { volume = Number((e.target as HTMLInputElement).value) / 100; save(); apply(); paint(); } });
   const label = h("span", null);
-  pop.append(h("b", null, "Music"), slider, label);
-  const paint = () => { label.textContent = volume === 0 ? "off" : `${Math.round(volume * 100)}%`; btn.textContent = volume === 0 ? "🔇" : "🎵"; };
+  row.append(icon, h("b", null, "Music"), slider, label);
+  const paint = () => { label.textContent = volume === 0 ? "off" : `${Math.round(volume * 100)}%`; icon.textContent = volume === 0 ? "🔇" : "🎵"; };
   paint();
-  btn.onclick = () => { pop.hidden = !pop.hidden; };
-  document.addEventListener("pointerdown", (ev) => { if (!pop.hidden && !pop.contains(ev.target as Node) && ev.target !== btn) pop.hidden = true; });
   // The first click anywhere is the gesture the browser wants.
   const arm = () => { armed = true; apply(); document.removeEventListener("pointerdown", arm, true); document.removeEventListener("keydown", arm, true); };
   document.addEventListener("pointerdown", arm, true);

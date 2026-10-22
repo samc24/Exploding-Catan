@@ -37,7 +37,7 @@ store.subscribe((s, events, action) => {
 });
 
 $("newBtn").onclick = () => openNewGame(!!store.get());
-$("rulesBtn").onclick = showRules;
+$("rulesBtn").onclick = () => { $("menu").hidden = true; showRules(); };
 $("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
 const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", dice: "dicepanel" };
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
@@ -46,10 +46,16 @@ for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   if (b.dataset.tab === "chat") { drawChat(); setTimeout(() => $("chatin").focus(), 0); }
   render();
 };
-if (document.fullscreenEnabled) {
-  const fs = $("fsBtn");
-  fs.hidden = false;
-  fs.onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => { /* refused */ }); };
+// The settings menu: things set once, out of the way of the things pressed mid-game.
+{
+  const menu = $("menu"), btn = $("menuBtn");
+  btn.onclick = () => { menu.hidden = !menu.hidden; };
+  document.addEventListener("pointerdown", (ev) => { if (!menu.hidden && !menu.contains(ev.target as Node) && ev.target !== btn) menu.hidden = true; });
+  if (document.fullscreenEnabled) {
+    const fs = $("fsBtn");
+    fs.hidden = false;
+    fs.onclick = () => { menu.hidden = true; if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => { /* refused */ }); };
+  }
 }
 installKeys();
 installDrag();
