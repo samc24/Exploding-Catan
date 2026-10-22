@@ -72,4 +72,20 @@ await page.setViewportSize({ width: 420, height: 860 });
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${OUT}/09-phone.png` });
 await clickSpot(page, "#board .spot.nothing"); // no-op, keeps the helper exercised
+
+// Coming back: the front door offers the saved game and a way out of it, and never forces it.
+await page.setViewportSize({ width: 1400, height: 900 });
+await page.reload({ waitUntil: "networkidle" });
+if (!(await page.locator("#landing:not([hidden])").count())) errors.push("a reload did not open on the landing");
+const cont = page.locator('#landing .way:has-text("Continue last game")');
+if (!(await cont.count())) errors.push("the landing does not offer the saved game");
+await cont.click(); await page.waitForTimeout(300);
+if (!(await page.locator("#board .hex").count()) || (await page.locator("#landing:not([hidden])").count())) errors.push("Continue did not bring the game back");
+await page.click("#menuBtn"); await page.waitForTimeout(100);
+if (!(await page.locator("#menuLeave:not([hidden])").count())) errors.push("the menu has no Leave game while a game is on");
+await page.click("#menuLeave"); await page.waitForTimeout(150);
+await page.click('#modal button:has-text("Leave")'); await page.waitForTimeout(300);
+const left = await page.evaluate(() => ({ saved: localStorage.getItem("exploding-catan:game"), landing: !document.querySelector("#landing").hidden, cont: !!document.querySelector('#landing .way.resume') }));
+console.log("after leaving:", JSON.stringify(left));
+if (left.saved !== null || !left.landing || left.cont) errors.push("leaving did not clear the game and return to the landing");
 await finish(browser, errors);

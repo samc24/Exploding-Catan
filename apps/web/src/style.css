@@ -276,6 +276,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
 #landing .way.resume{border-color:var(--accent);background:linear-gradient(180deg,rgba(224,165,58,.22),rgba(224,165,58,.08))}
 #landing .fine{color:var(--dim);font-size:12.5px;margin:16px 0 0}
 #landing .fine a{color:var(--accent)}
+#landing .fine a.leave{color:var(--dim);text-decoration:underline}
 #landing .fan{position:relative;height:360px;display:flex;justify-content:center;align-items:flex-end;perspective:900px}
 #landing .fcard{position:absolute;bottom:40px;width:170px;height:238px;border-radius:12px;background:#2a2f3a;background-size:cover;background-position:center;border:2px solid rgba(255,240,210,.5);box-shadow:0 20px 40px rgba(0,0,0,.6);transform-origin:50% 120%;transition:transform .25s}
 #landing .fcard.c0{transform:rotate(-26deg) translateX(-30px)}#landing .fcard.c1{transform:rotate(-13deg) translateX(-10px)}

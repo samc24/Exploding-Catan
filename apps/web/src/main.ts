@@ -7,7 +7,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 import { store } from "./store";
 import { preload } from "./art";
-import { $ } from "./ui/dom";
+import { $, h } from "./ui/dom";
 import { showRules } from "./ui/rules";
 import { setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
 import { onEvents, paintClocks, render } from "./render";
@@ -16,15 +16,33 @@ import { installDrag } from "./drag";
 import { installBoardView } from "./boardview";
 import { installEmoteTray, showEmote } from "./emotes";
 import { chatSeen, drawChat, net, resumeOnline, wireOnline } from "./online";
-import { BOT_PACE, pokeTaunts, scheduleBots } from "./bots-host";
+import { BOT_PACE, pokeTaunts, scheduleBots, stopBots } from "./bots-host";
 import { hasSavedGame, openNewGame, resumeLocal } from "./game";
+import { closeModal, openModal } from "./ui/dialogs";
+import { goLocal } from "./online";
 import { hideLanding, landingShowing, showLanding } from "./ui/landing";
 import { connectDialog, roomDialog } from "./ui/lobby";
 import { installMusic } from "./music";
 import { installSfx } from "./sfx";
 
 setRenderer(render);
-/** The front door. With a game waiting, it offers to continue it. */
+/** Walk away from the game on this screen, after a word of warning. The
+    saved copy goes too, so the front door stops offering it. */
+function leaveGame(): void {
+  const online = net.online;
+  openModal("Leave this game?", [h("p", { style: { margin: 0, color: "var(--dim)" } }, online
+    ? "You leave the table; the others can carry on, and your seat is held for a while if you come back with the same code."
+    : "The table is cleared and the saved game is gone. The bots and the other seats on this screen go with it.")],
+    [{ label: "Stay", fn: closeModal }, { label: "Leave", cls: "warn", fn: () => {
+      closeModal();
+      if (online) { net.leave(); goLocal(); }
+      stopBots();
+      store.end();
+      try { localStorage.removeItem("exploding-catan:bots"); } catch { /* fine */ }
+      landing();
+    } }]);
+}
+/** The front door. With a game waiting, it offers to continue it, or to leave it. */
 function landing(): void {
   const live = store.get();
   const saved = !live && hasSavedGame();
@@ -35,6 +53,7 @@ function landing(): void {
     rules: showRules,
     resume: live ? () => hideLanding() : saved ? () => { hideLanding(); resumeLocal(); } : null,
     resumeLabel: live ? "Back to the table" : "Continue last game",
+    leave: live || saved ? leaveGame : null,
   });
 }
 setNoGameHandler(landing);
@@ -76,7 +95,8 @@ for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
 // The settings menu: things set once, out of the way of the things pressed mid-game.
 {
   const menu = $("menu"), btn = $("menuBtn");
-  btn.onclick = () => { menu.hidden = !menu.hidden; };
+  btn.onclick = () => { menu.hidden = !menu.hidden; $("menuLeave").hidden = !store.get(); };
+  $("menuLeave").onclick = () => { menu.hidden = true; leaveGame(); };
   document.addEventListener("pointerdown", (ev) => { if (!menu.hidden && !menu.contains(ev.target as Node) && ev.target !== btn) menu.hidden = true; });
   if (document.fullscreenEnabled) {
     const fs = $("fsBtn");
@@ -94,6 +114,6 @@ wireOnline();
 
 preload().then(async () => {
   if (await resumeOnline()) return;
-  // A saved game resumes straight away; otherwise the front door.
-  if (!resumeLocal()) landing();
+  // The front door, always; a saved game is offered there, never forced.
+  landing();
 });

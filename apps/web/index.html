@@ -38,6 +38,7 @@
       <button class="sm phone" id="menuOnline">Play online</button>
       <button class="sm" id="fsBtn" hidden>⛶ Fullscreen</button>
       <button class="sm" id="rulesBtn">Rules</button>
+      <button class="sm warn" id="menuLeave" hidden>Leave game</button>
     </div>
   </header>
   <div id="seats"></div>
@@ -61,7 +62,9 @@
     </div>
   </div>
   <div id="bottom"></div>
-  <div id="landing" hidden></div>
+  <!-- The landing is the first paint: it stays up until the script decides
+       what to show, so the empty table never flashes behind it. -->
+  <div id="landing"><div class="hero"><div class="hero-text"><p class="kicker">A kitchen-table game</p><h1><span class="ex">Exploding</span> <span class="ca">Catan</span></h1></div></div></div>
   <div id="modal" hidden></div>
   <script type="module" src="./src/main.ts"></script>
 </body>
