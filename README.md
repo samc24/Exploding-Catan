@@ -35,3 +35,10 @@ npm run e2e -w apps/web     # headless-Chrome smoke tests (needs the dev server)
 
 Rules changes go in `packages/engine` with a test. Everything is TypeScript;
 Node 22 or newer.
+
+## License
+
+The code is under the [PolyForm Noncommercial License 1.0.0](LICENSE): free
+to use, change and share for non-commercial purposes. The Catan and Exploding
+Kittens names, the card art and the music are their owners' and are not
+covered; see [NOTICE.md](NOTICE.md) for that and for credits.
