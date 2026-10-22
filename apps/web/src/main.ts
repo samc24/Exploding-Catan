@@ -9,23 +9,40 @@ import { store } from "./store";
 import { preload } from "./art";
 import { $ } from "./ui/dom";
 import { showRules } from "./ui/rules";
-import { feed, setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
+import { setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
 import { onEvents, paintClocks, render } from "./render";
 import { installKeys } from "./input";
 import { installDrag } from "./drag";
 import { installBoardView } from "./boardview";
 import { installEmoteTray, showEmote } from "./emotes";
-import { drawChat, net, resumeOnline, wireOnline } from "./online";
-import { BOT_PACE, pokeTaunts, restoreBots, scheduleBots } from "./bots-host";
-import { openNewGame } from "./game";
+import { chatSeen, drawChat, net, resumeOnline, wireOnline } from "./online";
+import { BOT_PACE, pokeTaunts, scheduleBots } from "./bots-host";
+import { hasSavedGame, openNewGame, resumeLocal } from "./game";
+import { hideLanding, landingShowing, showLanding } from "./ui/landing";
+import { connectDialog, roomDialog } from "./ui/lobby";
 import { installMusic } from "./music";
 import { installSfx } from "./sfx";
 
 setRenderer(render);
-setNoGameHandler(() => openNewGame(false));
+/** The front door. With a game waiting, it offers to continue it. */
+function landing(): void {
+  const live = store.get();
+  const saved = !live && hasSavedGame();
+  showLanding({
+    bots: () => { hideLanding(); openNewGame(!!live, "bots"); },
+    passAndPlay: () => { hideLanding(); openNewGame(!!live, "humans"); },
+    online: () => { hideLanding(); if (net.connected) roomDialog(net); else connectDialog(net, () => roomDialog(net)); },
+    rules: showRules,
+    resume: live ? () => hideLanding() : saved ? () => { hideLanding(); resumeLocal(); } : null,
+    resumeLabel: live ? "Back to the table" : "Continue last game",
+  });
+}
+setNoGameHandler(landing);
 
 let lastCur = -1;
 store.subscribe((s, events, action) => {
+  // A game beginning (or arriving from the server) takes the landing away.
+  if (s && action === null && landingShowing()) hideLanding();
   // Only the clocks moved: repaint them in place unless something they gate flipped.
   if (s && action && action.type === "tick" && !events.length && paintClocks(s)) return;
   if (s) onEvents(s, events);
@@ -38,13 +55,14 @@ store.subscribe((s, events, action) => {
 });
 
 $("newBtn").onclick = () => openNewGame(!!store.get());
+$("homeBtn").onclick = () => { if (landingShowing()) hideLanding(); else landing(); };
 $("rulesBtn").onclick = () => { $("menu").hidden = true; showRules(); };
 $("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
 const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", dice: "dicepanel" };
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
   for (const [tab, id] of Object.entries(PANES)) $(id).hidden = b.dataset.tab !== tab;
-  if (b.dataset.tab === "chat") { drawChat(); setTimeout(() => $("chatin").focus(), 0); }
+  if (b.dataset.tab === "chat") { drawChat(); chatSeen(); setTimeout(() => $("chatin").focus(), 0); }
   render();
 };
 // The settings menu: things set once, out of the way of the things pressed mid-game.
@@ -68,11 +86,6 @@ wireOnline();
 
 preload().then(async () => {
   if (await resumeOnline()) return;
-  if (store.restore()) {
-    const s = store.get()!;
-    restoreBots();
-    feed.lines = s.journal.slice(-30).map((e) => ({ text: e.text, kind: e.kind, jid: e.id }));
-    render();
-    scheduleBots(800);
-  } else openNewGame(false);
+  // A saved game resumes straight away; otherwise the front door.
+  if (!resumeLocal()) landing();
 });

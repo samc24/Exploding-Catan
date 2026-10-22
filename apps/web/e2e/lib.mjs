@@ -29,9 +29,14 @@ export const state = (page) => page.evaluate(() => JSON.parse(localStorage.getIt
 
 /** Fill the New Game dialog and start. `bots`: which seats are bots (default none). */
 export async function startLocal(page, { seed = "7", bots = [], mode = null } = {}) {
+  // The landing page is the front door: pick a way in, which opens the form.
+  if (await page.locator("#landing:not([hidden])").count()) {
+    await page.click(bots.length ? '#landing .way:has-text("Play against bots")' : '#landing .way:has-text("Pass and play")');
+    await page.waitForTimeout(150);
+  }
   // Every seat human first, then the ones asked for.
   while (await page.locator('#modal button:has-text("bot")').count()) { await page.locator('#modal button:has-text("bot")').first().click(); await page.waitForTimeout(30); }
-  for (const i of bots) { await page.locator('#modal label').nth(i + 1).locator("button").click(); await page.waitForTimeout(30); }
+  for (const i of bots) { await page.locator('#modal label').nth(i + 1).locator("button.sm").click(); await page.waitForTimeout(30); }
   if (mode) await page.locator("#modal .seg").nth(1).locator("button", { hasText: mode }).first().click();
   await page.fill('#modal input[placeholder="random"]', seed);
   await page.click('#modal button:has-text("Start game")');

@@ -5,11 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Exploding Catan</title>
   <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Nunito:wght@400;600;700;800&display=swap">
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
   <header>
-    <h1>Exploding <span>Catan</span></h1>
+    <h1 id="homeBtn" title="Home"><span class="ex">Exploding</span> <span class="ca">Catan</span></h1>
     <span id="hint"></span>
     <div class="spacer"></div>
     <span id="dirTag" title="Turn order" hidden></span>
@@ -44,10 +47,12 @@
       <div id="feed"></div>
       <div id="log" hidden></div>
       <div id="dicepanel" hidden></div>
-      <div id="chat" hidden><div id="chatlog"></div><form id="chatrow"><input id="chatin" maxlength="140" placeholder="Say something…" autocomplete="off"><button class="sm" type="submit">Send</button></form></div>
+      <div id="chat" hidden><div id="chatlog"></div></div>
+      <form id="chatrow" hidden><input id="chatin" maxlength="140" placeholder="Say something to the table…" autocomplete="off"><button class="sm" type="submit">Send</button></form>
     </div>
   </div>
   <div id="bottom"></div>
+  <div id="landing" hidden></div>
   <div id="modal" hidden></div>
   <script type="module" src="./src/main.ts"></script>
 </body>

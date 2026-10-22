@@ -23,7 +23,13 @@ function apply(el: Element, props: Props): void {
   for (const [k, v] of Object.entries(props)) {
     if (v === null || v === undefined || v === false) continue;
     if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v as EventListener);
-    else if (k === "style" && typeof v === "object") Object.assign((el as HTMLElement).style, v);
+    else if (k === "style" && typeof v === "object") {
+      // Custom properties (--c) only take through setProperty; the rest assign.
+      const st = (el as HTMLElement).style;
+      for (const [sk, sv] of Object.entries(v as Record<string, string>)) {
+        if (sk.startsWith("--")) st.setProperty(sk, sv); else (st as unknown as Record<string, string>)[sk] = sv;
+      }
+    }
     else if (k === "class") el.setAttribute("class", String(v));
     else if (k === "dataset") for (const [dk, dv] of Object.entries(v as Record<string, string>)) (el as HTMLElement).dataset[dk] = dv;
     else if (k === "html") el.innerHTML = String(v);

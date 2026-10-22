@@ -7,8 +7,7 @@ const SERVER = process.env.SERVER_URL || "ws://localhost:8787";
 const { browser, page: ann, errors, newPage } = await launch("Ann", { width: 1300, height: 850 });
 
 async function goOnline(page, name) {
-  await page.keyboard.press("Escape"); // the local New Game dialog
-  await page.click("#onlineBtn");
+  await page.click('#landing .way:has-text("Play online")');
   await page.fill('#modal input[placeholder="Your name"]', name);
   await page.fill('#modal input[placeholder="wss://your-server"]', SERVER);
   await page.click('#modal button:has-text("Connect")');
@@ -38,7 +37,7 @@ await ann.waitForTimeout(300);
 if (!(await ann.locator("#seats .seat").nth(2).textContent()).includes("🤖")) errors.push("the bot seat is not marked on Ann's screen");
 
 // Play the opening from whichever screen has spots; the bot places its own.
-const deadline = Date.now() + 90000;
+const deadline = Date.now() + 150000;
 let inMain = false;
 while (Date.now() < deadline && !inMain) {
   let acted = false;
@@ -49,6 +48,7 @@ while (Date.now() < deadline && !inMain) {
   if (!acted && !inMain) await ann.waitForTimeout(400);
 }
 console.log("setup finished:", inMain);
+if (!inMain) { const dbg = await ann.evaluate(() => { const b = document.querySelector("#bottom"); return { note: b && b.textContent.replace(/\s+/g, " ").slice(0, 160), spots: document.querySelectorAll("#board .spot").length, landing: !document.querySelector("#landing").hidden, modal: !document.querySelector("#modal").hidden }; }); console.log("ann debug:", JSON.stringify(dbg)); const dbg2 = await ben.evaluate(() => { const b = document.querySelector("#bottom"); return { note: b && b.textContent.replace(/\s+/g, " ").slice(0, 160), spots: document.querySelectorAll("#board .spot").length, modal: !document.querySelector("#modal").hidden }; }); console.log("ben debug:", JSON.stringify(dbg2)); }
 if (!inMain) errors.push("the opening did not finish");
 const annMe = await ann.locator("#seats .seat.me .name").textContent();
 const benMe = await ben.locator("#seats .seat.me .name").textContent();

@@ -19,7 +19,7 @@ import {
   type TauntMemory,
 } from "@exploding-catan/bots";
 import {
-  EMOJIS, MAX_CHAT, defaultAvatar, normalizeRoomConfig, type RoomConfig, type RoomInfo, type ServerMsg,
+  EMOJIS, MAX_CHAT, defaultAvatar, normalizeRoomConfig, validAvatar, type RoomConfig, type RoomInfo, type ServerMsg,
 } from "@exploding-catan/protocol";
 import type { RoomSnapshot } from "./store";
 
@@ -29,7 +29,7 @@ export interface Client {
   send(msg: ServerMsg): void;
   connected: boolean;
 }
-interface Seat { uid: string | null; name: string | null; bot: boolean }
+interface Seat { uid: string | null; name: string | null; bot: boolean; avatar?: string }
 
 export class Refused extends Error {}
 
@@ -180,6 +180,16 @@ export class Room {
     this.changed();
     this.pushRoom();
   }
+  /** Your portrait, for your seat. Mid-game it changes on every screen. */
+  setAvatar(uid: string, avatar: string): void {
+    const seat = this.seatOf(uid);
+    const ok = validAvatar(avatar);
+    if (seat === null || !ok) return;
+    this.seats[seat].avatar = ok;
+    if (this.state) { this.state.players[seat].avatar = ok; this.broadcastState([]); }
+    this.changed();
+    this.pushRoom();
+  }
 
   /* ── the host's controls ──────────────────────────────────────────── */
   setBot(seat: number, on: boolean, announce = true): void {
@@ -212,7 +222,7 @@ export class Room {
     if (open) throw new Error(`${open} seat${open === 1 ? " is" : "s are"} still empty — add a bot or wait`);
     this.seed = seed;
     const cfg: GameConfig = {
-      players: this.seats.map((s, i) => ({ name: s.name ?? PLAYER_NAMES[i], avatar: defaultAvatar(i) })),
+      players: this.seats.map((s, i) => ({ name: s.name ?? PLAYER_NAMES[i], avatar: s.avatar ?? defaultAvatar(i) })),
       mode: this.config.mode, winPoints: this.config.winPoints, turnSeconds: this.config.turnSeconds, implodeRevealMs: 2500,
     };
     if (this.config.board !== "auto") cfg.board = this.config.board;
@@ -326,7 +336,7 @@ export class Room {
       code: this.code,
       config: this.config,
       seats: this.seats.map((s, i) => ({
-        seat: i, name: s.name, bot: s.bot, taken: s.bot || s.uid !== null,
+        seat: i, name: s.name, avatar: s.avatar ?? (s.bot || s.uid ? defaultAvatar(i) : null), bot: s.bot, taken: s.bot || s.uid !== null,
         connected: s.bot || (!!s.uid && !!this.clients.get(s.uid)?.connected),
         ...(i === seat ? { you: true } : {}),
       })),
