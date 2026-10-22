@@ -38,6 +38,8 @@ export function createBot(seat: number, seed: number): Bot {
   return { seat, rng: new Rng(seed), lastTurn: -1, offered: false, aim: null };
 }
 const zero = (): Bundle => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
+/** How long a bot leaves an offer open for people who have not answered. */
+export const TRADE_PATIENCE_MS = 20_000;
 
 /** The next action for this bot, or null if nothing is wanted of it right now. */
 export function decide(bot: Bot, s: GameState, now: number): Action | null {
@@ -111,12 +113,14 @@ export function decide(bot: Bot, s: GameState, now: number): Action | null {
   if (s.phase !== "main" || owesAnswer(s)) return null;
   if (bot.lastTurn !== s.turnCounter) { bot.lastTurn = s.turnCounter; bot.offered = false; bot.aim = null; }
 
-  // An offer of ours is on the table: deal with the first taker, or withdraw.
+  // An offer of ours is on the table: deal with the first taker, wait a
+  // while for people still thinking, then withdraw rather than hold the table.
   if (s.trade && s.trade.from === seat) {
     const yes = Object.entries(s.trade.replies).find(([, r]) => r === "yes");
     if (yes) return { type: "acceptTrade", seat, with: Number(yes[0]) };
     const waiting = Object.values(s.trade.replies).some((r) => r === "wait");
-    return waiting ? null : { type: "cancelTrade", seat };
+    if (waiting && now - (s.trade.since ?? 0) < TRADE_PATIENCE_MS) return null;
+    return { type: "cancelTrade", seat };
   }
   return step(bot, s, geo, me, plans());
 }

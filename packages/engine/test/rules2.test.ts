@@ -142,6 +142,7 @@ describe("trades under a Nope", () => {
     s = giveRes(s, me, { wood: 1 });
     s = must(s, { type: "offerTrade", seat: me, offer: bundle({ wood: 1 }), want: bundle({ ore: 1 }) });
     expect(s.trade).not.toBeNull();
+    expect(s.trade!.since).toBe(T0);
     s = must(s, { type: "nopeTurn", seat: foe });
     expect(s.trade).toBeNull();
   });

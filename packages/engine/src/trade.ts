@@ -46,7 +46,7 @@ export function offerTrade(c: Ctx, seat: number, offer: Bundle, want: Bundle): v
     if (q.id === seat) continue;
     replies[q.id] = hasBundle(q, want) ? "wait" : "cant";
   }
-  s.trade = { from: seat, offer: { ...offer }, want: { ...want }, replies };
+  s.trade = { from: seat, offer: { ...offer }, want: { ...want }, replies, since: c.now };
   // Kept in the log, not the feed: an offer is not an action.
   log(c, `${p.name} offers ${bundleText(offer) || "nothing"} for ${bundleText(want) || "nothing"}.`);
 }
