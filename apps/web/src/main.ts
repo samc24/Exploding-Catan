@@ -18,6 +18,7 @@ import { installEmoteTray, showEmote } from "./emotes";
 import { drawChat, net, resumeOnline, wireOnline } from "./online";
 import { BOT_PACE, pokeTaunts, restoreBots, scheduleBots } from "./bots-host";
 import { openNewGame } from "./game";
+import { installMusic } from "./music";
 
 setRenderer(render);
 setNoGameHandler(() => openNewGame(false));
@@ -53,6 +54,7 @@ if (document.fullscreenEnabled) {
 installKeys();
 installDrag();
 installBoardView();
+installMusic();
 installEmoteTray((emoji) => { if (net.online) { if (net.seat !== null) net.emote(emoji); } else showEmote(ui.seat, emoji); });
 wireOnline();
 
