@@ -11,11 +11,16 @@ packages/
   engine/      pure TypeScript rules engine — no DOM, no network, no clock
   bots/        (next) the AI, as a client of the engine
 apps/
-  web/         (next) the browser UI, Vite + TypeScript, built on the engine
+  web/         the browser UI: Vite + TypeScript, plain DOM and SVG, built on
+               the engine. Hot-seat today; the same screens will be driven by
+               the server's per-seat views tomorrow.
   server/      (later) authoritative multiplayer: runs the engine, sends each
                seat its own redacted view over WebSockets
 index.html, ai.js, net.js     the original game, untouched, still served by Pages
 ```
+
+Published by the Pages workflow: the original at the site root, the new app
+under `/new/`.
 
 The original files stay at the repository root for now so the published site
 keeps working while the new code grows beside it. When `apps/web` reaches
@@ -75,6 +80,25 @@ post-mortems in the original README.
 * The forced Nope is served by the forced player sending `nopeTurn`; the
   engine will not accept anything else from the table until they do. A bot
   driver answers it immediately, as before.
+
+## The web app
+
+`apps/web` has no framework. One `render()` rebuilds each region of the page
+from the state: the SVG board, the seat strip, the bottom bar (hand and
+actions), the side feed, and the panels. Panels are the important idea: every
+decision the engine says is owed (`discardOwed`, `select`, `forcedNope`,
+`trade`) is drawn as a panel for the seat that owes it, and the screen follows
+that seat. Nothing is modal except menus, so nothing the game needs can be
+dismissed.
+
+Clicks on the board arm a spot on the first click and act on the second, the
+way the original does. Cards are clicked, not dragged: a reaction card opens
+the engine's `answersFor` list when there is more than one thing it could
+answer. Screen-local state (what is armed, which seat is being looked at,
+which composer is open) lives in `main.ts` and never touches the rules.
+
+`e2e/` holds headless-Chrome smoke tests that play through setup, turns, and
+every kitten card flow and fail on any page error.
 
 ## Multiplayer
 

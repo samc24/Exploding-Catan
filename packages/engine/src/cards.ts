@@ -70,13 +70,12 @@ export function cardIsPlayable(s: GameState, card: Card): boolean {
   return true;
 }
 /** May this card be played to the pile at all, by this player, right now? */
-export function canPlayToPile(c: Ctx, key: CardKey, me: number): boolean {
-  const s = c.s;
+export function canPlayToPile(s: GameState, key: CardKey, me: number): boolean {
   if (s.phase === "over" || s.phase.startsWith("setup")) return false;
   const def = KITTEN[key];
   if (!def) return false;
   if (def.kind === "vp") return false;
-  if (heldBack(c, key)) return false;
+  if (heldBack(s, key)) return false;
   if (def.kind === "response") return false; // answered, not played
   if (owesAnswer(s)) return false;
   if (me === s.cur) return true;
@@ -93,7 +92,7 @@ export function playCard(c: Ctx, ownerId: number, cardId: number): void {
   if (!card) throw new Error("no such card in hand");
   if (!cardIsPlayable(s, card)) throw new Error("that card cannot be played now");
   const def = KITTEN[card.key];
-  if (!canPlayToPile(c, card.key, ownerId)) throw new Error(`${def.name} cannot be played now`);
+  if (!canPlayToPile(s, card.key, ownerId)) throw new Error(`${def.name} cannot be played now`);
 
   // Out of the hand and onto the screen NOW, not when whatever it waits for is answered.
   s.playing = { pid: ownerId, id: card.id, key: card.key };

@@ -1,0 +1,55 @@
+/* The one place the game state lives in the browser. Everything the UI does
+   goes through dispatch(); everything it shows comes from get(). */
+import {
+  applyAction, createGame, type Action, type GameConfig, type GameEvent, type GameState,
+} from "@exploding-catan/engine";
+
+export type Listener = (s: GameState, events: GameEvent[], action: Action | null) => void;
+
+const SAVE_KEY = "exploding-catan:game";
+
+export class Store {
+  private s: GameState | null = null;
+  private listeners: Listener[] = [];
+  lastError: string | null = null;
+
+  get(): GameState | null { return this.s; }
+  subscribe(fn: Listener): () => void {
+    this.listeners.push(fn);
+    return () => { this.listeners = this.listeners.filter((f) => f !== fn); };
+  }
+  newGame(cfg: GameConfig, seed = (Math.random() * 2 ** 32) >>> 0): void {
+    this.s = createGame(cfg, seed);
+    this.save();
+    this.emit([], null);
+  }
+  /** Apply an action. Returns the error text when the engine refused it. */
+  dispatch(a: Action, now = Date.now()): string | null {
+    if (!this.s) return "no game";
+    const r = applyAction(this.s, a, now);
+    if (!r.ok) { this.lastError = r.error; return r.error; }
+    this.lastError = null;
+    this.s = r.state;
+    if (a.type !== "tick" || r.events.length) this.save();
+    this.emit(r.events, a);
+    return null;
+  }
+  end(): void { this.s = null; localStorage.removeItem(SAVE_KEY); this.emit([], null); }
+  restore(): boolean {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const s = JSON.parse(raw) as GameState;
+      if (!s || !Array.isArray(s.players)) return false;
+      this.s = s;
+      return true;
+    } catch { return false; }
+  }
+  private save(): void {
+    try { if (this.s) localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); } catch { /* storage may be unavailable */ }
+  }
+  private emit(events: GameEvent[], a: Action | null): void {
+    for (const fn of this.listeners) fn(this.s!, events, a);
+  }
+}
+export const store = new Store();

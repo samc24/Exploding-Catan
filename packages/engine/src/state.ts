@@ -50,15 +50,15 @@ export function hint(c: Ctx, seat: number, text: string): void {
 }
 
 /* ── modes ─────────────────────────────────────────────────────────── */
-export function fastStart(c: Ctx): boolean {
-  return c.s.mode !== "normal";
+export function fastStart(s: GameState): boolean {
+  return s.mode !== "normal";
 }
 /** The fast tracks' first round, which is protected: no 7, no Attack, no Exploding Kitten. */
-export function openingRound(c: Ctx): boolean {
-  return fastStart(c) && !c.s.phase.startsWith("setup") && c.s.turnCounter <= c.s.players.length;
+export function openingRound(s: GameState): boolean {
+  return fastStart(s) && !s.phase.startsWith("setup") && s.turnCounter <= s.players.length;
 }
-export function heldBack(c: Ctx, key: CardKey): boolean {
-  return (key === "attack" || key === "explode") && openingRound(c);
+export function heldBack(s: GameState, key: CardKey): boolean {
+  return (key === "attack" || key === "explode") && openingRound(s);
 }
 export function inSetup(c: Ctx): boolean {
   return c.s.phase.startsWith("setup");

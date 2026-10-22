@@ -1,0 +1,93 @@
+/* The bottom bar: whose hand this is, their resources, their kitten cards,
+   and the buttons for whatever their turn allows. */
+import {
+  RES, RES_NAME, KITTEN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, owesAnswer, handoverActive,
+  timerEnabled, totalRes, type GameState, type Card,
+} from "@exploding-catan/engine";
+import { clear, h } from "./dom";
+import { cardArt, has, resArt } from "../art";
+
+export interface HandCallbacks {
+  roll(): void;
+  endTurn(): void;
+  buy(): void;
+  bank(): void;
+  trade(): void;
+  card(card: Card): void;
+  cancelSelect(): void;
+}
+
+export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, cb: HandCallbacks): void {
+  clear(root);
+  const p = s.players[view];
+  const mine = s.cur === view;
+
+  const who = h("div", { class: "who" },
+    h("b", { style: { color: p.color } }, p.name),
+    h("i", null, mine && s.phase !== "over" ? "your turn" : s.phase === "over" ? "game over" : `${s.players[s.cur].name} is playing`),
+    timerEnabled(s) && s.turnTimerUntil ? timerEl(s, now) : null,
+  );
+
+  const res = h("div", { class: "resrow" }, RES.map((r) => h("div", { class: "chip" + (p.res[r] ? "" : " zero"), title: RES_NAME[r] },
+    h("span", { class: "swatch", style: has(resArt(r)) ? { backgroundImage: `url(${resArt(r)})` } : { background: `var(--${r})` } }),
+    h("span", null, RES_NAME[r]), h("b", null, String(p.res[r])))));
+
+  const hand = h("div", { class: "hand" });
+  for (const c of p.cards) {
+    const def = KITTEN[c.key];
+    let cls = "kc";
+    let why = def.text;
+    const reaction = c.key === "nope" || c.key === "defuse";
+    const live = reaction
+      ? cardIsPlayable(s, c) && answersFor(s, c.key as "nope" | "defuse", view, now).length > 0
+      : cardIsPlayable(s, c) && canPlayToPile(s, c.key, view);
+    if (c.key === "vp") cls += " dead";
+    else if (live) cls += reaction ? " answer" : " live";
+    else { cls += " dead"; why += c.boughtTurn === s.turnCounter ? " (bought this turn)" : ""; }
+    const art = has(cardArt(c.key, c.flavor)) ? cardArt(c.key, c.flavor) : null;
+    hand.append(h("div", { class: cls, title: `${def.name}: ${why}`, style: art ? { backgroundImage: `url(${art})` } : null, onclick: () => cb.card(c) },
+      live && reaction ? h("span", { class: "pip" }) : null,
+      art ? "" : def.name + (c.flavor ? ` (${c.flavor})` : "")));
+  }
+  if (!p.cards.length) hand.append(h("i", { style: { color: "var(--dim)", fontSize: "12px" } }, "no kitten cards"));
+
+  const actions = h("div", { class: "actions" });
+  const sel = s.select;
+  if (s.phase === "over") {
+    actions.append(h("span", { class: "note" }, `${s.players[s.winner!].name} wins.`));
+  } else if (s.phase.startsWith("setup")) {
+    if (s.phase === "setup3") actions.append(h("span", { class: "note" }, s.roadsOwed && s.roadsOwed[view] > 0 ? `Place ${s.roadsOwed[view]} opening road${s.roadsOwed[view] === 1 ? "" : "s"} on your settlements.` : "Waiting for the others to place their roads."));
+    else if (mine) actions.append(h("span", { class: "note" }, sel?.kind === "road" ? "Place a road touching that settlement." : "Place a settlement: click a spot, click again to confirm."));
+    else actions.append(h("span", { class: "note" }, `${s.players[s.cur].name} is placing.`));
+  } else if (sel && "actor" in sel && sel.actor === view && sel.kind !== "victim" && sel.kind !== "favor") {
+    const words = sel.kind === "robber" ? "Move the robber: click a hex, click again to confirm." :
+      sel.kind === "alter" ? (sel.first === null ? "Pick the first number token to swap." : "Pick the second token (click the first again to un-pick).") :
+      sel.kind === "seat" ? `Click the player to aim ${KITTEN[sel.key].name} at.` : "";
+    actions.append(h("span", { class: "note" }, words));
+    if ((sel.kind === "seat") || (sel.kind === "alter" && sel.purpose.kind === "play")) actions.append(h("button", { class: "sm", onclick: cb.cancelSelect }, "Cancel"));
+  } else if (mine) {
+    if (s.phase === "roll") {
+      const why = canRollNow(s, now);
+      actions.append(h("button", { class: "primary", disabled: !!why, title: why ?? "", onclick: cb.roll }, handoverActive(s, now) ? "Roll (a moment…)" : "Roll dice"));
+    } else {
+      const owed = owesAnswer(s);
+      const canBuy = RES.filter((r) => p.res[r] > 0).length >= 3 && s.deck.length > 0;
+      actions.append(
+        h("button", { disabled: owed || !canBuy, title: "Any 3 different resources buys a kitten card", onclick: cb.buy }, "Buy cards"),
+        h("button", { disabled: owed || totalRes(p) === 0, onclick: cb.bank }, "Bank"),
+        h("button", { disabled: owed || !!s.trade, onclick: cb.trade }, "Trade"),
+        h("button", { class: "primary", disabled: owed || !!s.select, onclick: cb.endTurn }, "End turn"),
+      );
+    }
+  } else {
+    actions.append(h("span", { class: "note" }, owesAnswer(s) ? "The table is waiting on an answer." : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
+  }
+
+  root.append(who, res, hand, actions);
+}
+
+function timerEl(s: GameState, now: number): HTMLElement {
+  const left = Math.max(0, (s.turnTimerUntil - now) / 1000);
+  const pct = Math.min(100, Math.max(0, (left / s.turnSeconds) * 100));
+  return h("span", { class: "turntimer" }, h("span", { class: "fill", style: { width: pct + "%" } }), h("span", { class: "txt" }, `⏱ ${Math.ceil(left)}s`));
+}

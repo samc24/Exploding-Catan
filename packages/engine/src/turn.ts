@@ -4,7 +4,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 import { COST, IMPLODE_MS, RES, RES_NAME, TURN_TICK_MS, TURN_TICK_SLACK, bundleText, emptyBundle } from "./constants";
 import {
-  canPlaceRoad, canPlaceSettlement, cur, fastStart, feed, freshTurnRecord, give, holds, log, noteGain, pay,
+  canPlaceRoad, canPlaceSettlement, cur, fastStart, openingRound, feed, freshTurnRecord, give, holds, log, noteGain, pay,
   player, totalRes, totalVP, updateLargestArmy, updateLongestRoad, type Ctx,
 } from "./state";
 import { beginHandover, handoverActive, implodeActive, implodeRevealing, logAction, snapAll } from "./journal";
@@ -36,7 +36,7 @@ export function placeSettlement(c: Ctx, vid: number, setup: boolean): void {
     s.setupLastVertex = vid;
     log(c, `${p.name} settles.`);
     // Normally only the second settlement pays out. Fast track pays for both.
-    if (s.phase === "setup2" || fastStart(c)) {
+    if (s.phase === "setup2" || fastStart(s)) {
       const got = emptyBundle();
       const opening: { hid: number; pid: number; r: Exclude<keyof Bundle, never>; n: number }[] = [];
       for (const hid of c.geo.vertices[vid].hexes) {
@@ -162,7 +162,7 @@ export function doRoll(c: Ctx): void {
   let d1 = 1 + c.rng.int(6);
   let d2 = 1 + c.rng.int(6);
   // The opening round of a fast track has no 7. Thrown again, not nudged.
-  while (openingRoundNow(c) && d1 + d2 === 7) {
+  while (openingRound(s) && d1 + d2 === 7) {
     d1 = 1 + c.rng.int(6);
     d2 = 1 + c.rng.int(6);
   }
@@ -183,9 +183,6 @@ export function doRoll(c: Ctx): void {
   const out = produce(c, sum);
   logAction(c, rollSummary(c, cur(c), d1, d2, out.paid), "roll", { snap: snapBefore, payload: { sum } });
   s.phase = "main";
-}
-function openingRoundNow(c: Ctx): boolean {
-  return fastStart(c) && !c.s.phase.startsWith("setup") && c.s.turnCounter <= c.s.players.length;
 }
 function rollSummary(c: Ctx, p: Player, d1: number, d2: number, paid: Bundle[]): string {
   const bits = c.s.players
