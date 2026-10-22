@@ -1,5 +1,5 @@
 /* Every kitten card flow: Attack → Defuse → discard, Favor, Nope, Alter, trade, purchase. */
-import { launch, startLocal, playSetup, state, settle, finish, confirmDiscard, OUT } from "./lib.mjs";
+import { launch, startLocal, playSetup, state, settle, finish, confirmDiscard, OUT, reloadInto } from "./lib.mjs";
 const { browser, page, errors } = await launch();
 await startLocal(page, { seed: "7" });
 await playSetup(page);
@@ -17,7 +17,7 @@ await page.evaluate(() => {
   s.select = null;
   localStorage.setItem("exploding-catan:game", JSON.stringify(s));
 });
-await page.reload({ waitUntil: "networkidle" });
+await reloadInto(page);
 let s = await state(page);
 const me = s.cur, foe = (me + 1) % 4;
 console.log("hand:", s.players[me].cards.map((c) => c.key).join(","), "phase", s.phase);
@@ -103,7 +103,7 @@ if (s.trade !== null) errors.push("the trade did not settle");
 // The chooser explains each answer: give the third player a Nope and open it.
 {
   await page.evaluate(() => { const g = JSON.parse(localStorage.getItem("exploding-catan:game")); g.players[(g.cur + 2) % 4].cards.push({ id: 71000, key: "nope", flavor: null, boughtTurn: -1 }); localStorage.setItem("exploding-catan:game", JSON.stringify(g)); });
-  await page.reload({ waitUntil: "networkidle" });
+  await reloadInto(page);
   await page.locator("#seats .seat").nth((me + 2) % 4).click(); await page.waitForTimeout(150);
   await page.click('.kc[title^="Nope"]'); await page.waitForTimeout(200);
   const rows = await page.locator("#modal .answer").count();

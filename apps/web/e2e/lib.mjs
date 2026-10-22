@@ -29,6 +29,12 @@ async function newPage(browser, name, errors, viewport, touch = false) {
   return page;
 }
 export const state = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("exploding-catan:game")));
+/** Reload and pick the saved game back up from the front door. */
+export async function reloadInto(page) {
+  await page.reload({ waitUntil: "networkidle" });
+  const cont = page.locator('#landing .way:has-text("Continue last game")');
+  if (await cont.count()) { await cont.click(); await page.waitForTimeout(300); }
+}
 
 /** Fill the New Game dialog and start. `bots`: which seats are bots (default none). */
 export async function startLocal(page, { seed = "7", bots = [], mode = null } = {}) {
