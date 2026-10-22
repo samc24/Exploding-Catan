@@ -49,10 +49,10 @@ export function production(s: GameState, geo: Geometry, pid: number): Bundle {
   return out;
 }
 
-/** A spot is worth more when it covers resources we are short of. */
-export function vertexValueFor(s: GameState, geo: Geometry, vid: number, pid: number): number {
+/** A spot is worth more when it covers resources we are short of. `have` is
+    the player's production, passed in by callers that score many spots. */
+export function vertexValueFor(s: GameState, geo: Geometry, vid: number, pid: number, have = production(s, geo, pid)): number {
   let score = vertexValue(s, geo, vid);
-  const have = production(s, geo, pid);
   for (const hid of geo.vertices[vid].hexes) {
     const t = s.terrain[hid];
     if (t === "desert") continue;
@@ -102,14 +102,14 @@ export function expansionMap(s: GameState, geo: Geometry, pid: number): Map<numb
 }
 
 /** What the board is still worth to us: every spot we could still settle, discounted by distance. */
-export function reachValue(s: GameState, geo: Geometry, pid: number): number {
+export function reachValue(s: GameState, geo: Geometry, pid: number, have = production(s, geo, pid)): number {
   const dist = expansionMap(s, geo, pid);
   let total = 0;
   for (const v of geo.vertices) {
     const d = dist.get(v.id);
     if (d === undefined || d > W.roadReachMax) continue;
     if (!canPlaceSettlement(s, geo, v.id, pid, true)) continue;
-    total += vertexValueFor(s, geo, v.id, pid) * Math.pow(W.expansionDecay, d);
+    total += vertexValueFor(s, geo, v.id, pid, have) * Math.pow(W.expansionDecay, d);
   }
   return total;
 }
@@ -133,12 +133,13 @@ export interface Expansion { vid: number; dist: number; score: number }
 /** Best place we could eventually settle, and how many roads away it is. */
 export function bestExpansion(s: GameState, geo: Geometry, pid: number): Expansion | null {
   const dist = expansionMap(s, geo, pid);
+  const have = production(s, geo, pid);
   let best: Expansion | null = null;
   for (const v of geo.vertices) {
     const d = dist.get(v.id);
     if (d === undefined || d > 4) continue;
     if (!canPlaceSettlement(s, geo, v.id, pid, true)) continue;
-    const score = vertexValueFor(s, geo, v.id, pid) * Math.pow(W.expansionDecay, d);
+    const score = vertexValueFor(s, geo, v.id, pid, have) * Math.pow(W.expansionDecay, d);
     if (!best || score > best.score) best = { vid: v.id, dist: d, score };
   }
   return best;
@@ -183,8 +184,9 @@ export function planOptions(s: GameState, geo: Geometry, p: Player): Plan[] {
   options.sort((a, b) => b.eff - a.eff);
   return options;
 }
-export function goal(s: GameState, geo: Geometry, p: Player): Goal {
-  return planOptions(s, geo, p)[0].kind;
+/** The plan at the top of the list. Callers that already have the list pass it. */
+export function goal(s: GameState, geo: Geometry, p: Player, plans = planOptions(s, geo, p)): Goal {
+  return plans[0].kind;
 }
 export function goalCost(g: Goal): Partial<Bundle> {
   if (g === "card") return { wood: 1, brick: 1, sheep: 1 };
@@ -211,13 +213,13 @@ export function surplus(p: Player, g: Goal): Partial<Bundle> {
   return out;
 }
 /** How close are we to something that actually scores? Roads and cards do not count. */
-export function vpNearest(s: GameState, geo: Geometry, p: Player): number {
-  const scoring = planOptions(s, geo, p).filter((o) => o.kind === "settlement" || o.kind === "city");
+export function vpNearest(s: GameState, geo: Geometry, p: Player, plans = planOptions(s, geo, p)): number {
+  const scoring = plans.filter((o) => o.kind === "settlement" || o.kind === "city");
   return scoring.length ? Math.min(...scoring.map((o) => o.need)) : 99;
 }
 /** Can this hand finish the game on this bot's own turn? Its own hidden points are its to see. */
-export function holdsTheWin(s: GameState, geo: Geometry, p: Player): boolean {
-  return vpNearest(s, geo, p) === 0 && totalVP(s, p) + 1 >= s.winPoints;
+export function holdsTheWin(s: GameState, geo: Geometry, p: Player, plans = planOptions(s, geo, p)): boolean {
+  return vpNearest(s, geo, p, plans) === 0 && totalVP(s, p) + 1 >= s.winPoints;
 }
 /** Has this player VISIBLY reached the target? */
 export function aboutToWin(s: GameState, q: Player): boolean {
@@ -227,7 +229,8 @@ export function aboutToWin(s: GameState, q: Player): boolean {
 /** Choose a road by simulating it: does it open ground or lengthen our run? */
 export function pickRoad(s: GameState, geo: Geometry, pid: number, candidates: number[]): number | null {
   if (!candidates.length) return null;
-  const reachBefore = reachValue(s, geo, pid);
+  const have = production(s, geo, pid); // roads do not change what we produce
+  const reachBefore = reachValue(s, geo, pid, have);
   const lenBefore = longestRoadFor(s, geo, pid);
   const holder = s.longestRoad.owner;
   let rivalLen = 4;
@@ -240,7 +243,7 @@ export function pickRoad(s: GameState, geo: Geometry, pid: number, candidates: n
   for (const eid of candidates) {
     const sim: GameState = { ...s, eOwner: s.eOwner.slice() };
     sim.eOwner[eid] = pid;
-    const reachAfter = reachValue(sim, geo, pid);
+    const reachAfter = reachValue(sim, geo, pid, have);
     const lenAfter = longestRoadFor(sim, geo, pid);
     const goes = roadGoesSomewhere(sim, geo, eid, pid);
     const opened = reachAfter - reachBefore;

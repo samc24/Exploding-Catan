@@ -11,14 +11,10 @@ export const W = {
   brick: 1.0,
   expansionDecay: 0.55, // value of a spot n roads away
   cityBias: 1.35, // prefer upgrading over sprawling
-  cardBias: 1.0,
-  hoardPenalty: 0.45,
   leaderWeight: 1.0, // how hard to punish the leader
   vpValue: 12.0, // what one victory point is worth in plan scoring
   cardValue: 4.0, // a kitten card is a lottery ticket next to a build
   needPenalty: 1.2, // how much each still-missing resource discounts a plan
-  nopeHoldVP: 8,
-  baitVP: 8,
   handLimit: 7, // spend down below this — a 7 halves anything above it
   closeToVP: 1, // "very close" = this many resources short of a build
   cardPushVP: 5, // from here on, kitten cards are worth chasing hard

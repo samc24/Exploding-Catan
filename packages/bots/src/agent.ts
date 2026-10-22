@@ -13,15 +13,15 @@
    decision.
    ══════════════════════════════════════════════════════════════════════════ */
 import {
-  COST, KITTEN, RES, Rng, affordable, answersFor, canDefuseEntry, canNopeEntry, canNopeFor, canPlaceCity,
+  COST, KITTEN, RES, Rng, affordable, canDefuseEntry, canNopeEntry, canNopeFor, canPlaceCity,
   canPlaceRoad, canPlaceSettlement, canPlayToPile, cardIsPlayable, canRollNow, discardOwed, entryById, geometry,
   isRobberEntry, nopeCancelsCard, openEntries, openEntry, openingRoadLegal, owesAnswer, playableWhenDrawn,
   publicVP, totalRes, tradeRate, type Action, type Bundle, type CardKey, type GameState, type Geometry,
   type JournalEntry, type Player, type Res,
 } from "@exploding-catan/engine";
 import {
-  aboutToWin, bestExpansion, goal, goalCost, holdsTheWin, leaderId, pickAlterPair, pickCardPayment, pickRoad,
-  pickRobberHex, planOptions, production, shortfall, surplus, threat, vertexValue, vertexValueFor, vpNearest,
+  aboutToWin, goal, goalCost, holdsTheWin, leaderId, pickAlterPair, pickCardPayment, pickRoad, pickRobberHex,
+  planOptions, production, shortfall, surplus, threat, vertexValue, vertexValueFor, vpNearest, type Plan,
 } from "./eval";
 import { W } from "./weights";
 
@@ -59,17 +59,21 @@ export function decide(bot: Bot, s: GameState, now: number): Action | null {
     return eid === null ? null : { type: "placeRoad", seat, eid };
   }
 
+  // The plan is read many times in one decision and never changes within it.
+  let plansCache: Plan[] | null = null;
+  const plans = (): Plan[] => (plansCache ??= planOptions(s, geo, me));
+
   // ── obligations: a discard, the forced Nope, a reply to an offer ──
   const owed = discardOwed(s);
   if (owed && owed.pid === seat) {
     // A seven can be answered instead of paid — see answerSeven.
-    const ans = answerSeven(bot, s, geo, me);
+    const ans = answerSeven(bot, s, geo, me, plans);
     if (ans) return ans;
-    return { type: "discard", seat, bundle: chooseDiscard(s, geo, me, owed.n) };
+    return { type: "discard", seat, bundle: chooseDiscard(s, geo, me, owed.n, plans()) };
   }
   if (s.forcedNope && s.forcedNope.pid === seat) return { type: "nopeTurn", seat };
   if (s.trade && s.trade.from !== seat && s.trade.replies[seat] === "wait")
-    return { type: "answerTrade", seat, accept: considerTrade(s, geo, s.players[s.trade.from], me, s.trade.offer, s.trade.want) };
+    return { type: "answerTrade", seat, accept: considerTrade(s, geo, s.players[s.trade.from], me, s.trade.offer, s.trade.want, plans()) };
 
   // ── board picks owed to this bot ──
   const sel = s.select;
@@ -92,13 +96,13 @@ export function decide(bot: Bot, s: GameState, now: number): Action | null {
       return { type: "pickSeat", seat, target: target ?? leaderId(s, seat) ?? (seat + 1) % s.players.length };
     }
     if (sel.kind === "favor") {
-      const want = bot.aim && bot.aim.want ? bot.aim.want : favorWant(s, geo, me);
+      const want = bot.aim && bot.aim.want ? bot.aim.want : favorWant(s, geo, me, plans());
       return { type: "favorDemand", seat, want };
     }
   }
 
   // ── reactions, on anybody's turn ──
-  const react = reaction(bot, s, geo, me, now);
+  const react = reaction(bot, s, geo, me, now, plans);
   if (react) return react;
 
   // ── my own turn ──
@@ -114,7 +118,7 @@ export function decide(bot: Bot, s: GameState, now: number): Action | null {
     const waiting = Object.values(s.trade.replies).some((r) => r === "wait");
     return waiting ? null : { type: "cancelTrade", seat };
   }
-  return step(bot, s, geo, me, now);
+  return step(bot, s, geo, me, plans());
 }
 
 /* ── setup choices ─────────────────────────────────────────────────── */
@@ -160,8 +164,8 @@ function openingRoad(s: GameState, geo: Geometry, pid: number): number | null {
 
 /* ── forced discards ───────────────────────────────────────────────── */
 /** Shed whatever is furthest from our goal, keeping diversity: cards need three different types. */
-export function chooseDiscard(s: GameState, geo: Geometry, p: Player, n: number): Bundle {
-  const cost = goalCost(goal(s, geo, p));
+export function chooseDiscard(s: GameState, geo: Geometry, p: Player, n: number, plans = planOptions(s, geo, p)): Bundle {
+  const cost = goalCost(goal(s, geo, p, plans));
   const pick = zero();
   let left = n;
   const order = RES.slice().sort((a, b) => {
@@ -176,10 +180,10 @@ export function chooseDiscard(s: GameState, geo: Geometry, p: Player, n: number)
 
 /* ── reactions ─────────────────────────────────────────────────────── */
 /** Is this journal entry worth a Nope? Cancel a win, or protect the hand that is about to win. Nothing else. */
-function nopeJournalDecision(s: GameState, geo: Geometry, p: Player, e: JournalEntry): boolean {
+function nopeJournalDecision(s: GameState, geo: Geometry, p: Player, e: JournalEntry, plans: () => Plan[]): boolean {
   const actor = s.players[e.actor];
   if (actor && actor.id !== p.id && aboutToWin(s, actor)) return true;
-  if (!holdsTheWin(s, geo, p)) return false;
+  if (!holdsTheWin(s, geo, p, plans())) return false;
   if (e.kind === "roll") return e.show === "seven" && !!s.seven && s.seven.queue.includes(p.id);
   if (e.card) {
     if (e.target !== p.id) return false;
@@ -194,7 +198,7 @@ function defuseRobbery(s: GameState, p: Player, e: JournalEntry): boolean {
 }
 const holdsKey = (p: Player, k: CardKey) => p.cards.some((c) => c.key === k);
 
-function reaction(bot: Bot, s: GameState, geo: Geometry, p: Player, now: number): Action | null {
+function reaction(bot: Bot, s: GameState, geo: Geometry, p: Player, now: number, plans: () => Plan[]): Action | null {
   const seat = bot.seat;
   const hasNope = holdsKey(p, "nope"), hasDefuse = holdsKey(p, "defuse");
   if (!hasNope && !hasDefuse) return null;
@@ -213,7 +217,7 @@ function reaction(bot: Bot, s: GameState, geo: Geometry, p: Player, now: number)
       if (k === "explode" || k === "attack" || k === "favor" || k === "alter") return { type: "defuse", seat, jid: e.id };
     }
   }
-  if (hasNope && canNopeFor(s, e, seat, now) && nopeJournalDecision(s, geo, p, e)) {
+  if (hasNope && canNopeFor(s, e, seat, now) && nopeJournalDecision(s, geo, p, e, plans)) {
     if (nopeCancelsCard(s, geo, e, seat, now)) return { type: "nope", seat, jid: e.id };
     if (e.actor !== seat && e.actor === s.cur && !s.phase.startsWith("setup")) return { type: "nopeTurn", seat };
   }
@@ -221,21 +225,21 @@ function reaction(bot: Bot, s: GameState, geo: Geometry, p: Player, now: number)
 }
 
 /** Spend a card on the seven rather than pay it: a Defuse spares this hand, a Nope rethrows. */
-function answerSeven(bot: Bot, s: GameState, geo: Geometry, p: Player): Action | null {
+function answerSeven(bot: Bot, s: GameState, geo: Geometry, p: Player, plans: () => Plan[]): Action | null {
   if (!s.seven) return null;
   const e = entryById(s, s.seven.jid);
   if (!e || !canNopeEntry(s, e, 0)) return null;
   if (Math.floor(totalRes(p) / 2) < W.sevenAnswerCut) return null;
   const fresh = (k: CardKey) => p.cards.some((c) => c.key === k && (c.boughtTurn !== s.turnCounter || playableWhenDrawn(c)));
   if (fresh("defuse") && canDefuseEntry(s, geo, e, bot.seat, 0)) return { type: "defuse", seat: bot.seat, jid: e.id };
-  if (fresh("nope") && holdsTheWin(s, geo, p) && canNopeFor(s, e, bot.seat, 0)) return { type: "nope", seat: bot.seat, jid: e.id };
+  if (fresh("nope") && holdsTheWin(s, geo, p, plans()) && canNopeFor(s, e, bot.seat, 0)) return { type: "nope", seat: bot.seat, jid: e.id };
   return null;
 }
 
 /** Three cards to demand with a Favor: what we are missing, then what we produce least. */
-export function favorWant(s: GameState, geo: Geometry, p: Player): Bundle {
+export function favorWant(s: GameState, geo: Geometry, p: Player, plans = planOptions(s, geo, p)): Bundle {
   const want = zero();
-  const miss = shortfall(p, goalCost(goal(s, geo, p)));
+  const miss = shortfall(p, goalCost(goal(s, geo, p, plans)));
   let left = 3;
   for (const r of Object.keys(miss.need) as Res[]) {
     const t = Math.min(miss.need[r] ?? 0, left);
@@ -251,10 +255,10 @@ export function favorWant(s: GameState, geo: Geometry, p: Player): Bundle {
 
 /* ── trading ───────────────────────────────────────────────────────── */
 /** `to` is us. We receive `offer`, we give `want`. */
-export function considerTrade(s: GameState, geo: Geometry, from: Player, to: Player, offer: Bundle, want: Bundle): boolean {
+export function considerTrade(s: GameState, geo: Geometry, from: Player, to: Player, offer: Bundle, want: Bundle, plans = planOptions(s, geo, to)): boolean {
   const p = to;
   for (const r of RES) if (p.res[r] < want[r]) return false;
-  const cost = goalCost(goal(s, geo, p));
+  const cost = goalCost(goal(s, geo, p, plans));
   const missBefore = shortfall(p, cost).total;
   const after = zero();
   for (const r of RES) after[r] = p.res[r] + offer[r] - want[r];
@@ -270,8 +274,8 @@ export function considerTrade(s: GameState, geo: Geometry, from: Player, to: Pla
 }
 
 /** A bank trade — but ONLY when it completes a build this turn. */
-function tryBankTrade(s: GameState, geo: Geometry, p: Player): Action | null {
-  for (const plan of planOptions(s, geo, p)) {
+function tryBankTrade(s: GameState, p: Player, plans: Plan[]): Action | null {
+  for (const plan of plans) {
     if (plan.kind === "card") continue;
     const cost = goalCost(plan.kind);
     const miss = shortfall(p, cost);
@@ -290,8 +294,8 @@ function tryBankTrade(s: GameState, geo: Geometry, p: Player): Action | null {
   return null;
 }
 /** Offer a 1-for-1 to the table. Never feed whoever is about to win. */
-function tryPlayerTrade(s: GameState, geo: Geometry, p: Player): Action | null {
-  const g = goal(s, geo, p);
+function tryPlayerTrade(s: GameState, p: Player, plans: Plan[]): Action | null {
+  const g = plans[0].kind;
   const miss = shortfall(p, goalCost(g));
   if (!miss.total) return null;
   const spare = surplus(p, g);
@@ -315,8 +319,8 @@ function tryPlayerTrade(s: GameState, geo: Geometry, p: Player): Action | null {
   return null;
 }
 /** Last resort when holding too many cards: convert the deepest pile toward the plan. */
-function dumpSurplus(s: GameState, geo: Geometry, p: Player): Action | null {
-  const g = goal(s, geo, p);
+function dumpSurplus(s: GameState, p: Player, plans: Plan[]): Action | null {
+  const g = plans[0].kind;
   const cost: Partial<Bundle> = g === "card" ? {} : COST[g];
   const piles = RES.slice().sort((a, b) => p.res[b] - p.res[a]);
   for (const r of piles) {
@@ -337,7 +341,7 @@ function dumpSurplus(s: GameState, geo: Geometry, p: Player): Action | null {
 /* ── cards ─────────────────────────────────────────────────────────── */
 interface Play { card: { id: number; key: CardKey }; target: number | null; want?: Bundle }
 /** Which card to play, and at whom: hit whoever is closest to winning, unless we want cards they hold. */
-function pickCardPlay(bot: Bot, s: GameState, geo: Geometry, p: Player): Play | null {
+function pickCardPlay(bot: Bot, s: GameState, geo: Geometry, p: Player, plans: Plan[]): Play | null {
   const playable = p.cards.filter((c) => {
     const d = KITTEN[c.key];
     return d.kind !== "vp" && d.kind !== "response" && cardIsPlayable(s, c) && canPlayToPile(s, c.key, p.id);
@@ -345,7 +349,7 @@ function pickCardPlay(bot: Bot, s: GameState, geo: Geometry, p: Player): Play | 
   if (!playable.length) return null;
   const lead = leaderId(s, p.id);
   const richest = s.players.filter((q) => q.id !== p.id).sort((a, b) => totalRes(b) - totalRes(a))[0];
-  const miss = shortfall(p, goalCost(goal(s, geo, p)));
+  const miss = shortfall(p, goalCost(plans[0].kind));
   const has = (k: CardKey) => playable.find((c) => c.key === k);
 
   const robberOnUs = geo.hexes[s.robber].verts.some((v) => s.vOwner[v] === p.id);
@@ -353,13 +357,8 @@ function pickCardPlay(bot: Bot, s: GameState, geo: Geometry, p: Player): Play | 
   if (kn && (robberOnUs || p.knights >= 2 || bot.rng.next() < 0.5)) return { card: kn, target: null };
 
   const fav = has("favor");
-  if (fav && miss.total > 0 && richest && totalRes(richest) >= 3) {
-    const want = zero();
-    let left = 3;
-    for (const r of Object.keys(miss.need) as Res[]) { const t = Math.min(miss.need[r] ?? 0, left); want[r] += t; left -= t; if (!left) break; }
-    if (left) { const prod = production(s, geo, p.id); for (const r of RES.slice().sort((a, b) => prod[a] - prod[b])) { if (!left) break; want[r]++; left--; } }
-    return { card: fav, target: richest.id, want };
-  }
+  if (fav && miss.total > 0 && richest && totalRes(richest) >= 3)
+    return { card: fav, target: richest.id, want: favorWant(s, geo, p, plans) };
   const exp = has("explode");
   if (exp && lead !== null && totalRes(s.players[lead]) >= 4) return { card: exp, target: lead };
   const atk = has("attack");
@@ -374,10 +373,10 @@ function pickCardPlay(bot: Bot, s: GameState, geo: Geometry, p: Player): Play | 
 }
 
 /* ── one atomic step of a turn ─────────────────────────────────────── */
-function step(bot: Bot, s: GameState, geo: Geometry, p: Player, _now: number): Action | null {
+function step(bot: Bot, s: GameState, geo: Geometry, p: Player, plans: Plan[]): Action | null {
   const seat = p.id;
   // 1. cards first — attacks and Reverse are best used before we commit resources.
-  const play = pickCardPlay(bot, s, geo, p);
+  const play = pickCardPlay(bot, s, geo, p, plans);
   if (play) {
     bot.aim = { cardId: play.card.id, target: play.target, ...(play.want ? { want: play.want } : {}) };
     return { type: "playCard", seat, cardId: play.card.id };
@@ -388,21 +387,22 @@ function step(bot: Bot, s: GameState, geo: Geometry, p: Player, _now: number): A
     if (cities.length) return { type: "placeCity", seat, vid: cities[0].id };
   }
   if (affordable(p, "settlement")) {
-    const setts = geo.vertices.filter((v) => canPlaceSettlement(s, geo, v.id, seat, false)).sort((a, b) => vertexValueFor(s, geo, b.id, seat) - vertexValueFor(s, geo, a.id, seat));
+    const have = production(s, geo, seat);
+    const setts = geo.vertices.filter((v) => canPlaceSettlement(s, geo, v.id, seat, false)).sort((a, b) => vertexValueFor(s, geo, b.id, seat, have) - vertexValueFor(s, geo, a.id, seat, have));
     if (setts.length) return { type: "placeSettlement", seat, vid: setts[0].id };
   }
-  const g = goal(s, geo, p);
+  const g = plans[0].kind;
   const held = totalRes(p);
-  const nearest = vpNearest(s, geo, p);
+  const nearest = vpNearest(s, geo, p, plans);
   const flush = (held >= W.handLimit && nearest > W.closeToVP) || held >= W.handHardCap;
   const pushCards = publicVP(s, p) >= W.cardPushVP;
   // 3. a bank trade that finishes a build right now
-  const bank = tryBankTrade(s, geo, p);
+  const bank = tryBankTrade(s, p, plans);
   if (bank) return bank;
   // 4. one trade offer per turn
   if (!bot.offered) {
     bot.offered = true;
-    const offer = tryPlayerTrade(s, geo, p);
+    const offer = tryPlayerTrade(s, p, plans);
     if (offer) return offer;
   }
   // 5. roads — only ones that reach a settlement site or build Longest Road
@@ -420,11 +420,9 @@ function step(bot: Bot, s: GameState, geo: Geometry, p: Player, _now: number): A
   // 7. hard floor: a turn must never end on a mountain of cards
   if (held >= W.handLimit) {
     if (canBuy) { const pay3 = pickCardPayment(p, "card"); if (pay3) { const spend = zero(); for (const r of pay3) spend[r] = 1; return { type: "buyCards", seat, spend }; } }
-    const dump = dumpSurplus(s, geo, p);
+    const dump = dumpSurplus(s, p, plans);
     if (dump) return dump;
   }
   if (s.select) return null;
   return { type: "endTurn", seat };
 }
-
-export { answersFor, bestExpansion };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAction, createGame, totalRes, totalVP, type GameConfig, type GameState } from "@exploding-catan/engine";
+import { applyAction, createGame, totalRes, totalVP, viewFor, type GameConfig, type GameState } from "@exploding-catan/engine";
 import { createTable, nextBotAction, decide, createBot } from "../src";
 
 const cfg = (n: number, extra: Partial<GameConfig> = {}): GameConfig => ({
@@ -90,15 +90,15 @@ describe("fairness", () => {
       const a = nextBotAction(table, s, now);
       if (!a) { const t = applyAction(s, { type: "tick" }, now); if (t.ok) s = t.state; continue; }
       if ("seat" in a) {
-        const bot = createBot(a.seat, 5);
         const fresh = () => createBot(a.seat, 5);
         const base = decide(fresh(), s, now);
+        // The same decision from the redacted view a person at that seat would see…
+        expect(decide(fresh(), viewFor(s, a.seat), now), `view: ${a.type} by ${a.seat}`).toEqual(base);
+        // …and with the deck reversed and every other hand swapped for different cards.
         const scrambled = structuredClone(s);
         scrambled.deck.reverse();
         for (const p of scrambled.players) if (p.id !== a.seat) p.cards = p.cards.map((c) => ({ ...c, key: "vp" as const }));
-        const other = decide(fresh(), scrambled, now);
-        expect(other, `${a.type} by ${a.seat}`).toEqual(base);
-        void bot;
+        expect(decide(fresh(), scrambled, now), `${a.type} by ${a.seat}`).toEqual(base);
         checked++;
       }
       const r = applyAction(s, a, now);
