@@ -16,18 +16,13 @@ apps/
                the engine; the same screens for a local game and a server view
   server/      authoritative multiplayer: owns every room's real state, runs
                the engine and the bots, sends each seat its own redacted view
-legacy/        the original game (index.html, ai.js, net.js, art, the author's
-               README), untouched, still served at the site root
 ```
 
-Published by the Pages workflow once CI is green on `master`: the original at
-the site root, the new app under `/new/`. Work happens on branches off
-`master`. `legacy/` is byte-identical to upstream, so `git merge
-upstream/master` still applies through rename detection.
-
-The original files live in `legacy/` and are still what the site root
-serves; the new app is published beside them. Pointing the root at the new
-app is a separate decision for later.
+Published by the Pages workflow once CI is green on `master`: the web app
+is the site root, and `/new/`, where it lived during the rebuild, redirects
+there. The original single-file game is no longer in this repo; it is still
+playable at the upstream author's site. Work happens on branches off
+`master`.
 
 ## The engine
 
@@ -172,9 +167,6 @@ bots and clocks picking up where they stopped. `FileStore` keeps JSON files
 in `DATA_DIR`; `MemoryStore` is for tests. SQLite, Redis or a KV would be a
 second class behind the same interface. A deploy therefore costs players a
 reconnect, not the game.
-
-The host-in-browser code (`net.js`) still works against the legacy UI and is
-not being extended.
 
 ## Working on it
 

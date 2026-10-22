@@ -3,9 +3,12 @@
 Catan with the development deck torn out and 54 kitten cards put in its place.
 Play against bots, hot-seat on one screen, or online with up to six people.
 
-**Play it:** https://samc24.github.io/Exploding-Catan/new/
-The original single-file game this is a fork of is at the site root, and its
-source and design notes are in [`legacy/`](legacy/README.md).
+**Play it:** https://samc24.github.io/Exploding-Catan/
+
+A fork of [JP's original](https://themiamest.github.io/Exploding-Catan/),
+rebuilt as a rules engine, bots, a browser app and a multiplayer server. The
+card art is his; the deck's design notes are in
+[`docs/kitten-cards.txt`](docs/kitten-cards.txt).
 
 ## What is here
 
@@ -16,7 +19,6 @@ source and design notes are in [`legacy/`](legacy/README.md).
 | `packages/protocol` | the wire contract between browser and server |
 | `apps/web` | the browser app: Vite, TypeScript, plain DOM and SVG |
 | `apps/server` | authoritative multiplayer: rooms, bots, clocks, persistence, one WebSocket per tab |
-| `legacy/` | the original game, untouched, still published at the site root |
 
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) explains how the pieces fit and why.
 
