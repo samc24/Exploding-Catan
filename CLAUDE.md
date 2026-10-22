@@ -28,17 +28,17 @@ bracket a session.
 
 ## Current Focus
 
-PR #1 (`rearchitecture` → `master`): the whole re-architecture plus the
-review pass and the parity pass. Waiting on CI and Sameer's review/merge.
-`master` is currently identical to upstream until the PR merges.
+PR #1 (the re-architecture, review pass and parity pass) merged into
+`master` on 22/10/26. `master` is the main line; CI and Pages run from it.
+Sameer's rule: feature parity with `legacy/` first, then new features.
 
 ## Next Steps
 
-1. Merge PR #1 (merge commit, not squash, to keep the history readable).
-2. Hosting the server (tabled by Sameer; recommendation in memory: Fly.io, then
-   point the Pages app's Online dialog at the `wss://` URL).
+1. Sameer plays the live build and lists any parity gaps; fix those first.
+2. Hosting the server (tabled; recommendation in memory and WORK_NOTES:
+   Fly.io, then point the Pages app's Online dialog at the `wss://` URL).
 3. A mobile pass with a real phone in hand.
-4. Any parity gaps Sameer notices while playing.
+4. Then new features.
 
 ## Known gaps / parked
 

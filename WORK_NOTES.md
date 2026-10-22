@@ -76,8 +76,8 @@ server; its Online dialog accepts any `wss://` URL.
 ## Deploy
 
 - Pages: root = `legacy/`, `/new/` = `apps/web/dist`. Live at
-  https://samc24.github.io/Exploding-Catan/new/ (last deployed from the
-  parity commit before `master` was reset for PR #1).
+  https://samc24.github.io/Exploding-Catan/new/ (deploys from `master` after
+  CI is green).
 - Docker: one image serving web + ws on one port, non-root, `/data` volume.
 
 ## Sessions
@@ -90,4 +90,6 @@ server; its Online dialog accepts any `wss://` URL.
 - Sameer's rules: feature parity before features; no Claude attribution in
   commits or PRs (all 15 commits rewritten to remove it).
 - PR #1 opened: `rearchitecture` → `master`; `master` reset to upstream so
-  the PR is the full reviewable diff.
+  the PR is the full reviewable diff. Merged by Sameer 22/10/26 (merge
+  commit `5f2a379`); branch deleted. Every change from here goes on a
+  branch with a PR into `master`.
