@@ -2,7 +2,9 @@ import { totalRes, publicVP, totalVP, seatPickable, discardOwed, type GameState 
 import { clear, h } from "./dom";
 import { portrait } from "./avatars";
 
+let shownCur = -1;
 export function drawSeats(root: HTMLElement, s: GameState, view: number, isBot: (pid: number) => boolean, onSeat: (pid: number) => void): void {
+  const left = root.scrollLeft;
   clear(root);
   const owed = discardOwed(s);
   for (const p of s.players) {
@@ -39,6 +41,13 @@ export function drawSeats(root: HTMLElement, s: GameState, view: number, isBot: 
       waiting ? h("span", { class: "tag wait" }, waiting) : (s.winner === p.id ? h("span", { class: "tag" }, "winner") : null),
     );
     root.append(el);
+  }
+  // On a phone the seats are a strip: keep the scroll, and bring a new current seat into view.
+  root.scrollLeft = left;
+  if (s.cur !== shownCur) {
+    shownCur = s.cur;
+    const el = root.children[s.cur] as HTMLElement | undefined;
+    if (el && root.scrollWidth > root.clientWidth) root.scrollTo({ left: el.offsetLeft - (root.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
   }
 }
 

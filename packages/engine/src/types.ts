@@ -94,6 +94,8 @@ export interface TradeOffer {
   offer: Bundle;
   want: Bundle;
   replies: Record<number, TradeReply>;
+  /** The clock when it was put on the table, so a bot can give up waiting. */
+  since: number;
 }
 
 /** Everything a rewind has to put back. Taken before each recorded action. */

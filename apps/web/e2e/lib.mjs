@@ -7,15 +7,18 @@ export const BASE = process.env.E2E_URL ?? "http://localhost:5173/";
 export const OUT = new URL("./shots/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
-/** A page with page errors and console errors collected into `errors`. */
-export async function launch(name = "page", viewport = { width: 1400, height: 900 }) {
+/** A page with page errors and console errors collected into `errors`.
+    `touch` makes it a phone: a touch screen, a coarse pointer, a 2x display. */
+export async function launch(name = "page", viewport = { width: 1400, height: 900 }, { touch = false } = {}) {
+  // E2E_PHONE=1 runs any of the tests on a phone instead.
+  if (process.env.E2E_PHONE) { viewport = { width: 390, height: 844 }; touch = true; }
   const browser = await chromium.launch({ channel: "chrome", headless: true });
   const errors = [];
-  const page = await newPage(browser, name, errors, viewport);
-  return { browser, page, errors, newPage: (n) => newPage(browser, n, errors, viewport) };
+  const page = await newPage(browser, name, errors, viewport, touch);
+  return { browser, page, errors, newPage: (n) => newPage(browser, n, errors, viewport, touch) };
 }
-async function newPage(browser, name, errors, viewport) {
-  const ctx = await browser.newContext({ viewport });
+async function newPage(browser, name, errors, viewport, touch = false) {
+  const ctx = await browser.newContext(touch ? { viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${name} pageerror: ${e.message}`));
   page.on("console", (m) => {
@@ -26,6 +29,12 @@ async function newPage(browser, name, errors, viewport) {
   return page;
 }
 export const state = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("exploding-catan:game")));
+/** Reload and pick the saved game back up from the front door. */
+export async function reloadInto(page) {
+  await page.reload({ waitUntil: "networkidle" });
+  const cont = page.locator('#landing .way:has-text("Continue last game")');
+  if (await cont.count()) { await cont.click(); await page.waitForTimeout(300); }
+}
 
 /** Fill the New Game dialog and start. `bots`: which seats are bots (default none). */
 export async function startLocal(page, { seed = "7", bots = [], mode = null } = {}) {

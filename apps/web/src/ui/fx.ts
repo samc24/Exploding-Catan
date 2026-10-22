@@ -50,8 +50,16 @@ export function hexPoint(s: GameState, hid: number): Point | null {
   return { x: q.x, y: q.y };
 }
 
-/** One thing flying from a to b. Arcs a little, shrinks into its landing. */
-export function fly(a: Point, b: Point, face: HTMLElement, delay = 0, ms = 650): void {
+/** How long a card takes to cross the table, and the gap between cards in a batch.
+    Slow enough to read: a card lifts, is held up for a moment, then lands. */
+export const FLY_MS = 1100;
+export const KITTEN_FLY_MS = 1400;
+export const STAGGER_MS = 110;
+/** The dice settle before the cards they produced start moving. */
+export const AFTER_ROLL_MS = 850;
+
+/** One thing flying from a to b. Lifts, grows a little in the air so it can be read, and shrinks into its landing. */
+export function fly(a: Point, b: Point, face: HTMLElement, delay = 0, ms = FLY_MS): void {
   if (reduced()) return;
   const el = h("div", { class: "flyer" }, face);
   Object.assign(el.style, { left: a.x + "px", top: a.y + "px" });
@@ -59,11 +67,12 @@ export function fly(a: Point, b: Point, face: HTMLElement, delay = 0, ms = 650):
   const dx = b.x - a.x, dy = b.y - a.y;
   const lift = -Math.min(120, Math.hypot(dx, dy) * 0.25);
   const anim = el.animate([
-    { transform: "translate(-50%,-50%) translate(0,0) scale(1)", opacity: 0 },
-    { transform: `translate(-50%,-50%) translate(${dx * 0.08}px,${dy * 0.08 + lift * 0.4}px) scale(1.05)`, opacity: 1, offset: 0.12 },
-    { transform: `translate(-50%,-50%) translate(${dx * 0.5}px,${dy * 0.5 + lift}px) scale(1.05)`, opacity: 1, offset: 0.55 },
-    { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(0.6)`, opacity: 0.1 },
-  ], { duration: ms, delay, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" });
+    { transform: "translate(-50%,-50%) translate(0,0) scale(0.8)", opacity: 0 },
+    { transform: `translate(-50%,-50%) translate(${dx * 0.06}px,${dy * 0.06 + lift * 0.4}px) scale(1.25)`, opacity: 1, offset: 0.14 },
+    { transform: `translate(-50%,-50%) translate(${dx * 0.45}px,${dy * 0.45 + lift}px) scale(1.3)`, opacity: 1, offset: 0.5 },
+    { transform: `translate(-50%,-50%) translate(${dx * 0.88}px,${dy * 0.88 + lift * 0.15}px) scale(1.05)`, opacity: 1, offset: 0.86 },
+    { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(0.6)`, opacity: 0 },
+  ], { duration: ms, delay, easing: "cubic-bezier(.35,.6,.3,1)", fill: "forwards" });
   anim.onfinish = () => el.remove();
   anim.oncancel = () => el.remove();
 }
@@ -80,7 +89,8 @@ export function kittenFace(key: string | null, flavor: string | null): HTMLEleme
 /** Turn one action's events into flights. `view` is the seat at this screen. */
 export function playEvents(s: GameState, events: GameEvent[], view: number): void {
   if (reduced()) return;
-  let delay = 0;
+  // Cards grown by a roll wait for the dice to settle.
+  let delay = events.some((e) => e.type === "feed" && e.kind === "roll") ? AFTER_ROLL_MS : 0;
   for (const ev of events) {
     if (ev.type === "production") {
       // Each card leaves the hex that grew it for the seat that owns it.
@@ -88,23 +98,23 @@ export function playEvents(s: GameState, events: GameEvent[], view: number): voi
       for (const src of ev.sources) {
         const a = hexPoint(s, src.hid), b = src.pid === view ? handPoint() : seatPoint(src.pid);
         if (!a || !b) continue;
-        for (let k = 0; k < src.n; k++) fly(a, b, resFace(src.r), delay + i++ * 70);
+        for (let k = 0; k < src.n; k++) fly(a, b, resFace(src.r), delay + i++ * STAGGER_MS);
       }
-      delay += 250;
+      delay += 400;
     } else if (ev.type === "cards") {
       const a = ev.from === null ? bankPoint() : ev.from === view ? handPoint() : seatPoint(ev.from);
       const b = ev.to === null ? bankPoint() : ev.to === view ? handPoint() : seatPoint(ev.to);
       if (!a || !b) continue;
       let i = 0;
       const total = RES.reduce((t, r) => t + ev.bundle[r], 0);
-      if (ev.hidden || total === 0) { fly(a, b, h("div", { class: "fly-res back" }), delay); delay += 200; continue; }
-      for (const r of RES) for (let k = 0; k < ev.bundle[r]; k++) fly(a, b, resFace(r), delay + i++ * 70);
-      delay += 250;
+      if (ev.hidden || total === 0) { fly(a, b, h("div", { class: "fly-res back" }), delay); delay += 350; continue; }
+      for (const r of RES) for (let k = 0; k < ev.bundle[r]; k++) fly(a, b, resFace(r), delay + i++ * STAGGER_MS);
+      delay += 400;
     } else if (ev.type === "kitten") {
       const a = deckPoint(), b = ev.pid === view ? handPoint() : seatPoint(ev.pid);
       if (!a || !b) continue;
-      fly(a, b, kittenFace(ev.pid === view ? ev.card.key : null, ev.card.flavor), delay, 800);
-      delay += 300;
+      fly(a, b, kittenFace(ev.pid === view ? ev.card.key : null, ev.card.flavor), delay, KITTEN_FLY_MS);
+      delay += 450;
     }
   }
 }

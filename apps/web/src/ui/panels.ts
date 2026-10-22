@@ -10,6 +10,7 @@ import {
   type Action, type Bundle, type GameState, type Res,
 } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
+import { Tap, tap } from "./tap";
 
 export interface PanelCallbacks {
   dispatch(a: Action): string | null;
@@ -27,10 +28,14 @@ const sw = (r: keyof Bundle) => h("span", { class: "swatch", style: { background
 const chips = (b: Partial<Bundle>) => h("span", null, RES.filter((r) => (b[r] ?? 0) > 0).map((r) => h("span", { class: "chip", style: { padding: "1px 6px", marginRight: "4px", fontSize: "12px" } }, sw(r), `${b[r]} ${RES_NAME[r]}`)));
 const dim = (text: string, top = false) => h("div", { style: { color: "var(--dim)", fontSize: "11.5px", ...(top ? { marginTop: "6px" } : {}) } }, text);
 
-/** Five buttons, one per resource: click to add, click past the limit to clear. */
-function pickRow(counts: Bundle, canPick: (r: Res) => boolean, step: (r: Res) => void, extra?: (r: Res) => Node | null): HTMLElement {
-  return h("div", { class: "pick" }, RES.map((r) => h("button", { disabled: !canPick(r), onclick: () => step(r) },
-    sw(r), RES_NAME[r], extra ? extra(r) : null, h("b", { class: "ct" + (counts[r] ? "" : " off") }, `×${counts[r] || 1}`))));
+/** Five buttons, one per resource: click to add, click past the limit to clear.
+    `note` is a small line under the count: what you hold, your rate, what is left. */
+function pickRow(counts: Bundle, canPick: (r: Res) => boolean, step: (r: Res) => void, note?: (r: Res) => string | null): HTMLElement {
+  return h("div", { class: "pick" }, RES.map((r) => {
+    const n = note ? note(r) : null;
+    return h("button", { disabled: !canPick(r), onclick: () => step(r) },
+      sw(r), RES_NAME[r], h("b", { class: "ct" + (counts[r] ? "" : " off") }, `×${counts[r] || 1}`), n ? h("small", { class: "have" }, n) : null);
+  }));
 }
 /** A −/+ row for one resource. */
 function counterRow(label: Node | string, value: number, canMinus: boolean, canPlus: boolean, change: (d: number) => void): HTMLElement {
@@ -64,7 +69,7 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
       h("h3", null, owed.kind === "seven" ? "A seven: discard half" : "Attacked: drop cards", h("small", null, `${chosen} of ${owed.n}`)),
       h("p", { class: "sub" }, `${p.name} must discard ${owed.n} resource card${owed.n === 1 ? "" : "s"}.`),
       RES.map((r) => counterRow(h("span", null, sw(r), `${RES_NAME[r]} — has ${p.res[r]}`), pick[r], pick[r] > 0, chosen < owed.n && pick[r] < p.res[r], (d) => { pick[r] += d; redraw(root, s, view, cb); })),
-      e && answers.length ? h("div", { class: "warnbox" }, "You are holding an answer to this. Click the card in your hand to spend it instead of paying.") : null,
+      e && answers.length ? h("div", { class: "warnbox" }, `You are holding an answer to this. ${Tap} the card in your hand to spend it instead of paying.`) : null,
       h("div", { class: "btns" },
         h("button", { class: "primary", disabled: chosen !== owed.n, onclick: () => { const err = cb.dispatch({ type: "discard", seat: view, bundle: { ...pick } }); if (!err) delete cb.scratch[key]; } }, "Confirm"),
       ),
@@ -144,8 +149,8 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
     const capped = Math.min(res.cards, s.deck.length);
     root.append(h("div", { class: "panel" },
       h("h3", null, "Buy kitten cards"),
-      h("p", { class: "sub" }, "Any 3 different resources buys a card. Click to add, click past what you hold to clear."),
-      pickRow(pool, (r) => p.res[r] > 0, (r) => { pool[r] = p.res[r] > pool[r] ? pool[r] + 1 : 0; redraw(root, s, view, cb); }),
+      h("p", { class: "sub" }, `Any 3 different resources buys a card. ${Tap} to add, ${tap} past what you hold to clear.`),
+      pickRow(pool, (r) => p.res[r] > 0, (r) => { pool[r] = p.res[r] > pool[r] ? pool[r] + 1 : 0; redraw(root, s, view, cb); }, (r) => `have ${p.res[r]}`),
       total(pool) ? h("div", { class: "tsum" }, chips(res.spent), h("span", { class: "arrow" }, "→"), `${capped} card${capped === 1 ? "" : "s"}`,
         res.cards > capped ? h("span", { class: "mismatch" }, `deck only has ${s.deck.length}`) : null,
         total(res.left) ? h("span", { class: "mismatch" }, "some cannot pair up: ", chips(res.left)) : null) : null,
@@ -166,9 +171,9 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
       h("p", { class: "sub" }, "4:1 unless a port says otherwise. Lots given and cards taken must match."),
       dim("Give — one lot at your rate"),
       pickRow(give, (r) => p.res[r] >= tradeRate(s, p, r), (r) => { const rate = tradeRate(s, p, r); give[r] = p.res[r] >= (give[r] + 1) * rate ? give[r] + 1 : 0; redraw(root, s, view, cb); },
-        (r) => { const rate = tradeRate(s, p, r); return rate < 4 ? h("small", null, ` ${rate}:1`) : null; }),
+        (r) => `${tradeRate(s, p, r)}:1 · have ${p.res[r]}`),
       dim("Take — one card each", true),
-      pickRow(get, (r) => s.bank[r] > 0, (r) => { get[r] = s.bank[r] > get[r] ? get[r] + 1 : 0; redraw(root, s, view, cb); }),
+      pickRow(get, (r) => s.bank[r] > 0, (r) => { get[r] = s.bank[r] > get[r] ? get[r] + 1 : 0; redraw(root, s, view, cb); }, (r) => `${s.bank[r]} in bank`),
       lots || units ? h("div", { class: "tsum" }, chips(spend), h("span", { class: "arrow" }, "→"), chips(get), lots !== units ? h("span", { class: "mismatch" }, `${lots} lot${lots === 1 ? "" : "s"} vs ${units} card${units === 1 ? "" : "s"}`) : null) : null,
       composerButtons(
         () => { cb.scratch["bankGive"] = zero(); cb.scratch["bankGet"] = zero(); redraw(root, s, view, cb); },
@@ -184,7 +189,7 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
       h("h3", null, "Open trade"),
       h("p", { class: "sub" }, "Build one offer and put it to the whole table."),
       dim("You give"),
-      pickRow(offer, (r) => p.res[r] > 0, (r) => { offer[r] = offer[r] >= p.res[r] ? 0 : offer[r] + 1; redraw(root, s, view, cb); }),
+      pickRow(offer, (r) => p.res[r] > 0, (r) => { offer[r] = offer[r] >= p.res[r] ? 0 : offer[r] + 1; redraw(root, s, view, cb); }, (r) => `have ${p.res[r]}`),
       dim("You want", true),
       pickRow(want, () => true, (r) => { want[r] = want[r] >= 6 ? 0 : want[r] + 1; redraw(root, s, view, cb); }),
       composerButtons(

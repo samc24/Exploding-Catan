@@ -16,6 +16,8 @@ export interface LandingActions {
   /** Present when a game is waiting to be picked up. */
   resume?: (() => void) | null;
   resumeLabel?: string;
+  /** Present when there is a game to walk away from. */
+  leave?: (() => void) | null;
 }
 
 const FAN: { key: Parameters<typeof cardArt>[0]; flavor: string | null }[] = [
@@ -45,7 +47,8 @@ export function showLanding(a: LandingActions): void {
           h("button", { class: "way", onclick: a.passAndPlay }, h("b", null, "Pass and play"), h("span", null, "one screen, around the table")),
           h("button", { class: "way", onclick: a.online }, h("b", null, "Play online"), h("span", null, "a room code and your friends' screens")),
         ),
-        h("p", { class: "fine" }, h("a", { href: "#", onclick: (e: Event) => { e.preventDefault(); a.rules(); } }, "How it differs from Catan"), " · 2 to 6 players · free, no account"),
+        h("p", { class: "fine" }, h("a", { href: "#", onclick: (e: Event) => { e.preventDefault(); a.rules(); } }, "How it differs from Catan"), " · 2 to 6 players · free, no account",
+          a.leave ? [" · ", h("a", { href: "#", class: "leave", onclick: (e: Event) => { e.preventDefault(); a.leave!(); } }, "Leave the current game")] : null),
       ),
       fan,
     ),

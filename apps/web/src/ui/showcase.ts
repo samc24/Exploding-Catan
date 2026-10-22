@@ -14,5 +14,5 @@ export function showcase(s: GameState, what: string, pid: number): void {
   el.append(h("div", { class: "big" + (art ? "" : " plain"), style: art ? { backgroundImage: `url(${art})` } : null }, h("b", null, title), h("i", null, s.players[pid]?.name ?? "")));
   el.hidden = false;
   if (timer) clearTimeout(timer);
-  timer = window.setTimeout(() => { el.hidden = true; }, what === "implode" ? 2500 : 1700);
+  timer = window.setTimeout(() => { el.hidden = true; }, what === "implode" ? 3000 : 2300);
 }

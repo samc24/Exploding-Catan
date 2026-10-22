@@ -6,6 +6,7 @@ import {
 } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
 import { cardArt, has, resArt } from "../art";
+import { Tap, tap } from "./tap";
 
 export interface HandCallbacks {
   roll(): void;
@@ -59,12 +60,12 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     actions.append(h("span", { class: "note" }, `${s.players[s.winner!].name} wins.`));
   } else if (s.phase.startsWith("setup")) {
     if (s.phase === "setup3") actions.append(h("span", { class: "note" }, s.roadsOwed && s.roadsOwed[view] > 0 ? `Place ${s.roadsOwed[view]} opening road${s.roadsOwed[view] === 1 ? "" : "s"} on your settlements.` : "Waiting for the others to place their roads."));
-    else if (mine) actions.append(h("span", { class: "note" }, sel?.kind === "road" ? "Place a road touching that settlement." : "Place a settlement: click a spot, click again to confirm."));
+    else if (mine) actions.append(h("span", { class: "note" }, sel?.kind === "road" ? "Place a road touching that settlement." : `Place a settlement: ${tap} a spot, ${tap} again to confirm.`));
     else actions.append(h("span", { class: "note" }, `${s.players[s.cur].name} is placing.`));
   } else if (sel && "actor" in sel && sel.actor === view && sel.kind !== "victim" && sel.kind !== "favor") {
-    const words = sel.kind === "robber" ? "Move the robber: click a hex, click again to confirm." :
-      sel.kind === "alter" ? (sel.first === null ? "Pick the first number token to swap." : "Pick the second token (click the first again to un-pick).") :
-      sel.kind === "seat" ? `Click the player to aim ${KITTEN[sel.key].name} at.` : "";
+    const words = sel.kind === "robber" ? `Move the robber: ${tap} a hex, ${tap} again to confirm.` :
+      sel.kind === "alter" ? (sel.first === null ? "Pick the first number token to swap." : `Pick the second token (${tap} the first again to un-pick).`) :
+      sel.kind === "seat" ? `${Tap} the player to aim ${KITTEN[sel.key].name} at.` : "";
     actions.append(h("span", { class: "note" }, words));
     if ((sel.kind === "seat") || (sel.kind === "alter" && sel.purpose.kind === "play")) actions.append(h("button", { class: "sm", onclick: cb.cancelSelect }, "Cancel"));
   } else if (mine) {

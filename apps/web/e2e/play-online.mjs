@@ -2,7 +2,7 @@
    third seat, Ben joins by code, both place their opening pieces, each sees
    only their own hand, a roll and an emoji cross over, and Ben reloads into
    his seat. Needs the dev server on :5173 and the game server on :8787. */
-import { launch, clickSpot, finish, OUT } from "./lib.mjs";
+import { launch, clickSpot, settle, finish, OUT } from "./lib.mjs";
 const SERVER = process.env.SERVER_URL || "ws://localhost:8787";
 const { browser, page: ann, errors, newPage } = await launch("Ann", { width: 1300, height: 850 });
 
@@ -37,14 +37,15 @@ await ann.waitForTimeout(300);
 if (!(await ann.locator("#seats .seat").nth(2).textContent()).includes("🤖")) errors.push("the bot seat is not marked on Ann's screen");
 
 // Play the opening from whichever screen has spots; the bot places its own.
+// The opening is over when the direction tag appears (it hides during setup);
+// the bot may already be in its first turn by then, and may have put a trade
+// to the humans, which settle() declines so the table never waits on us.
 const deadline = Date.now() + 150000;
 let inMain = false;
 while (Date.now() < deadline && !inMain) {
   let acted = false;
-  for (const p of [ann, ben]) if (await clickSpot(p)) acted = true;
-  const buttons = await ann.locator('#bottom button:has-text("Roll"), #bottom button:has-text("End turn")').count()
-    + await ben.locator('#bottom button:has-text("Roll"), #bottom button:has-text("End turn")').count();
-  if (buttons) inMain = true;
+  for (const p of [ann, ben]) { if (await clickSpot(p)) acted = true; await settle(p); }
+  if (await ann.locator("#dirTag:not([hidden])").count()) inMain = true;
   if (!acted && !inMain) await ann.waitForTimeout(400);
 }
 console.log("setup finished:", inMain);
@@ -68,9 +69,12 @@ await ann.press("#chatin", "Enter");
 await ben.click('#sidetabs button[data-tab="chat"]');
 await ben.waitForSelector('#chatlog div:has-text("hello from Ann")', { timeout: 3000 });
 await ann.click("#emojiBtn");
+const emoji = (await ann.locator("#emojiTray button").first().textContent()).trim();
 await ann.locator("#emojiTray button").first().click();
-await ben.waitForSelector("#seats .seat .bubble", { timeout: 3000 });
-console.log("emote seen on Ben's screen:", await ben.locator("#seats .seat .bubble").textContent());
+// The bot may be taunting at the same moment, so look for Ann's emoji in particular.
+const bubble = ben.locator("#seats .seat .bubble", { hasText: emoji }).first();
+await bubble.waitFor({ timeout: 3000 });
+console.log("emote seen on Ben's screen:", await bubble.textContent());
 await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
 await ben.screenshot({ path: `${OUT}/online-04-ben.png` });
 await ben.reload({ waitUntil: "networkidle" });
