@@ -7,3 +7,9 @@ Thumbs.db
 *.bak
 *.tmp
 *.orig
+
+# Toolchain
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
