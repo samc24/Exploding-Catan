@@ -7,3 +7,15 @@ Thumbs.db
 *.bak
 *.tmp
 *.orig
+
+# Toolchain
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Vite cache
+**/.vite/
+
+# Claude Code local settings
+.claude/settings.local.json

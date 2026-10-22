@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "lib": ["ES2022"], "types": ["node", "vitest/globals"], "rootDir": "../..", "noEmit": true },
+  "include": ["src", "test", "../../packages/engine/src", "../../packages/bots/src", "../../packages/protocol/src"]
+}

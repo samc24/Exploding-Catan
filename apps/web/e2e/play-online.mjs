@@ -1,0 +1,81 @@
+/* Two browsers at one table through the server: Ann hosts with a bot in the
+   third seat, Ben joins by code, both place their opening pieces, each sees
+   only their own hand, a roll and an emoji cross over, and Ben reloads into
+   his seat. Needs the dev server on :5173 and the game server on :8787. */
+import { launch, clickSpot, finish, OUT } from "./lib.mjs";
+const SERVER = process.env.SERVER_URL || "ws://localhost:8787";
+const { browser, page: ann, errors, newPage } = await launch("Ann", { width: 1300, height: 850 });
+
+async function goOnline(page, name) {
+  await page.keyboard.press("Escape"); // the local New Game dialog
+  await page.click("#onlineBtn");
+  await page.fill('#modal input[placeholder="Your name"]', name);
+  await page.fill('#modal input[placeholder="wss://your-server"]', SERVER);
+  await page.click('#modal button:has-text("Connect")');
+  await page.waitForSelector('#modal h2:has-text("Online as")', { timeout: 5000 });
+}
+await goOnline(ann, "Ann");
+await ann.locator("#modal .seg").nth(0).locator("button", { hasText: "3" }).click();
+await ann.click('#modal button:has-text("Host")');
+await ann.waitForSelector('#modal h2:has-text("Table")');
+const code = (await ann.locator("#modal h2").textContent()).replace("Table ", "").trim();
+console.log("room", code);
+await ann.screenshot({ path: `${OUT}/online-01-lobby.png` });
+
+const ben = await newPage("Ben");
+await goOnline(ben, "Ben");
+await ben.fill('#modal input[placeholder="CODE"]', code);
+await ben.click('#modal button:has-text("Join")');
+await ben.waitForSelector('#modal h2:has-text("Table")');
+await ann.waitForSelector('#modal button:has-text("Add bot")');
+await ann.click('#modal button:has-text("Add bot")');
+await ann.waitForSelector('#modal button:has-text("Start"):not([disabled])');
+await ann.screenshot({ path: `${OUT}/online-02-ready.png` });
+await ann.click('#modal button:has-text("Start")');
+await ann.waitForSelector("#board .hex", { timeout: 5000 });
+await ben.waitForSelector("#board .hex", { timeout: 5000 });
+await ann.waitForTimeout(300);
+if (!(await ann.locator("#seats .seat").nth(2).textContent()).includes("🤖")) errors.push("the bot seat is not marked on Ann's screen");
+
+// Play the opening from whichever screen has spots; the bot places its own.
+const deadline = Date.now() + 90000;
+let inMain = false;
+while (Date.now() < deadline && !inMain) {
+  let acted = false;
+  for (const p of [ann, ben]) if (await clickSpot(p)) acted = true;
+  const buttons = await ann.locator('#bottom button:has-text("Roll"), #bottom button:has-text("End turn")').count()
+    + await ben.locator('#bottom button:has-text("Roll"), #bottom button:has-text("End turn")').count();
+  if (buttons) inMain = true;
+  if (!acted && !inMain) await ann.waitForTimeout(400);
+}
+console.log("setup finished:", inMain);
+if (!inMain) errors.push("the opening did not finish");
+const annMe = await ann.locator("#seats .seat.me .name").textContent();
+const benMe = await ben.locator("#seats .seat.me .name").textContent();
+console.log("Ann views:", annMe.trim(), "| Ben views:", benMe.trim());
+if (!annMe.includes("Ann") || !benMe.includes("Ben")) errors.push("a screen is not on its own seat");
+const roller = (await ann.locator('#bottom button:has-text("Roll")').count()) ? ann : (await ben.locator('#bottom button:has-text("Roll")').count()) ? ben : null;
+if (roller) {
+  await roller.click('#bottom button:has-text("Roll")'); await roller.waitForTimeout(500);
+  const other = roller === ann ? ben : ann;
+  const dice = await other.locator("#dice .die").count();
+  console.log("dice seen on the other screen:", dice);
+  if (dice !== 2) errors.push("the other screen did not see the roll");
+}
+await ann.click('#sidetabs button[data-tab="chat"]');
+await ann.fill("#chatin", "hello from Ann");
+await ann.press("#chatin", "Enter");
+await ben.click('#sidetabs button[data-tab="chat"]');
+await ben.waitForSelector('#chatlog div:has-text("hello from Ann")', { timeout: 3000 });
+await ann.click("#emojiBtn");
+await ann.locator("#emojiTray button").first().click();
+await ben.waitForSelector("#seats .seat .bubble", { timeout: 3000 });
+console.log("emote seen on Ben's screen:", await ben.locator("#seats .seat .bubble").textContent());
+await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
+await ben.screenshot({ path: `${OUT}/online-04-ben.png` });
+await ben.reload({ waitUntil: "networkidle" });
+await ben.waitForSelector("#board .hex", { timeout: 8000 });
+const benBack = await ben.locator("#seats .seat.me .name").textContent();
+console.log("Ben after reload views:", benBack.trim());
+if (!benBack.includes("Ben")) errors.push("Ben did not get his seat back after a reload");
+await finish(browser, errors);
