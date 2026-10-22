@@ -9,23 +9,25 @@ service, without losing the rules that make it the game it is.
 ```
 packages/
   engine/      pure TypeScript rules engine — no DOM, no network, no clock
-  bots/        the AI, as a client of the engine: decide(bot, state) → action
+  bots/        the AI, as a client of the engine: decide(bot, view) → action
+  protocol/    the wire contract between client and server
 apps/
   web/         the browser UI: Vite + TypeScript, plain DOM and SVG, built on
-               the engine. Hot-seat today; the same screens will be driven by
-               the server's per-seat views tomorrow.
+               the engine; the same screens for a local game and a server view
   server/      authoritative multiplayer: owns every room's real state, runs
                the engine and the bots, sends each seat its own redacted view
-  protocol/    (packages/) the wire contract between client and server
-index.html, ai.js, net.js     the original game, untouched, still served by Pages
+legacy/        the original game (index.html, ai.js, net.js, art, the author's
+               README), untouched, still served at the site root
 ```
 
-Published by the Pages workflow from `master`: the original at the site
-root, the new app under `/new/`. Work happens on branches off `master`.
+Published by the Pages workflow once CI is green on `master`: the original at
+the site root, the new app under `/new/`. Work happens on branches off
+`master`. `legacy/` is byte-identical to upstream, so `git merge
+upstream/master` still applies through rename detection.
 
-The original files stay at the repository root for now so the published site
-keeps working while the new code grows beside it. When `apps/web` reaches
-parity they move to `legacy/` and Pages points at the new build.
+The original files live in `legacy/` and are still what the site root
+serves; the new app is published beside them. Pointing the root at the new
+app is a separate decision for later.
 
 ## The engine
 
@@ -50,6 +52,10 @@ const view   = viewFor(result.state, seat);        // what one player may see
 * **Plain data.** `GameState` is JSON. No object identity: cards are found by
   id, snapshots are copies. It can be stored, diffed, sent over a wire and
   reloaded.
+* **Refusals are not crashes.** A rule that says no throws `RuleError`
+  and `applyAction` returns it as `{ ok: false, error }`; anything else is
+  a bug and is thrown, so a server never plays on past a crash it mistook
+  for a refusal.
 * **Decisions are state, not dialogs.** Everything the original game asked for
   in a modal — a discard, a victim, three cards for a Favor, two tokens for an
   Alter — is a field on the state (`seven`, `attackDue`, `select`,
@@ -84,9 +90,17 @@ post-mortems in the original README.
 
 ## The web app
 
-`apps/web` has no framework. One `render()` rebuilds each region of the page
-from the state: the SVG board, the seat strip, the bottom bar (hand and
-actions), the side feed, and the panels. Panels are the important idea: every
+`apps/web` has no framework. One `render()` (in `render.ts`) rebuilds each
+region of the page from the state: the SVG board, the seat strip, the bottom
+bar (hand and actions), the side feed, and the panels. Around it: `screen.ts`
+holds the screen-local state and the one way to ask for a repaint;
+`input.ts` turns clicks into actions; `focus.ts` decides which seat the
+screen is on; `online.ts` owns the connection, the lobby flow and the
+server's clock; `bots-host.ts` drives bots at a local table; `emotes.ts`,
+`game.ts` and `main.ts` (boot only) are small. A tick that moved nothing but
+the clocks repaints the clocks in place, and the feed is only rebuilt when
+its lines or their answerability changed, because the scroll after a rebuild
+forces a layout of the whole page. Panels are the important idea: every
 decision the engine says is owed (`discardOwed`, `select`, `forcedNope`,
 `trade`) is drawn as a panel for the seat that owes it, and the screen follows
 that seat. Nothing is modal except menus, so nothing the game needs can be

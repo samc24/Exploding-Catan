@@ -1,8 +1,9 @@
 name: CI
 on:
   push:
-    branches: ["**"]
+    branches: [master]
   pull_request:
+  workflow_dispatch:
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -10,9 +11,34 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - run: npm run build -w apps/web
+  e2e:
+    # The runner image ships Google Chrome, so playwright-core drives it without a download.
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w apps/web
+      - name: Serve the build and the game server
+        run: |
+          (npx vite preview --port 5173 --strictPort -w apps/web > /tmp/vite.log 2>&1 &)
+          (npx tsx apps/server/src/index.ts > /tmp/server.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:5173/ >/dev/null && curl -sf http://localhost:8787/health >/dev/null && break; sleep 1; done
+      - run: npm run e2e -w apps/web
+      - run: npm run e2e:online -w apps/web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-shots
+          path: apps/web/e2e/shots

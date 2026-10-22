@@ -1,8 +1,10 @@
-# Publishes the fork's GitHub Pages site: the original game at the root, and
-# the new app at /new/. Deploys from master.
+# Publishes the fork's GitHub Pages site once CI is green on master: the
+# original game at the root, and the new app at /new/.
 name: Pages
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [master]
   workflow_dispatch:
 permissions:
@@ -14,20 +16,22 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run build -w apps/web
       - name: Assemble site
         run: |
           mkdir -p _site/new
-          cp index.html ai.js net.js firebase-config.js _site/
-          cp -R art _site/art
+          cp -R legacy/. _site/
           cp -R apps/web/dist/. _site/new/
       - uses: actions/upload-pages-artifact@v3
         with:
