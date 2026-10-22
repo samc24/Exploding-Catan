@@ -8,10 +8,14 @@ const KEY = "exploding-catan:newgame";
 interface Saved { names: string[]; bots: boolean[]; n: number; mode: Mode; board: BoardKey | "auto"; win: number; timer: number }
 const DEFAULT: Saved = { names: ["", "", "", "", "", ""], bots: [false, true, true, true, true, true], n: 4, mode: "normal", board: "auto", win: 10, timer: 0 };
 
-export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], seed?: number) => void, canCancel: boolean): void {
+export type Preset = "bots" | "humans" | null;
+export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], seed?: number) => void, canCancel: boolean, preset: Preset = null): void {
   let st: Saved = DEFAULT;
   try { st = { ...DEFAULT, ...(JSON.parse(localStorage.getItem(KEY) || "{}") as Partial<Saved>) }; } catch { /* defaults */ }
   if (!Array.isArray(st.bots) || st.bots.length < 6) st.bots = DEFAULT.bots.slice();
+  // The way in from the landing page decides who sits down; the form still lets it be changed.
+  if (preset === "bots") st.bots = [false, true, true, true, true, true];
+  if (preset === "humans") st.bots = [false, false, false, false, false, false];
   const render = () => {
     const names = h("div", null, Array.from({ length: st.n }, (_, i) => h("label", null,
       h("span", { class: "swatch", style: { background: PLAYER_COLORS[i], borderRadius: "50%" } }),
@@ -48,7 +52,7 @@ export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], see
         onStart(cfg, botSeats, seed);
       } },
     ];
-    openModal("New game", body, btns);
+    openModal(preset === "bots" ? "Play against bots" : preset === "humans" ? "Pass and play" : "New game", body, btns);
   };
   render();
 }
