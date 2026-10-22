@@ -17,6 +17,7 @@ export interface NetHandlers {
   state(state: GameState, events: GameEvent[], seat: number | null): void;
   chat(seat: number | null, name: string, text: string, at: number): void;
   emote(seat: number, emoji: string): void;
+  clock(p: { turnTimerUntil: number; turnTickAt: number; implodeUntil: number; implodeFrom: number }): void;
   refused(error: string): void;
   error(message: string): void;
   connection(up: boolean): void;
@@ -100,6 +101,7 @@ export class Net {
       case "room": this.offset = m.now - Date.now(); this.room = m.room; this.seat = m.room.seat; this.handlers.room(m.room); break;
       case "left": this.room = null; this.seat = null; this.handlers.room(null); break;
       case "state": this.offset = m.now - Date.now(); this.seat = m.seat; this.handlers.state(m.state, m.events, m.seat); break;
+      case "clock": this.offset = m.now - Date.now(); this.handlers.clock(m); break;
       case "refused": this.handlers.refused(m.error); break;
       case "error": this.handlers.error(m.message); break;
       case "chat": this.handlers.chat(m.seat, m.name, m.text, m.at); break;

@@ -40,6 +40,12 @@ export class Store {
   end(): void { this.s = null; try { localStorage.removeItem(SAVE_KEY); } catch { /* fine */ } this.emit([], null); }
   /** A state handed to us by the server. */
   receive(s: GameState, events: GameEvent[]): void { this.s = s; this.emit(events, null); }
+  /** Only the clocks moved. Patched in place and announced as a tick, so the screen repaints just them. */
+  patchClock(p: { turnTimerUntil: number; turnTickAt: number; implodeUntil: number; implodeFrom: number }): void {
+    if (!this.s) return;
+    this.s = { ...this.s, ...p };
+    this.emit([], { type: "tick" });
+  }
   /** Leaving a room: forget its state without touching the saved local game. */
   clear(): void { this.s = null; this.emit([], null); }
   restore(): boolean {

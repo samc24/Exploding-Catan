@@ -1,15 +1,14 @@
 /* The online lobby: connect, make or join a room, sit, add bots, start. */
-import { MODES, type Mode, type BoardKey } from "@exploding-catan/engine";
-import type { RoomConfig, RoomInfo } from "@exploding-catan/protocol";
+import { MODES, PLAYER_COLORS, type Mode, type BoardKey } from "@exploding-catan/engine";
+import { NAME_MAX, type RoomConfig, type RoomInfo } from "@exploding-catan/protocol";
 import { h } from "./dom";
+import { seg } from "./controls";
 import { closeModal, openModal } from "./dialogs";
 import { Net } from "../net";
 
-const COLORS = ["#d94b4b", "#4b7fd9", "#e08a2e", "#e8e8e8", "#59b364", "#a86fd0"];
-
 /** Step one: who you are and where the server is. */
 export function connectDialog(net: Net, onConnected: () => void): void {
-  const nameIn = h("input", { type: "text", maxlength: "16", placeholder: "Your name", value: Net.savedName() });
+  const nameIn = h("input", { type: "text", maxlength: String(NAME_MAX), placeholder: "Your name", value: Net.savedName() });
   const urlIn = h("input", { type: "text", placeholder: "wss://your-server", value: Net.defaultUrl(), style: { width: "260px" } });
   const status = h("p", { style: { color: "var(--dim)", fontSize: "12px", margin: "6px 0 0" } }, "");
   const body = h("div", null,
@@ -37,8 +36,6 @@ export function roomDialog(net: Net): void {
   const codeIn = h("input", { type: "text", maxlength: "4", placeholder: "CODE", style: { width: "90px", textTransform: "uppercase", letterSpacing: "3px", fontWeight: "700" } });
   let seats = 4;
   const cfg: RoomConfig = { mode: "normal", board: "auto", winPoints: 10, turnSeconds: 0 };
-  const seg = <T extends string>(opts: { v: T; label: string; title?: string }[], cur: () => T, set: (v: T) => void) =>
-    h("div", { class: "seg" }, opts.map((o) => { const b = h("button", { class: "sm" + (o.v === cur() ? " on" : ""), title: o.title ?? "", onclick: () => { set(o.v); for (const x of b.parentElement!.children) x.classList.toggle("on", x === b); } }, o.label); return b; }));
   const body = h("div", null,
     h("h4", { style: { margin: "0 0 6px" } }, "Join a table"),
     h("label", null, "Room code ", codeIn, h("button", { class: "primary", onclick: () => { if (codeIn.value.trim().length === 4) { closeModal(); net.join(codeIn.value); } } }, "Join")),
@@ -62,7 +59,7 @@ export function lobbyDialog(net: Net, room: RoomInfo): void {
   const seatRows = room.seats.map((s) => {
     const label = s.bot ? "🤖 " + (s.name ?? "bot") : s.name ? (s.connected ? "" : "⌛ ") + s.name : h("i", { style: { color: "var(--dim)" } }, "empty");
     const row = h("div", { class: "counter" },
-      h("span", { class: "lbl" }, h("span", { class: "swatch", style: { background: COLORS[s.seat], borderRadius: "50%" } }), h("b", null, label), s.you ? h("span", { style: { color: "var(--accent)", fontSize: "12px" } }, " (you)") : null),
+      h("span", { class: "lbl" }, h("span", { class: "swatch", style: { background: PLAYER_COLORS[s.seat], borderRadius: "50%" } }), h("b", null, label), s.you ? h("span", { style: { color: "var(--accent)", fontSize: "12px" } }, " (you)") : null),
     );
     if (!s.taken && room.seat !== s.seat) row.append(h("button", { class: "sm", onclick: () => net.sit(s.seat) }, "Sit here"));
     if (room.host && !s.taken) row.append(h("button", { class: "sm", onclick: () => net.bot(s.seat, true) }, "Add bot"));
