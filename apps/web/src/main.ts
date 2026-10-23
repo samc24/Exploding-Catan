@@ -139,8 +139,11 @@ installSfx();
 installEmoteTray((emoji) => { if (net.online) { if (net.seat !== null) net.emote(emoji); } else showEmote(ui.seat, emoji); });
 wireOnline();
 
-preload().then(async () => {
-  if (await resumeOnline()) return;
-  // The front door, always; a saved game is offered there, never forced.
+preload().then(() => {
+  // The front door, always and at once; a saved game is offered there, never forced.
   landing();
+  // A session left online is picked up behind it: a room that comes back opens its lobby
+  // over the landing, a game that comes back takes the landing away (the store's subscriber),
+  // and a server that is asleep or has forgotten us leaves the door as it is.
+  void resumeOnline();
 });

@@ -101,5 +101,8 @@ export async function resumeOnline(): Promise<boolean> {
   let online = false;
   try { online = localStorage.getItem(ONLINE_KEY) === "1"; } catch { /* no */ }
   if (!online || !Net.defaultUrl() || !Net.savedName()) return false;
-  try { await net.connect(Net.defaultUrl(), Net.savedName()); return true; } catch { return false; }
+  try { await net.connect(Net.defaultUrl(), Net.savedName()); } catch { return false; }
+  // Connected, but if no room follows the server has forgotten us: stop trying on every load.
+  setTimeout(() => { if (!net.room) { try { localStorage.removeItem(ONLINE_KEY); } catch { /* fine */ } } }, 4000);
+  return true;
 }
