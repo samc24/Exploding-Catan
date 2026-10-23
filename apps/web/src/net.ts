@@ -12,6 +12,7 @@ const TOKEN_KEY = "exploding-catan:token";
 const NAME_KEY = "exploding-catan:name";
 const SERVER_KEY = "exploding-catan:server";
 const AVATAR_KEY = "exploding-catan:avatar";
+const ROOM_WAIT_MS = 6000;
 
 export interface NetHandlers {
   room(room: RoomInfo | null): void;
@@ -119,6 +120,7 @@ export class Net {
   private handle(m: ServerMsg): void {
     switch (m.t) {
       case "room": {
+        if (this.roomTimer) { clearTimeout(this.roomTimer); this.roomTimer = null; }
         this.offset = m.now - Date.now(); this.room = m.room; this.seat = m.room.seat;
         // Sitting down: wear the chosen portrait, once (the server says no to one it does not know).
         const key = m.room.seat === null ? null : `${m.room.code}:${m.room.seat}`;
@@ -129,7 +131,7 @@ export class Net {
       case "left": this.room = null; this.seat = null; this.handlers.room(null); break;
       case "state": this.offset = m.now - Date.now(); this.seat = m.seat; this.handlers.state(m.state, m.events, m.seat); break;
       case "clock": this.offset = m.now - Date.now(); this.handlers.clock(m); break;
-      case "refused": this.handlers.refused(m.error); break;
+      case "refused": if (this.roomTimer) { clearTimeout(this.roomTimer); this.roomTimer = null; } this.handlers.refused(m.error); break;
       case "error": this.handlers.error(m.message); break;
       case "chat": this.handlers.chat(m.seat, m.name, m.text, m.at); break;
       case "emote": this.handlers.emote(m.seat, m.emoji); break;
@@ -140,8 +142,16 @@ export class Net {
     if (!this.connected) { this.handlers.error("not connected"); return; }
     this.ws!.send(JSON.stringify(m));
   }
-  create(seats: number, config: RoomConfig): void { this.send({ t: "create", seats, config }); }
-  join(code: string): void { this.send({ t: "join", code: code.toUpperCase().trim() }); }
+  create(seats: number, config: RoomConfig): void { this.send({ t: "create", seats, config }); this.expectRoom(); }
+  join(code: string): void { this.send({ t: "join", code: code.toUpperCase().trim() }); this.expectRoom(); }
+  /* A table asked for should arrive within moments. When it does not (the
+     request met a server mid-restart, say), say so instead of leaving an
+     empty table with no word. */
+  private roomTimer: number | null = null;
+  private expectRoom(): void {
+    if (this.roomTimer) clearTimeout(this.roomTimer);
+    this.roomTimer = window.setTimeout(() => { this.roomTimer = null; if (!this.room) this.handlers.refused("The server did not answer. Try again."); }, ROOM_WAIT_MS);
+  }
   sit(seat: number): void { this.send({ t: "sit", seat }); }
   stand(): void { this.send({ t: "stand" }); }
   bot(seat: number, on: boolean): void { this.send({ t: "bot", seat, on }); }

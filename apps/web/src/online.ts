@@ -50,6 +50,7 @@ export function drawChat(): void {
   log.scrollTop = log.scrollHeight;
 }
 
+function backToTable(): void { if (net.connected && !net.room && !modalOpen()) roomDialog(net); }
 export const net = new Net({
   room(room: RoomInfo | null) {
     if (!room) { if (lobbyShowing) { closeModal(); lobbyShowing = false; } goLocal(); if (net.connected) roomDialog(net); return; }
@@ -77,8 +78,9 @@ export const net = new Net({
     requestRender();
   },
   emote(seat, emoji) { showEmote(seat, emoji); },
-  refused(error) { hint(error, true); },
-  error(message) { hint(message, true); },
+  // A refusal or error with no table to show for it (a wrong code, a lost request) brings the table dialog back.
+  refused(error) { hint(error, true); backToTable(); },
+  error(message) { hint(message, true); backToTable(); },
   connection(up) { const tag = $("netTag"); tag.hidden = !up && !net.url; tag.textContent = up ? "online" : "reconnecting…"; tag.className = up ? "" : "off"; },
 });
 
