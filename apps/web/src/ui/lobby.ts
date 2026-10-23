@@ -20,31 +20,57 @@ export function connectDialog(net: Net, onConnected: () => void): void {
   const change = h("p", { style: { color: "var(--dim)", fontSize: "12px", margin: "6px 0 0" } }, "Playing on our server. ",
     h("a", { href: "#", onclick: (ev: Event) => { ev.preventDefault(); serverRow.hidden = false; change.hidden = true; urlIn.focus(); } }, "Use another"));
   if (!builtIn) change.hidden = true;
+  // The portrait, chosen here so it is on from the first seat; the lobby can still change it.
+  let avatar = Net.savedAvatar();
+  const faces = h("div", { class: "pickwrap" }, h("p", { class: "sub", style: { color: "var(--dim)", fontSize: "12px", margin: "8px 0 4px" } }, "Your portrait"));
+  const drawFaces = () => { faces.querySelector(".avgrid")?.remove(); faces.append(avatarGrid(avatar, (a) => { avatar = a; net.preferAvatar(a); drawFaces(); })); };
+  drawFaces();
   const body = h("div", null,
     h("label", null, "Name ", nameIn),
+    faces,
     serverRow,
     change,
     status,
   );
   // A free host sleeps when idle and takes most of a minute to wake. Knock on
-  // the door as the dialog opens, so by the time a name is typed it is up.
+  // the door as the dialog opens, and keep knocking, so by the time a name is
+  // typed it is up; and Connect itself keeps trying for a while, so nobody has
+  // to press it twice.
+  let awake = !builtIn, closed = false;
+  const WAKE_MS = 90_000;
   if (builtIn) {
     const http = Net.configuredUrl().replace(/^ws/, "http").replace(/\/$/, "") + "/health";
-    status.textContent = "Waking the server…";
     const t0 = Date.now();
-    fetch(http, { cache: "no-store" }).then((r) => { if (status.textContent === "Waking the server…") status.textContent = r.ok ? (Date.now() - t0 > 3000 ? "The server is awake." : "") : "The server answered oddly; try anyway."; })
-      .catch(() => { if (status.textContent === "Waking the server…") status.textContent = "The server is not answering yet. Give it a minute and press Connect."; });
+    status.textContent = "Waking the server…";
+    const knock = (): void => {
+      if (closed || awake) return;
+      fetch(http, { cache: "no-store" }).then(() => { awake = true; if (status.textContent?.startsWith("Waking")) status.textContent = Date.now() - t0 > 3000 ? "The server is awake." : ""; })
+        .catch(() => {
+          if (Date.now() - t0 > WAKE_MS) { status.textContent = "The server is not answering. Press Connect to try anyway."; return; }
+          status.textContent = `Waking the server… ${Math.round((Date.now() - t0) / 1000)}s`;
+          setTimeout(knock, 3000);
+        });
+    };
+    knock();
   }
   openModal("Play online", body, [
-    { label: "Cancel", fn: closeModal },
+    { label: "Cancel", fn: () => { closed = true; closeModal(); } },
     { label: "Connect", cls: "primary", fn: async () => {
       const name = nameIn.value.trim();
       if (!name) { status.textContent = "A name, so the others know who you are."; return; }
       const url = urlIn.value.trim();
       if (!url) { status.textContent = "No server is configured for this page yet."; return; }
-      status.textContent = "Connecting…";
-      try { await net.connect(url, name); closeModal(); onConnected(); }
-      catch (e) { status.textContent = e instanceof Error ? e.message : String(e); }
+      const t0 = Date.now();
+      for (;;) {
+        status.textContent = Date.now() - t0 < 2000 ? "Connecting…" : `Waking the server… ${Math.round((Date.now() - t0) / 1000)}s`;
+        try { await net.connect(url, name); closed = true; closeModal(); onConnected(); return; }
+        catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          // Unreachable means asleep or waking: keep trying for a while. Anything else is an answer.
+          if (!/could not reach/.test(msg) || Date.now() - t0 > WAKE_MS || closed) { status.textContent = msg; return; }
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
     } },
   ]);
   nameIn.focus();
@@ -96,7 +122,7 @@ function lobbyDialogWith(net: Net, room: RoomInfo, pickingNow: boolean): void {
     h("p", { class: "sub", style: { color: "var(--dim)", margin: "0 0 8px" } }, "Read the code out to everyone. They press Play online, then Join."),
     h("div", { class: "roomcode", style: { userSelect: "text" } }, room.code),
     seatRows,
-    picking && me ? h("div", { class: "pickwrap" }, h("p", { class: "sub" }, "Your portrait"), avatarGrid(me.avatar, (a) => { net.setAvatar(a); picking = false; })) : null,
+    picking && me ? h("div", { class: "pickwrap" }, h("p", { class: "sub" }, "Your portrait"), avatarGrid(me.avatar, (a) => { net.preferAvatar(a); picking = false; })) : null,
     h("p", { style: { color: "var(--dim)", fontSize: "12px", marginTop: "10px" } },
       `${MODES[room.config.mode].name} · play to ${room.config.winPoints} · ${room.config.turnSeconds ? room.config.turnSeconds + "s turns" : "no clock"}`,
       room.over ? " · the game is over" : "",

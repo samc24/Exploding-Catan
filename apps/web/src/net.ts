@@ -11,6 +11,7 @@ import { PROTOCOL_VERSION, type ClientMsg, type RoomConfig, type RoomInfo, type 
 const TOKEN_KEY = "exploding-catan:token";
 const NAME_KEY = "exploding-catan:name";
 const SERVER_KEY = "exploding-catan:server";
+const AVATAR_KEY = "exploding-catan:avatar";
 
 export interface NetHandlers {
   room(room: RoomInfo | null): void;
@@ -33,8 +34,20 @@ export class Net {
   private handlers: NetHandlers;
   private closedByUs = false;
   private retry: number | null = null;
+  /** The portrait this person wants, sent to the server once per seat taken. */
+  private wantAvatar: string | null = null;
+  private avatarSentFor: string | null = null;
 
-  constructor(handlers: NetHandlers) { this.handlers = handlers; }
+  constructor(handlers: NetHandlers) { this.handlers = handlers; this.wantAvatar = Net.savedAvatar(); }
+
+  static savedAvatar(): string | null { try { return localStorage.getItem(AVATAR_KEY); } catch { return null; } }
+  /** Remember the portrait; it follows this person to whatever seat they take. */
+  preferAvatar(avatar: string): void {
+    this.wantAvatar = avatar;
+    this.avatarSentFor = null;
+    try { localStorage.setItem(AVATAR_KEY, avatar); } catch { /* fine */ }
+    if (this.room && this.seat !== null) this.setAvatar(avatar);
+  }
 
   get connected(): boolean { return !!this.ws && this.ws.readyState === WebSocket.OPEN; }
   get online(): boolean { return this.connected && !!this.room; }
@@ -105,7 +118,14 @@ export class Net {
   }
   private handle(m: ServerMsg): void {
     switch (m.t) {
-      case "room": this.offset = m.now - Date.now(); this.room = m.room; this.seat = m.room.seat; this.handlers.room(m.room); break;
+      case "room": {
+        this.offset = m.now - Date.now(); this.room = m.room; this.seat = m.room.seat;
+        // Sitting down: wear the chosen portrait, once (the server says no to one it does not know).
+        const key = m.room.seat === null ? null : `${m.room.code}:${m.room.seat}`;
+        if (key && this.wantAvatar && this.avatarSentFor !== key && m.room.seats[m.room.seat!]?.avatar !== this.wantAvatar) { this.avatarSentFor = key; this.setAvatar(this.wantAvatar); }
+        this.handlers.room(m.room);
+        break;
+      }
       case "left": this.room = null; this.seat = null; this.handlers.room(null); break;
       case "state": this.offset = m.now - Date.now(); this.seat = m.seat; this.handlers.state(m.state, m.events, m.seat); break;
       case "clock": this.offset = m.now - Date.now(); this.handlers.clock(m); break;
