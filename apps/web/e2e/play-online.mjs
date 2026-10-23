@@ -98,6 +98,16 @@ await ben.waitForSelector("#board .hex", { timeout: 8000 });
 const benBack = await ben.locator("#seats .seat.me .name").textContent();
 console.log("Ben after reload views:", benBack.trim());
 if (!benBack.includes("Ben")) errors.push("Ben did not get his seat back after a reload");
+// The server forgets the table mid-game (a restart on the free host): the next reconnect comes
+// back with a fresh token, and the screen must say so and offer a new table, not refuse move by move.
+// (The dev build exposes the socket for this; against a production build the step is skipped.)
+if (await ann.evaluate(() => !!window.__net)) {
+  await ann.evaluate(() => { localStorage.setItem("exploding-catan:token", "stale-token-the-server-never-saw"); window.__net.ws.close(); });
+  await ann.waitForSelector('#modal h2:has-text("Online as")', { timeout: 6000 }).catch(() => errors.push("a lost table did not bring the table dialog back"));
+  const lostMsg = (await ann.locator("#hint").textContent()) || "";
+  if (!/restarted/.test(lostMsg)) errors.push(`a lost table was not explained (hint: "${lostMsg}")`); else console.log("lost table:", lostMsg);
+} else console.log("lost table: skipped (production build)");
+
 // A session the server has forgotten must not hold the door shut: the landing shows at once.
 await ben.evaluate(() => { localStorage.setItem("exploding-catan:online", "1"); localStorage.setItem("exploding-catan:token", "stale-token-from-another-life"); });
 await ben.reload({ waitUntil: "networkidle" });

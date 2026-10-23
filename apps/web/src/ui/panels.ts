@@ -64,7 +64,9 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
     const pick = (cb.scratch[key] ??= zero());
     const chosen = total(pick);
     const e = owed.jid !== null ? entryById(s, owed.jid) : undefined;
-    const answers = [...answersFor(s, "nope", view, cb.now), ...answersFor(s, "defuse", view, cb.now)];
+    // Only an answer this hand actually holds is worth a word.
+    const holds = (k: string) => p.cards.some((c) => c.key === k);
+    const answers = [...(holds("nope") ? answersFor(s, "nope", view, cb.now) : []), ...(holds("defuse") ? answersFor(s, "defuse", view, cb.now) : [])];
     root.append(h("div", { class: "panel owed" },
       h("h3", null, owed.kind === "seven" ? "A seven: discard half" : "Attacked: drop cards", h("small", null, `${chosen} of ${owed.n}`)),
       h("p", { class: "sub" }, `${p.name} must discard ${owed.n} resource card${owed.n === 1 ? "" : "s"}.`),
