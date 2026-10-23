@@ -83,7 +83,7 @@ await ann.click("#emojiBtn");
 const emoji = (await ann.locator("#emojiTray button").first().textContent()).trim();
 await ann.locator("#emojiTray button").first().click();
 // The bot may be taunting at the same moment, so look for Ann's emoji in particular.
-const bubble = ben.locator("#seats .seat .bubble", { hasText: emoji }).first();
+const bubble = ben.locator("#seats .seat .portrait .emo", { hasText: emoji }).first();
 await bubble.waitFor({ timeout: 3000 });
 console.log("emote seen on Ben's screen:", await bubble.textContent());
 await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
