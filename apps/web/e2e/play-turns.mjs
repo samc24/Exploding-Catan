@@ -22,6 +22,17 @@ for (const b of ["Bank", "Trade", "Buy cards"]) {
   const btn = page.locator(`#bottom button:has-text("${b}")`);
   if (await btn.isEnabled()) { await btn.click(); await page.waitForTimeout(150); await page.screenshot({ path: `${OUT}/06-${b.replace(" ", "")}.png` }); await btn.click(); }
 }
+// The deck sells too: it is marked exactly when the button is live, and a click on it opens the same buy.
+{
+  const canBuy = await page.locator('#bottom button:has-text("Buy cards")').isEnabled();
+  const marked = (await page.locator("#deck.buyable").count()) > 0;
+  if (canBuy !== marked) errors.push(`the deck is ${marked ? "" : "not "}marked for sale while the Buy button is ${canBuy ? "live" : "off"}`);
+  if (canBuy) {
+    await page.click("#deck"); await page.waitForTimeout(150);
+    if (!(await page.locator('#panels h3:has-text("Buy kitten cards")').count())) errors.push("a click on the deck did not open the buy");
+    await page.click("#deck"); await page.waitForTimeout(100);
+  }
+}
 for (let t = 0; t < 6; t++) {
   const end = page.locator('#bottom button:has-text("End turn")');
   if (await end.count() && await end.isEnabled()) { await end.click(); await page.waitForTimeout(3200); }

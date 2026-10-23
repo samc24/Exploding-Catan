@@ -18,7 +18,7 @@ import { openNewGame } from "./game";
 import { $, h } from "./ui/dom";
 import { drawBoard } from "./ui/board";
 import { drawSeats } from "./ui/seats";
-import { drawBottom } from "./ui/hand";
+import { canBuyCards, drawBottom } from "./ui/hand";
 import { drawPanels } from "./ui/panels";
 import { drawFeed, drawLog, drawTicker } from "./ui/feed";
 import { drawDiceHistory } from "./ui/dice";
@@ -62,6 +62,12 @@ export function render(): void {
   drawLog($("log"), s);
   drawDiceHistory($("dicepanel"), s);
   drawTable(s);
+  // The deck itself sells cards: when a buy is possible, a click on it opens the buy, like the button.
+  const deck = $("deck");
+  const selling = canBuyCards(s, view) && !ui.spectator;
+  deck.classList.toggle("buyable", selling);
+  deck.title = selling ? "Buy a kitten card: any 3 different resources" : s.cur === view ? "Buying takes 3 different resources on your turn, after the roll" : `${s.deck.length} cards left`;
+  deck.onclick = selling ? () => { panelCb.composer = panelCb.composer === "buy" ? null : "buy"; render(); } : null;
   // Which way round the table, which matters once a Reverse has been played.
   const dir = $("dirTag");
   dir.hidden = s.phase.startsWith("setup");
