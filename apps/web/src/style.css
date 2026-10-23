@@ -48,7 +48,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .seat .honour{font-size:10px;font-weight:800;letter-spacing:.04em;color:#2a1a0a;background:var(--accent);border-radius:5px;padding:1px 6px}
 .seat .honour.bad{background:var(--danger);color:#fff}
 .seat.pickable{box-shadow:0 0 0 2px var(--ok), 0 0 14px rgba(89,179,100,.6);cursor:crosshair}
-.portrait{border-radius:50%;background-size:cover;background-position:center;border:3px solid var(--c);display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;flex:0 0 auto;background-color:var(--c);box-shadow:0 3px 10px rgba(0,0,0,.45)}
+.portrait{position:relative;overflow:hidden;border-radius:50%;background-size:cover;background-position:center;border:3px solid var(--c);display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;flex:0 0 auto;background-color:var(--c);box-shadow:0 3px 10px rgba(0,0,0,.45)}
 .seat .who{display:flex;flex-direction:column;min-width:0;flex:1}
 .seat .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seat .stats{display:flex;gap:9px;font-size:11.5px;color:var(--dim);flex-wrap:nowrap;white-space:nowrap}
@@ -206,9 +206,9 @@ button.on{border-color:var(--accent);color:var(--accent)}
 #emojiTray{position:absolute;top:44px;right:12px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(6,36px);gap:4px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
 #emojiTray button{font-size:20px;padding:4px 0;line-height:1;border:0;background:transparent}
 #emojiTray button:hover{background:var(--panel2)}
-.seat .bubble{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);font-size:34px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 10px;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:bubble 3s forwards;pointer-events:none;z-index:25}
-.seat .bubble::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
-@keyframes bubble{0%{opacity:0;transform:translate(-50%,-80%) scale(.6)}12%{opacity:1;transform:translate(-50%,-100%) scale(1.08)}20%{transform:translate(-50%,-100%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-120%)}}
+/* An emote fills the player's portrait for a moment, as in JP's game. */
+.portrait .emo{position:absolute;inset:-3px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:1.55em;line-height:1;animation:emo 3s forwards;pointer-events:none;z-index:2}
+@keyframes emo{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.18)}24%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
 
 /* ── answering: the chooser, the lit line, the badges ── */
 #modal .answer{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;margin-bottom:6px}

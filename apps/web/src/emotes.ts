@@ -1,4 +1,4 @@
-/* Emotes: a bubble over a seat for a few seconds. */
+/* Emotes: for a few seconds the emoji fills the player's portrait on their seat card, as in JP's game. */
 import { EMOJIS } from "@exploding-catan/protocol";
 import { $, h } from "./ui/dom";
 
@@ -8,19 +8,20 @@ export function showEmote(seat: number, emoji: string): void {
   paintBubbles();
   setTimeout(paintBubbles, 3100);
 }
-/** Put the live bubbles back on the seat cards (the strip is rebuilt on every render). */
+/** Put the live emotes back on the seat cards' portraits (the strip is rebuilt on every render). */
 export function paintBubbles(): void {
   const now = Date.now();
   for (const [seat, b] of bubbles) if (b.until < now) bubbles.delete(seat);
   const seats = $("seats").children;
   for (let i = 0; i < seats.length; i++) {
     const el = seats[i] as HTMLElement;
-    const old = el.querySelector(".bubble");
+    const face = el.querySelector(".portrait") ?? el;
+    const old = face.querySelector(".emo");
     const b = bubbles.get(i);
     if (!b) { old?.remove(); continue; }
     if (old && old.textContent === b.emoji) continue;
     old?.remove();
-    el.append(h("span", { class: "bubble" }, b.emoji));
+    face.append(h("span", { class: "emo" }, b.emoji));
   }
 }
 /** The tray under the header button. `send` is what a chosen emoji does. */

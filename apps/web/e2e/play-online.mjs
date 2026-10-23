@@ -6,9 +6,11 @@ import { launch, clickSpot, settle, finish, OUT } from "./lib.mjs";
 const SERVER = process.env.SERVER_URL || "ws://localhost:8787";
 const { browser, page: ann, errors, newPage } = await launch("Ann", { width: 1300, height: 850 });
 
-async function goOnline(page, name) {
+async function goOnline(page, name, face = null) {
   await page.click('#landing .way:has-text("Play online")');
   await page.fill('#modal input[placeholder="Your name"]', name);
+  // The portrait is picked on this screen and follows the player to their seat.
+  if (face !== null) await page.locator("#modal .avgrid .av").nth(face).click();
   // The server field is hidden when the page has one built in (VITE_SERVER_URL); then it is the one to use.
   const urlIn = page.locator('#modal input[placeholder="wss://your-server"]');
   if (await urlIn.isVisible()) await urlIn.fill(SERVER);
@@ -24,10 +26,17 @@ console.log("room", code);
 await ann.screenshot({ path: `${OUT}/online-01-lobby.png` });
 
 const ben = await newPage("Ben");
-await goOnline(ben, "Ben");
+await goOnline(ben, "Ben", 5);
 await ben.fill('#modal input[placeholder="CODE"]', code);
 await ben.click('#modal button:has-text("Join")');
 await ben.waitForSelector('#modal h2:has-text("Table")');
+await ben.waitForTimeout(400);
+{
+  const want = await ben.evaluate(() => localStorage.getItem("exploding-catan:avatar"));
+  const worn = await ben.evaluate(() => document.querySelector("#modal .seatrow.you .portrait")?.style.backgroundImage ?? "");
+  if (!want || !worn.includes(`avatar-${want}`) && !worn.includes(`/${want}.`)) errors.push(`Ben's chosen portrait (${want}) is not on his seat: ${worn}`);
+  else console.log("Ben wears portrait", want);
+}
 await ann.waitForSelector('#modal button:has-text("Add bot")');
 await ann.click('#modal button:has-text("Add bot")');
 await ann.waitForSelector('#modal button:has-text("Start"):not([disabled])');
@@ -74,7 +83,7 @@ await ann.click("#emojiBtn");
 const emoji = (await ann.locator("#emojiTray button").first().textContent()).trim();
 await ann.locator("#emojiTray button").first().click();
 // The bot may be taunting at the same moment, so look for Ann's emoji in particular.
-const bubble = ben.locator("#seats .seat .bubble", { hasText: emoji }).first();
+const bubble = ben.locator("#seats .seat .portrait .emo", { hasText: emoji }).first();
 await bubble.waitFor({ timeout: 3000 });
 console.log("emote seen on Ben's screen:", await bubble.textContent());
 await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
