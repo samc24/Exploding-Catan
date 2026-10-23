@@ -27,6 +27,8 @@ import { installMusic } from "./music";
 import { installSfx } from "./sfx";
 
 setRenderer(render);
+// The dev build lets the browser tests reach the socket, to drop it and watch the recovery.
+if (import.meta.env.DEV) Object.assign(window, { __net: net });
 /** Walk away from the game on this screen, after a word of warning. The
     saved copy goes too, so the front door stops offering it. */
 function leaveGame(): void {

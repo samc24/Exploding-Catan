@@ -73,6 +73,7 @@ export class Net {
   static savedName(): string { try { return localStorage.getItem(NAME_KEY) ?? ""; } catch { return ""; } }
 
   connect(url: string, name: string): Promise<void> {
+    const hadRoom = !!this.room; // a reconnect after a drop: were we at a table?
     this.disconnect();
     this.closedByUs = false;
     this.url = url;
@@ -83,18 +84,20 @@ export class Net {
       try { ws = new WebSocket(url); } catch (e) { rej(e); return; }
       this.ws = ws;
       let settled = false;
-      ws.onopen = () => {
-        let token: string | undefined;
-        try { token = localStorage.getItem(TOKEN_KEY) ?? undefined; } catch { /* none */ }
-        this.send({ t: "hello", v: PROTOCOL_VERSION, name, ...(token ? { token } : {}) });
-      };
+      let token: string | undefined;
+      try { token = localStorage.getItem(TOKEN_KEY) ?? undefined; } catch { /* none */ }
+      ws.onopen = () => { this.send({ t: "hello", v: PROTOCOL_VERSION, name, ...(token ? { token } : {}) }); };
       ws.onmessage = (ev) => {
         const m = JSON.parse(String(ev.data)) as ServerMsg;
         if (m.t === "welcome") {
+          // A fresh token while we were at a table means the server does not know us any more
+          // (it restarted, and the free host keeps rooms in memory): the table is gone. Say so, once.
+          const lost = hadRoom && m.token !== token;
           try { localStorage.setItem(TOKEN_KEY, m.token); } catch { /* fine */ }
           this.name = m.name;
           this.handlers.connection(true);
           if (!settled) { settled = true; res(); }
+          if (lost) { this.room = null; this.seat = null; this.handlers.error("The server restarted and lost this table. Host a new one."); this.handlers.room(null); }
           return;
         }
         this.handle(m);
