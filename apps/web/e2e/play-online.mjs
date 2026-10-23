@@ -27,6 +27,11 @@ await ann.screenshot({ path: `${OUT}/online-01-lobby.png` });
 
 const ben = await newPage("Ben");
 await goOnline(ben, "Ben", 5);
+// A wrong code is refused, and the table dialog comes straight back rather than leaving an empty table.
+await ben.fill('#modal input[placeholder="CODE"]', code === "ZZZZ" ? "YYYY" : "ZZZZ");
+await ben.click('#modal button:has-text("Join")');
+await ben.waitForSelector('#modal h2:has-text("Online as")', { timeout: 3000 });
+console.log("wrong code refused:", (await ben.locator("#hint").textContent()) || "(hint gone)");
 await ben.fill('#modal input[placeholder="CODE"]', code);
 await ben.click('#modal button:has-text("Join")');
 await ben.waitForSelector('#modal h2:has-text("Table")');

@@ -12,7 +12,11 @@ services:
     region: ohio
     branch: master
     healthCheckPath: /health
-    autoDeploy: true
+    # Not on every merge: a redeploy drops every connection and forgets every
+    # room, and most merges only touch the web app (which Pages serves). When
+    # the server or the packages change, deploy by hand from the dashboard
+    # (Manual Deploy → Deploy latest commit).
+    autoDeploy: false
     envVars:
       - key: PORT
         value: "8787"
