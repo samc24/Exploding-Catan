@@ -47,7 +47,7 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     else { cls += " dead"; why += c.boughtTurn === s.turnCounter ? " (bought this turn)" : ""; }
     const art = has(cardArt(c.key, c.flavor)) ? cardArt(c.key, c.flavor) : null;
     hand.append(h("div", { class: cls, title: `${def.name}: ${why}`, dataset: { idx: String(p.cards.indexOf(c)), card: String(c.id) }, style: art ? { backgroundImage: `url(${art})` } : null, onclick: () => cb.card(c) },
-      live && reaction ? h("span", { class: "pip" }) : null,
+      live && reaction ? h("span", { class: "react" }, "React") : null,
       art ? "" : def.name + (c.flavor ? ` (${c.flavor})` : "")));
   }
   if (!p.cards.length) hand.append(h("i", { style: { color: "var(--dim)", fontSize: "12px" } }, "no kitten cards"));
@@ -74,9 +74,8 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
       actions.append(h("button", { class: "primary", disabled: !!why, title: why ?? "", onclick: cb.roll }, handoverActive(s, now) ? "Roll (a moment…)" : "Roll dice"));
     } else {
       const owed = owesAnswer(s);
-      const canBuy = RES.filter((r) => p.res[r] > 0).length >= 3 && s.deck.length > 0;
       actions.append(
-        h("button", { disabled: owed || !canBuy, title: "Any 3 different resources buys a kitten card", onclick: cb.buy }, "Buy cards"),
+        h("button", { disabled: !canBuyCards(s, view), title: "Any 3 different resources buys a kitten card", onclick: cb.buy }, "Buy cards"),
         h("button", { disabled: owed || totalRes(p) === 0, onclick: cb.bank }, "Bank"),
         h("button", { disabled: owed || !!s.trade, onclick: cb.trade }, "Trade"),
         h("button", { class: "primary", disabled: owed || !!s.select, onclick: cb.endTurn }, "End turn"),
@@ -84,11 +83,17 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     }
   } else {
     // On a phone the name line has no room for the status, so the note carries it (`.st`, shown there only).
-    const st = h("span", { class: "st" }, `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing"} `);
+    const st = h("span", { class: "st" }, `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing."} `);
     actions.append(h("span", { class: "note" }, st, owesAnswer(s) ? "The table is waiting on an answer." : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
   }
 
   root.append(who, res, hand, actions);
+}
+
+/** Whether this seat can buy a kitten card right now: their turn's main phase, nothing owed, three different resources, cards left. */
+export function canBuyCards(s: GameState, view: number): boolean {
+  const p = s.players[view];
+  return s.cur === view && s.phase === "main" && !owesAnswer(s) && RES.filter((r) => p.res[r] > 0).length >= 3 && s.deck.length > 0;
 }
 
 function timerEl(s: GameState, now: number): HTMLElement {
