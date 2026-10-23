@@ -18,10 +18,15 @@ ENV NODE_ENV=production PORT=8787 DATA_DIR=/data
 # Only what runs: the server and the packages it imports (as TypeScript, run by tsx), and the built web app.
 COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/engine/package.json /app/packages/engine/src ./packages/engine/
-COPY --from=build /app/packages/bots/package.json /app/packages/bots/src ./packages/bots/
-COPY --from=build /app/packages/protocol/package.json /app/packages/protocol/src ./packages/protocol/
-COPY --from=build /app/apps/server/package.json /app/apps/server/src ./apps/server/
+# (A directory source is copied by its contents, so each src lands in its own src/.)
+COPY --from=build /app/packages/engine/package.json ./packages/engine/
+COPY --from=build /app/packages/engine/src ./packages/engine/src
+COPY --from=build /app/packages/bots/package.json ./packages/bots/
+COPY --from=build /app/packages/bots/src ./packages/bots/src
+COPY --from=build /app/packages/protocol/package.json ./packages/protocol/
+COPY --from=build /app/packages/protocol/src ./packages/protocol/src
+COPY --from=build /app/apps/server/package.json ./apps/server/
+COPY --from=build /app/apps/server/src ./apps/server/src
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
