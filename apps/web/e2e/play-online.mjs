@@ -93,4 +93,10 @@ await ben.waitForSelector("#board .hex", { timeout: 8000 });
 const benBack = await ben.locator("#seats .seat.me .name").textContent();
 console.log("Ben after reload views:", benBack.trim());
 if (!benBack.includes("Ben")) errors.push("Ben did not get his seat back after a reload");
+// A session the server has forgotten must not hold the door shut: the landing shows at once.
+await ben.evaluate(() => { localStorage.setItem("exploding-catan:online", "1"); localStorage.setItem("exploding-catan:token", "stale-token-from-another-life"); });
+await ben.reload({ waitUntil: "networkidle" });
+const door = await ben.locator("#landing:not([hidden]) .way").first().waitFor({ state: "visible", timeout: 4000 }).then(() => true).catch(() => false);
+if (!door) errors.push("a stale online session left the page stuck on the landing's title");
+else console.log("stale session: the front door opened");
 await finish(browser, errors);
