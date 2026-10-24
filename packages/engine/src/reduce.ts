@@ -12,8 +12,9 @@ import { RuleError, affordable, canPlaceCity, canPlaceRoad, canPlaceSettlement, 
 import { implodeRevealing } from "./journal";
 import {
   buildCity, buildRoad, buildSettlement, canRollNow, doEndTurn, doRoll, openingRoadLegal, owesAnswer, performDiscard,
-  placeOpeningRoad, placeSetupRoad, placeSetupSettlement, robberPlaced, startTurnTimer, tick, victimPicked,
+  placeOpeningRoad, placeSetupRoad, placeSetupSettlement, robberPlaced, tick, victimPicked,
 } from "./turn";
+import { startTurnTimer } from "./clock";
 import { alterPicked, buyCards, cancelSelect, favorDemanded, playCard, seatPicked } from "./cards";
 import { defuseEntry, nopeLine, nopeTurnNow } from "./answers";
 import { acceptTrade, answerTrade, bankTrade, cancelTrade, offerTrade } from "./trade";

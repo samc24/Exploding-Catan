@@ -13,7 +13,7 @@ import {
   type Card, type GameState, type JournalEntry,
 } from "@exploding-catan/engine";
 import { $, clear, h } from "./dom";
-import { cardArt, has } from "../art";
+import { cardArt, has } from "../media/art";
 import { tint } from "./text";
 
 const SHOWCASE_MS = 2300;
@@ -39,7 +39,7 @@ function releaseToPile(jid: number): void {
   release?.(jid);
 }
 /** Is a card still having its moment? Capped, so a tab left in the background cannot wedge anything waiting on it. */
-export function showcaseBusy(): boolean {
+function showcaseBusy(): boolean {
   if (!showing && !queue.length) return false;
   return !(since && Date.now() - since > IMPLODE_SHOW_MS + SHOWCASE_FADE_MS + 2500);
 }

@@ -6,7 +6,7 @@
    and played with a little pitch jitter so repeats do not sound stamped.
    Effects have their own volume, remembered separately from the music.
    ══════════════════════════════════════════════════════════════════════ */
-import { $, h } from "./ui/dom";
+import { $, h } from "../ui/dom";
 
 export type Sfx =
   | "dice" | "seven" | "card" | "draw" | "slide" | "trade" | "build" | "robber" | "knight"
@@ -74,11 +74,10 @@ export function sfx(name: Sfx, opts: { gain?: number; rate?: number } = {}): voi
     src.start();
   });
 }
-export function setEffectsVolume(v: number): void {
+function setEffectsVolume(v: number): void {
   volume = Math.max(0, Math.min(1, v)); save();
   if (master) master.gain.value = volume;
 }
-export function effectsVolume(): number { return volume; }
 
 /** The slider row in the settings menu, and the first-click unlock. */
 export function installSfx(): void {

@@ -2,7 +2,7 @@
    slider. Browsers refuse sound before a click, so the file is not even
    fetched until the first click anywhere on the page, and playback begins
    then. The volume is remembered. */
-import { $, h } from "./ui/dom";
+import { $, h } from "../ui/dom";
 
 const KEY = "exploding-catan:volume";
 const SRC = "./music/theme.mp3";
@@ -36,5 +36,3 @@ export function installMusic(): void {
   document.addEventListener("pointerdown", arm, true);
   document.addEventListener("keydown", arm, true);
 }
-/** For tests: what the slider is set to. */
-export function currentVolume(): number { return volume; }

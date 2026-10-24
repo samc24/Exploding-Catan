@@ -19,7 +19,7 @@ export const avatarArt = (n: number) => `${BASE}profile/${n}.png`;
 /* Which files actually exist, learned once by probing; used to decide whether
    to draw a texture or a flat colour so nothing flashes a broken image. */
 const known = new Map<string, boolean>();
-export function probe(url: string): Promise<boolean> {
+function probe(url: string): Promise<boolean> {
   const k = known.get(url);
   if (k !== undefined) return Promise.resolve(k);
   return new Promise((res) => {

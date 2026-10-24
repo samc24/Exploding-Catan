@@ -6,7 +6,7 @@ import {
   type GameState, type Geometry,
 } from "@exploding-catan/engine";
 import { clear, svg } from "./dom";
-import { has, hexArt } from "../art";
+import { has, hexArt } from "../media/art";
 import { landing } from "./fx";
 import { COARSE } from "./tap";
 

@@ -1,0 +1,53 @@
+/* Tokens, resets, the header and its controls, buttons, the settings menu. */
+
+:root{
+  /* A game on a dark wooden table: warm blacks, cream ink, brass and ember accents. */
+  --bg:#171210; --panel:#241b17; --panel2:#2f241f; --line:#4a3a30;
+  --ink:#f3e9d8; --dim:#b39f8a; --accent:#e0a53a; --danger:#d9534b; --ok:#6fae5c;
+  --wood:#2f6b3a; --brick:#a4472a; --sheep:#7fb85c; --wheat:#dfae32; --ore:#78838f; --desert:#cdbb8e;
+  --display:"Alfa Slab One",Georgia,serif;
+  --table:radial-gradient(ellipse at 50% 30%,rgba(255,200,140,.08),transparent 60%),
+          repeating-linear-gradient(97deg,rgba(0,0,0,0) 0 14px,rgba(0,0,0,.06) 14px 16px),
+          repeating-linear-gradient(93deg,rgba(255,255,255,0) 0 37px,rgba(255,255,255,.025) 37px 39px),
+          linear-gradient(180deg,#2a1d16,#1b1310 55%,#120d0b);
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--ink); -webkit-tap-highlight-color:transparent;
+  font:14px/1.45 "Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
+  display:flex; flex-direction:column; overflow:hidden;
+  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+}
+header{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:8px 14px;background:linear-gradient(180deg,#2c2019,#221914);border-bottom:1px solid #5a4536;box-shadow:0 2px 10px rgba(0,0,0,.35);flex:0 0 auto}
+header h1{font-size:17px;margin:0;letter-spacing:.3px;font-family:var(--display);font-weight:400;cursor:pointer}
+header h1 .ex{color:var(--danger)}
+header h1 .ca{color:var(--accent)}
+header .spacer{flex:1}
+#hint{color:var(--dim);font-size:12.5px;margin-left:8px}
+#modeTag{font-size:10.5px;color:#161a20;background:var(--accent);font-weight:700;border-radius:6px;padding:2px 7px}
+button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 11px;cursor:pointer;font:inherit}
+button:hover:not(:disabled){background:#3b2d26;border-color:#6a5445}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.primary{background:#8a5a1c;border-color:#b67a2a;color:#fff6e6}
+button.primary:hover:not(:disabled){background:#a0691f}
+button.warn{background:#6b2f2f;border-color:#8a3f3f}
+button.warn:hover:not(:disabled){background:#813a3a}
+button.sm{padding:3px 8px;font-size:12px}
+button.on{border-color:var(--accent);color:var(--accent)}
+
+
+/* ── direction, zoom, fullscreen ── */
+#dirTag{font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+#dirTag.rev{color:var(--accent);border-color:var(--accent)}
+#zoomWrap{position:absolute;left:12px;bottom:12px;display:flex;gap:4px;z-index:21}
+#board.panning{cursor:grabbing}
+
+
+/* ── the settings menu ── */
+#menu{position:absolute;top:44px;right:12px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);font-size:12.5px;min-width:240px}
+#menu .mrow{display:flex;align-items:center;gap:8px}
+#menu .mrow input[type=range]{flex:1;min-width:100px}
+#menu .mrow span:last-child{color:var(--dim);min-width:32px;text-align:right}
+#menu button{text-align:left}

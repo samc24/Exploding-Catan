@@ -13,7 +13,7 @@ export default tseslint.config(
   },
   {
     // The browser smoke tests run in Node and evaluate code in the page.
-    files: ["apps/web/e2e/**/*.mjs"],
+    files: ["apps/web/e2e/**/*.mjs", "scripts/**/*.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {

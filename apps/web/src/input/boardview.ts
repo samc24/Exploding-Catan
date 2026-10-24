@@ -1,8 +1,8 @@
 /* Zoom and pan: buttons, the wheel, a pinch, and dragging the board's
    background. Pure screen state; a drag that moved swallows the click it
    would end on. The wheel and the pinch zoom about the point under them. */
-import { requestRender, ui } from "./screen";
-import { $ } from "./ui/dom";
+import { requestRender, ui } from "../state/screen";
+import { $ } from "../ui/dom";
 
 const MAX = 3;
 let panning: { x: number; y: number; px: number; py: number; moved: boolean } | null = null;
@@ -23,14 +23,14 @@ function clampPan(): void {
   ui.panX = Math.max(-maxX, Math.min(maxX, ui.panX));
   ui.panY = Math.max(-maxY, Math.min(maxY, ui.panY));
 }
-export function zoomBy(f: number): void {
+function zoomBy(f: number): void {
   ui.zoom = clampZoom(ui.zoom * f);
   if (ui.zoom === 1) { ui.panX = 0; ui.panY = 0; }
   clampPan();
   requestRender();
 }
 /** Zoom to `z` keeping the board point under the screen point (cx, cy) where it is. */
-export function zoomAt(z: number, cx: number, cy: number): void {
+function zoomAt(z: number, cx: number, cy: number): void {
   const svg = $("board") as unknown as SVGSVGElement;
   const ctm = svg.getScreenCTM();
   const nz = clampZoom(z);
@@ -46,7 +46,7 @@ export function zoomAt(z: number, cx: number, cy: number): void {
   clampPan();
   requestRender();
 }
-export function resetZoom(): void { ui.zoom = 1; ui.panX = 0; ui.panY = 0; requestRender(); }
+function resetZoom(): void { ui.zoom = 1; ui.panX = 0; ui.panY = 0; requestRender(); }
 
 export function installBoardView(): void {
   const svg = $("board");

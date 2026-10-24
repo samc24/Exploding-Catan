@@ -11,14 +11,14 @@
    moment picks the card up.
    ══════════════════════════════════════════════════════════════════════ */
 import { canPlayToPile, cardIsPlayable, type Card, type GameState } from "@exploding-catan/engine";
-import { store } from "./store";
-import { clock } from "./online";
-import { act, ui } from "./screen";
-import { h } from "./ui/dom";
-import { answerable } from "./ui/feed";
-import { layer } from "./ui/fx";
+import { store } from "../state/store";
+import { clock } from "../state/clock";
+import { act, ui } from "../state/screen";
+import { h } from "../ui/dom";
+import { answerable } from "../ui/feed";
+import { layer } from "../ui/fx";
 import { offerAnswers, onCardOnEntry } from "./input";
-import { sfx } from "./sfx";
+import { sfx } from "../media/sfx";
 
 const THRESHOLD = 6;
 /** How long a finger holds still before the card lifts. */

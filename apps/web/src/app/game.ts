@@ -1,19 +1,19 @@
 /* Starting a local game. */
 import type { GameConfig } from "@exploding-catan/engine";
-import { store } from "./store";
+import { store } from "../state/store";
 import { setBots, scheduleBots } from "./bots-host";
 import { goLocal, net } from "./online";
-import { feed, panelCb, setManualSeat } from "./screen";
-import { resetFeedSignature } from "./ui/feed";
-import { resetShowcase } from "./ui/showcase";
-import { resetBoardWatch } from "./ui/fx";
-import { resetSeats } from "./ui/seats";
-import { resetBottom } from "./ui/hand";
-import { newGameDialog, type Preset } from "./ui/newgame";
-import { requestRender } from "./screen";
+import { feed, panelCb, setManualSeat } from "../state/screen";
+import { resetFeedSignature } from "../ui/feed";
+import { resetShowcase } from "../ui/showcase";
+import { resetBoardWatch } from "../ui/fx";
+import { resetSeats } from "../ui/seats";
+import { resetBottom } from "../ui/hand";
+import { newGameDialog, type Preset } from "../ui/newgame";
+import { requestRender } from "../state/screen";
 import { restoreBots } from "./bots-host";
 
-export function startGame(cfg: GameConfig, botSeats: number[], seed?: number): void {
+function startGame(cfg: GameConfig, botSeats: number[], seed?: number): void {
   if (net.online) { net.leave(); goLocal(); }
   feed.reset();
   resetFeedSignature();

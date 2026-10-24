@@ -5,33 +5,34 @@
    Hot-seat or against bots locally; online, the same screens draw the view
    the server sends. This file only wires the pieces together and boots.
    ══════════════════════════════════════════════════════════════════════ */
-import { store } from "./store";
-import { preload } from "./art";
+import { store } from "./state/store";
+import { preload } from "./media/art";
 import { $, h } from "./ui/dom";
 import { showRules } from "./ui/rules";
-import { hint, setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./screen";
+import { hint, setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./state/screen";
 import { installSeatStrip } from "./ui/seats";
-import { onEvents, paintClocks, render } from "./render";
-import { installKeys } from "./input";
-import { installDrag } from "./drag";
-import { installBoardView } from "./boardview";
-import { installEmoteTray, showEmote } from "./emotes";
-import { chatSeen, drawChat, net, resumeOnline, wireOnline } from "./online";
-import { BOT_PACE, pokeTaunts, scheduleBots, stopBots } from "./bots-host";
-import { hasSavedGame, openNewGame, resumeLocal } from "./game";
+import { render } from "./app/render";
+import { onEvents } from "./app/events";
+import { paintClocks } from "./app/clocks";
+import { installKeys } from "./input/input";
+import { installDrag } from "./input/drag";
+import { installBoardView } from "./input/boardview";
+import { installEmoteTray, showEmote } from "./media/emotes";
+import { chatSeen, drawChat, net, resumeOnline, wireOnline } from "./app/online";
+import { BOT_PACE, pokeTaunts, scheduleBots, stopBots } from "./app/bots-host";
+import { hasSavedGame, openNewGame, resumeLocal } from "./app/game";
 import { closeModal, openModal } from "./ui/dialogs";
-import { goLocal } from "./online";
+import { goLocal } from "./app/online";
 import { hideLanding, landingShowing, showLanding } from "./ui/landing";
-import { connectDialog, roomDialog } from "./ui/lobby";
-import { installMusic } from "./music";
-import { installSfx } from "./sfx";
+import { connectDialog, roomDialog } from "./net/lobby";
+import { installMusic } from "./media/music";
+import { installSfx } from "./media/sfx";
 import { installPileWheel } from "./ui/table";
-import { MOTION_HINT, MOTION_LABEL, MOTION_TITLE, applyMotion, cycleMotion, motion, tipsOn, toggleTips } from "./settings";
+import { MOTION_HINT, MOTION_LABEL, MOTION_TITLE, applyMotion, cycleMotion, motion, tipsOn, toggleTips } from "./state/settings";
 
 setRenderer(render);
 // The dev build lets the browser tests reach the socket, to drop it and watch the recovery.
 if (import.meta.env.DEV) Object.assign(window, { __net: net });
-Object.assign(window, { __viewSeat: () => ui.seat });
 /** Walk away from the game on this screen, after a word of warning. The
     saved copy goes too, so the front door stops offering it. */
 function leaveGame(): void {

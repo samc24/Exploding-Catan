@@ -2,15 +2,15 @@
    INPUT — what a click on the board, a card or a log line means
    ══════════════════════════════════════════════════════════════════════ */
 import { KITTEN, answersFor, type Card, type GameState, type JournalEntry } from "@exploding-catan/engine";
-import { store } from "./store";
-import { clock } from "./online";
-import { act, hint, panelCb, requestRender, ui } from "./screen";
-import { $, h } from "./ui/dom";
-import { closeModal, modalOpen, openModal } from "./ui/dialogs";
-import type { BoardCallbacks } from "./ui/board";
-import { pileShownJid } from "./ui/table";
+import { store } from "../state/store";
+import { clock } from "../state/clock";
+import { act, hint, panelCb, requestRender, ui } from "../state/screen";
+import { $, h } from "../ui/dom";
+import { closeModal, modalOpen, openModal } from "../ui/dialogs";
+import type { BoardCallbacks } from "../ui/board";
+import { pileShownJid } from "../ui/table";
 import { cancelDrag, dragging } from "./drag";
-import { sfx } from "./sfx";
+import { sfx } from "../media/sfx";
 
 /** The board's two-click confirm: arm on the first click, act on the second. */
 function armOr(kind: string, id: number, go: () => void): void {
