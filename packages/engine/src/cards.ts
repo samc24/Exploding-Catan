@@ -6,7 +6,9 @@ import {
   cardsFromPool, feed, findCard, heldBack, log, noteGain, player, refuse, removeCardById, totalRes, type Ctx,
 } from "./state";
 import { implodeActive, logAction, snapAll } from "./journal";
-import { beginRobberMove, checkVictory, owesAnswer, settleAttackDue, startImplodeClock } from "./turn";
+import { beginRobberMove, owesAnswer, settleAttackDue } from "./turn";
+import { startImplodeClock } from "./clock";
+import { checkVictory } from "./victory";
 import type { Bundle, Card, CardKey, CardPlay, GameState, Player } from "./types";
 
 /* ── buying ────────────────────────────────────────────────────────── */

@@ -2,7 +2,7 @@ import { answersFor, canNopeEntry, type GameEvent, type GameState, type JournalE
 import { clear, h } from "./dom";
 import { tap } from "./tap";
 import { tint } from "./text";
-import { cardArt, has } from "../art";
+import { cardArt, has } from "../media/art";
 
 export interface FeedLine { text: string; kind: string; jid: number | null; turn: number | null; seq: number }
 /** Chat lines ride in the feed too; they are never answerable. */

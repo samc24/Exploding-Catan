@@ -11,7 +11,9 @@ export {
   canNopeEntry, canNopeFor, canNopeNow, canNopeTurnNow, canDefuseEntry, nopeCancelsCard, openEntries, openEntry,
   entryById, handoverActive, implodeActive, implodeRevealing, isRobberEntry, describeTurnGains,
 } from "./journal";
-export { owesAnswer, turnClockHeld, discardOwed, forcedNoperFor, openingRoadLegal, canRollNow, timerEnabled } from "./turn";
+export { owesAnswer, discardOwed, openingRoadLegal, canRollNow } from "./turn";
+export { turnClockHeld, timerEnabled } from "./clock";
+export { forcedNoperFor } from "./victory";
 export { canPlayToPile, cardIsPlayable, seatPickable, playableWhenDrawn } from "./cards";
 export { applyAction } from "./reduce";
 export { viewFor, eventsFor, hiddenCard } from "./view";

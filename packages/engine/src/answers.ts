@@ -11,10 +11,9 @@ import {
   logAction, nopeCancelsCard, notThisTurnsDoing, pileCancel, pileDrop, restoreAll, snapAll, turnOpenSnap,
   turnStartSnap,
 } from "./journal";
-import {
-  advancePlayer, beginRobberMove, checkVictory, clearImplodeClock, doRoll, settleAttackDue, startTurnTimer,
-  stepSeven,
-} from "./turn";
+import { advancePlayer, beginRobberMove, doRoll, settleAttackDue, stepSeven } from "./turn";
+import { clearImplodeClock, startTurnTimer } from "./clock";
+import { checkVictory } from "./victory";
 import { playResolved } from "./cards";
 import type { JournalEntry, Player, TurnPointer } from "./types";
 

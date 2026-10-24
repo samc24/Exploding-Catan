@@ -8,10 +8,10 @@
    ══════════════════════════════════════════════════════════════════════ */
 import type { Action } from "@exploding-catan/engine";
 import { store } from "./store";
-import { $ } from "./ui/dom";
-import type { BoardUI } from "./ui/board";
-import type { PanelCallbacks } from "./ui/panels";
-import { Feed } from "./ui/feed";
+import { $ } from "../ui/dom";
+import type { BoardUI } from "../ui/board";
+import type { PanelCallbacks } from "../ui/panels";
+import { Feed } from "../ui/feed";
 import { tipsOn } from "./settings";
 
 export const ui: BoardUI = { seat: 0, armed: null, zoom: 1, panX: 0, panY: 0 };

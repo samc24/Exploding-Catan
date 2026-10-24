@@ -6,7 +6,7 @@
    Continue button when a game is waiting).
    ══════════════════════════════════════════════════════════════════════ */
 import { $, clear, h } from "./dom";
-import { cardArt, hexArt, has } from "../art";
+import { cardArt, hexArt, has } from "../media/art";
 
 export interface LandingActions {
   bots(): void;

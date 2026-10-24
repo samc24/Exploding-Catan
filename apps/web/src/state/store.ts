@@ -8,7 +8,7 @@ export type Listener = (s: GameState, events: GameEvent[], action: Action | null
 
 const SAVE_KEY = "exploding-catan:game";
 
-export class Store {
+class Store {
   private s: GameState | null = null;
   private listeners: Listener[] = [];
   lastError: string | null = null;

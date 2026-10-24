@@ -3,14 +3,15 @@
    ══════════════════════════════════════════════════════════════════════ */
 import { PLAYER_COLORS } from "@exploding-catan/engine";
 import type { RoomInfo } from "@exploding-catan/protocol";
-import { Net } from "./net";
-import { store } from "./store";
+import { Net } from "../net/net";
+import { store } from "../state/store";
 import { localBot, localHeard, stopBots } from "./bots-host";
-import { showEmote } from "./emotes";
-import { $, clear, h } from "./ui/dom";
-import { closeModal, modalOpen } from "./ui/dialogs";
-import { connectDialog, lobbyDialog, roomDialog } from "./ui/lobby";
-import { feed, hint, onNoGame, requestRender } from "./screen";
+import { showEmote } from "../media/emotes";
+import { $, clear, h } from "../ui/dom";
+import { closeModal, modalOpen } from "../ui/dialogs";
+import { connectDialog, lobbyDialog, roomDialog } from "../net/lobby";
+import { feed, hint, onNoGame, requestRender, ui } from "../state/screen";
+import { clock, setClockSource } from "../state/clock";
 
 const ONLINE_KEY = "exploding-catan:online";
 let lobbyShowing = false;
@@ -24,8 +25,8 @@ function paintChatTab(): void {
 /** The chat pane was opened: nothing is unread any more. */
 export function chatSeen(): void { unread = 0; paintChatTab(); }
 
-/** The clock every window is judged by: the server's when online, else ours. */
-export function clock(): number { return net.online ? net.now() : Date.now(); }
+/** The clock every window is judged by: the server's when online, else ours (see state/clock.ts). */
+export { clock };
 /** Online the room says who is a bot; locally the table does. */
 export function isBot(seat: number): boolean { return net.online ? !!net.room?.seats[seat]?.bot : localBot(seat); }
 
@@ -111,7 +112,7 @@ export function wireOnline(): void {
     // A local table: said by the seat at this screen; the bots hear it and may answer in kind.
     const s = store.get();
     if (!s) return;
-    const seat = (window as unknown as { __viewSeat?: () => number }).__viewSeat?.() ?? s.cur;
+    const seat = ui.seat;
     sayAtTable(seat, s.players[seat]?.name ?? "you", text);
     localHeard(seat);
   };
@@ -126,3 +127,4 @@ export async function resumeOnline(): Promise<boolean> {
   setTimeout(() => { if (!net.room) { try { localStorage.removeItem(ONLINE_KEY); } catch { /* fine */ } } }, 4000);
   return true;
 }
+setClockSource(() => (net.online ? net.now() : Date.now()));

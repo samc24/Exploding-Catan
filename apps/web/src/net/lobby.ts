@@ -1,11 +1,11 @@
 /* The online lobby: connect, make or join a room, sit, add bots, start. */
 import { MODES, PLAYER_COLORS, type Mode, type BoardKey } from "@exploding-catan/engine";
 import { NAME_MAX, type RoomConfig, type RoomInfo } from "@exploding-catan/protocol";
-import { h } from "./dom";
-import { seg } from "./controls";
-import { closeModal, openModal } from "./dialogs";
-import { avatarGrid, portrait } from "./avatars";
-import { Net } from "../net";
+import { h } from "../ui/dom";
+import { seg } from "../ui/controls";
+import { closeModal, openModal } from "../ui/dialogs";
+import { avatarGrid, portrait } from "../ui/avatars";
+import { Net } from "./net";
 
 /** Step one: who you are and where the server is. */
 export function connectDialog(net: Net, onConnected: () => void): void {

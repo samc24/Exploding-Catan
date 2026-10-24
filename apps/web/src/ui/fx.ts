@@ -22,8 +22,8 @@
 import { RES, RES_NAME, type GameEvent, type GameState, type Res } from "@exploding-catan/engine";
 import { geometry } from "@exploding-catan/engine";
 import { $, h, svg } from "./dom";
-import { cardArt, cardBack, has, resArt, resBack } from "../art";
-import { fxWillPlay, motion } from "../settings";
+import { cardArt, cardBack, has, resArt, resBack } from "../media/art";
+import { fxWillPlay, motion } from "../state/settings";
 
 export interface Point { x: number; y: number }
 
@@ -43,7 +43,7 @@ function centre(el: Element | null): Point | null {
   if (!r.width && !r.height) return null;
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
-export function seatPoint(pid: number): Point | null {
+function seatPoint(pid: number): Point | null {
   return centre($("seats").children[pid] ?? null);
 }
 /** A seat card's counter: `res` or `kit`. Falls back to the card. */
@@ -58,17 +58,17 @@ function elbowPoint(pid: number): Point | null {
   if (!p || !seat) return null;
   return { x: p.x, y: seat.getBoundingClientRect().bottom + 52 };
 }
-export function handPoint(): Point | null {
+function handPoint(): Point | null {
   return centre(document.querySelector("#bottom .hand")) ?? centre($("bottom"));
 }
 /** This screen's own counter for one resource. */
 function chipPoint(r: Res): Point | null {
   return centre(document.querySelector(`#bottom .chip[data-res="${r}"]`)) ?? handPoint();
 }
-export function deckPoint(): Point | null {
+function deckPoint(): Point | null {
   return centre(document.querySelector("#deck .cardface"));
 }
-export function hexPoint(s: GameState, hid: number): Point | null {
+function hexPoint(s: GameState, hid: number): Point | null {
   const geo = geometry(s.board);
   const hx = geo.hexes[hid];
   return hx ? boardPoint(hx.x, hx.y) : null;
@@ -86,16 +86,16 @@ function boardPoint(x: number, y: number): (Point & { scale: number }) | null {
 
 /* ── flights ───────────────────────────────────────────────────────── */
 /** Shown where it started, across, shown where it landed. */
-export const FX_IN = 180, FX_HOLD = 1000, FX_FLY = 620, FX_OUT = 260;
-export const FX_CARD_MS = FX_IN + FX_HOLD + FX_FLY + FX_HOLD + FX_OUT;
+const FX_IN = 180, FX_HOLD = 1000, FX_FLY = 620, FX_OUT = 260;
+const FX_CARD_MS = FX_IN + FX_HOLD + FX_FLY + FX_HOLD + FX_OUT;
 /** The same two moments with the journey taken out of the middle. */
 const CFX_IN = 150, CFX_HOLD = 620, CFX_OUT = 190, CFX_SWAP = 50;
 const CFX_CARD_MS = (CFX_IN + CFX_HOLD + CFX_OUT) * 2 + CFX_SWAP;
 /** When a card visually lands, from the start of its flight. */
 const LAND_MS = () => (motion() === "calm" ? CFX_IN + CFX_HOLD + CFX_OUT + CFX_SWAP + CFX_IN : FX_IN + FX_HOLD + FX_FLY);
-export const STAGGER_MS = 110;
+const STAGGER_MS = 110;
 /** The dice settle before the cards they produced start moving. */
-export const AFTER_ROLL_MS = 850;
+const AFTER_ROLL_MS = 850;
 
 function flyFrames(at: (p: Point, sc: number) => string, from: Point, to: Point): Keyframe[] {
   const t = FX_CARD_MS;
@@ -142,7 +142,7 @@ export function fly(a: Point, b: Point, face: HTMLElement, delay = 0, idx = 0): 
   setTimeout(done, ms + delay + 400);
 }
 
-export function resFace(r: Res): HTMLElement {
+function resFace(r: Res): HTMLElement {
   const art = has(resArt(r)) ? resArt(r) : null;
   return h("div", { class: "fly-res", title: RES_NAME[r], style: art ? { backgroundImage: `url(${art})` } : { background: `var(--${r})` } });
 }
@@ -150,7 +150,7 @@ export function resFace(r: Res): HTMLElement {
 function resBackFace(): HTMLElement {
   return h("div", { class: "fly-res back", style: has(resBack) ? { backgroundImage: `url(${resBack})` } : null });
 }
-export function kittenFace(key: string | null, flavor: string | null): HTMLElement {
+function kittenFace(key: string | null, flavor: string | null): HTMLElement {
   const art = key && key !== "hidden" && has(cardArt(key as never, flavor)) ? cardArt(key as never, flavor) : has(cardBack) ? cardBack : null;
   return h("div", { class: "fly-kit", style: art ? { backgroundImage: `url(${art})` } : null });
 }
@@ -255,7 +255,7 @@ function flashHex(at: Point & { scale?: number }, r: Res, delay: number): void {
   }, delay);
 }
 /** The robber landing, a number token swapped: bigger and slower than a piece, since no piece is built. */
-export function pulseHex(s: GameState, hid: number, cls: "robber" | "alter", label: string): void {
+function pulseHex(s: GameState, hid: number, cls: "robber" | "alter", label: string): void {
   if (!fxWillPlay()) return;
   const area = $("boardArea");
   const at = hexPoint(s, hid);
@@ -281,7 +281,7 @@ export function landing(key: string): boolean {
   return true;
 }
 /** A piece coming down where it was placed, the shape and colour of the real one. */
-export function plopBuild(s: GameState, kind: "road" | "settlement" | "city", id: number, pid: number): void {
+function plopBuild(s: GameState, kind: "road" | "settlement" | "city", id: number, pid: number): void {
   if (!fxWillPlay()) return;
   const key = (kind === "road" ? "e" : "v") + id;
   if (landing(key)) return;

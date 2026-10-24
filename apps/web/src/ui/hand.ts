@@ -5,7 +5,7 @@ import {
   playableWhenDrawn, timerEnabled, totalRes, type GameState, type Card,
 } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
-import { cardArt, has, resArt } from "../art";
+import { cardArt, has, resArt } from "../media/art";
 import { Tap, tap } from "./tap";
 import { heldCard, heldRes } from "./fx";
 

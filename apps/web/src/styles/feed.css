@@ -1,0 +1,44 @@
+/* The game log: lines, badges, struck lines, tinted names, resource chips, chat in the log and the chat window. */
+
+.fl{padding:5px 7px;border-radius:7px;margin-bottom:4px;background:var(--panel2);border-left:3px solid var(--line);line-height:1.35}
+.fl.attack{border-left-color:var(--danger)}
+.fl.buy{border-left-color:var(--ok)}
+.fl.roll{border-left-color:var(--accent)}
+.fl.defend{border-left-color:#8ad8f5}
+.fl.big{border-left-color:var(--accent);background:#3a2c18}
+.fl.info{border-left-color:#5a6a85}
+.fl.open{box-shadow:0 0 0 1px #8ad8f5 inset;cursor:pointer}
+.fl.open:hover{background:#3a2e26}
+.fl .ans{display:inline-block;margin-left:6px;font-size:10px;padding:0 5px;border-radius:4px;background:#8ad8f5;color:#111;font-weight:700}
+.fl .evturn{display:block;font-size:9.5px;letter-spacing:.4px;color:var(--dim);text-transform:uppercase;margin-bottom:1px}
+/* Rewound by a Nope or a Defuse: it happened, then it un-happened. */
+.fl.undone{opacity:.42;text-decoration:line-through}
+.fl.undone .evturn,.fl.undone .evmarks,.fl.undone .rchip{text-decoration:none}
+.fl.new{animation:evin .2s ease-out}
+@keyframes evin{from{transform:translateX(-10px);opacity:0}to{transform:none;opacity:1}}
+/* The card that answers a line, pinned to its corner; a Defuse pulses. */
+.fl{position:relative}
+.evmarks{position:absolute;top:-8px;right:4px;display:flex;gap:3px;z-index:2;pointer-events:none}
+.evmark{width:26px;height:36px;border-radius:4px;background:#0d1014 center/cover;border:2px solid;box-shadow:0 2px 8px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1}
+.evmark.defuse{border-color:#4bb1d9;animation:markpop .9s ease-out infinite alternate}
+.evmark.nope{border-color:#c76b6b;opacity:.9}
+@keyframes markpop{from{box-shadow:0 2px 8px rgba(0,0,0,.7),0 0 0 0 rgba(75,177,217,0)}to{box-shadow:0 2px 8px rgba(0,0,0,.7),0 0 0 5px rgba(75,177,217,.2)}}
+/* A player's name wherever it is written into a line of text: their own colour, weighted and shadowed. */
+.pn{font-weight:800;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.6)}
+/* Resources as chips tinted with the resource's own colour. */
+.rchip{display:inline-block;border:1px solid var(--rc,var(--line));border-left:4px solid var(--rc,var(--line));border-radius:4px;padding:0 5px 0 4px;margin:1px 1px;font-size:11px;background:color-mix(in srgb,var(--rc,#888) 22%,#0b0d10);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rchip .rdot{display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--rc);margin-right:4px;vertical-align:0}
+
+/* ── answering: the chooser, the lit line, the badges ── */
+.fl.mine{box-shadow:0 0 0 1px #8ad8f5 inset}
+.fl .ans.faint{background:transparent;color:var(--dim);border:1px solid var(--line)}
+.fl.hl,.seat.hl{outline:2px solid var(--accent);outline-offset:1px;background:#2e2a1c}
+
+/* ── chat in the log ── */
+.fl.chat{border-left-color:#8ad8f5;background:transparent;font-style:italic;color:var(--dim)}
+.fl.chat::before{content:"💬 ";font-style:normal}
+
+
+/* Chat lines carry the seat's colour down their left edge; a system line is quiet. */
+#chatlog div{border-left:3px solid var(--line);padding-left:6px;margin-bottom:5px}
+#chatlog div.sys{font-style:italic;color:var(--dim);border-left-color:transparent}

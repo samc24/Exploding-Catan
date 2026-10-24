@@ -2,9 +2,9 @@
    rule, so it lives beside the game rather than in it. Online, the server
    drives the bots and this does nothing. */
 import { createTable, createTauntMemory, heard, nextBotAction, nextTaunts, isBot, type Table, type TauntMemory } from "@exploding-catan/bots";
-import { store } from "./store";
-import { modalOpen } from "./ui/dialogs";
-import { showEmote } from "./emotes";
+import { store } from "../state/store";
+import { modalOpen } from "../ui/dialogs";
+import { showEmote } from "../media/emotes";
 
 const BOTS_KEY = "exploding-catan:bots";
 /** Bots deliberately move slowly: the cards they move can be watched landing,

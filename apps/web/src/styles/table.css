@@ -1,0 +1,68 @@
+/* The middle of the table: dice, the discard pile, the deck, the Imploding Kitten's clock. */
+
+/* ── dice / piles / clock ── */
+#dice{position:absolute;left:12px;top:12px;display:flex;gap:6px;align-items:center;pointer-events:none}
+/* Real dice: ivory and red, a rounded cube with a little weight to it, the pips pressed in. */
+.die{border-radius:11px;background:radial-gradient(circle at 30% 28%,#fffaf0,#efe6d2 55%,#d9cdb2);color:#111;border:1px solid #c9bc9e;box-shadow:inset 0 -3px 0 rgba(0,0,0,.14),inset 0 2px 0 rgba(255,255,255,.7),0 4px 10px rgba(0,0,0,.55)}
+.die.red{background:radial-gradient(circle at 30% 28%,#ef6b6b,#d94b4b 55%,#a83434);border-color:#8f2b2b;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.25),0 4px 10px rgba(0,0,0,.55)}
+/* Two piles one above the other down the right-hand side, as in JP's game:
+   the discard on top, the draw pile under it, both card-sized and always
+   in plain view. The pile is the answer to "what just happened" for anybody
+   not reading the log. */
+#piles{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:9px;align-items:center;z-index:3}
+/* The deck is a stack: two more backs peep out beneath the top card. */
+#deck .cardface{box-shadow:2px 2px 0 -1px #1b1b2a,2px 2px 0 0 rgba(255,235,200,.35),4px 4px 0 -1px #1b1b2a,4px 4px 0 0 rgba(255,235,200,.3),0 6px 14px rgba(0,0,0,.5)}
+#deck .cardface .ct{font-size:12px;padding:0 7px}
+/* With three different resources in hand on your turn, the deck sells: it lifts, and a click opens the buy. */
+#deck.buyable{cursor:pointer}
+#deck.buyable .cardface{box-shadow:0 0 0 2px var(--ok),2px 2px 0 -1px #1b1b2a,2px 2px 0 0 rgba(255,235,200,.35),4px 4px 0 -1px #1b1b2a,4px 4px 0 0 rgba(255,235,200,.3),0 6px 14px rgba(0,0,0,.5);transition:transform .12s}
+#deck.buyable:hover .cardface{transform:translateY(-4px)}
+#piles:has(#deck.buyable){opacity:1}
+.cardface{width:84px;height:118px;border-radius:8px;background:#2a2f3a;border:2px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:flex-end;justify-content:center;font-size:10px;text-align:center;padding:4px;color:#fff;text-shadow:0 1px 2px #000;position:relative;overflow:hidden;box-shadow:0 5px 16px rgba(0,0,0,.45)}
+#deck .cardface .cost{position:absolute;left:0;right:0;bottom:4px;font-size:8.5px;letter-spacing:.3px;color:#e8dcc8;opacity:.85}
+.cardface.back{background-image:linear-gradient(135deg,#3a2f4a,#1b1b2a)}
+.cardface .ct{position:absolute;top:3px;right:4px;background:rgba(0,0,0,.6);border-radius:10px;padding:0 5px;font-size:10px;font-weight:700}
+.pilelbl{font-size:9.5px;color:var(--dim);text-align:center;margin-top:2px}
+#clock{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#3a1e1e;border:1px solid var(--danger);border-radius:10px;padding:6px 14px;font-weight:700;text-align:center;z-index:5}
+#clock span{display:block;font-weight:400;font-size:12px;color:var(--dim)}
+#clock.urgent{animation:pulse .6s infinite alternate}
+@keyframes pulse{from{background:#3a1e1e}to{background:#7a2a2a}}
+
+
+/* ── dice tumble ── */
+.die.tumble{animation:tumble .95s cubic-bezier(.2,.8,.3,1.05);transform-origin:center}
+@keyframes tumble{0%{transform:translateY(-30px) rotate(-420deg) scale(.6);opacity:0}25%{transform:translateY(-8px) rotate(-200deg) scale(1.7);opacity:1}55%{transform:translateY(4px) rotate(20deg) scale(1.55)}72%{transform:translateY(-3px) rotate(-8deg) scale(1.35)}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.die.tumble{animation:none}}
+
+/* ══ The discard pile ═══════════════════════════════════════════════════
+   Two slivers behind the top card so it reads as a pile even with one card
+   in it. A cancelled card is greyed and stamped. While a Defuse in THIS
+   hand answers something, the pile wears the word "answer" (nobody else's
+   screen shows it). While a card is being carried it is the loudest thing
+   on screen. */
+#pile .cardface{overflow:visible;background:linear-gradient(150deg,#242a36,#171b23);cursor:default;transition:transform .12s ease,box-shadow .12s ease}
+#pile .cardface::before,#pile .cardface::after{content:"";position:absolute;inset:-2px;border-radius:8px;z-index:0;border:1px solid #0b0d10;background:#1b2029}
+#pile .cardface::before{transform:translate(4px,4px)}
+#pile .cardface::after{transform:translate(2px,2px)}
+#pile .cardface.empty::before,#pile .cardface.empty::after{display:none}
+#pile .cardface .face{position:absolute;inset:0;border-radius:6px;overflow:hidden;z-index:1;background:linear-gradient(150deg,#2c3444,#1c222c) center/cover;display:flex;align-items:center;justify-content:center}
+#pile .cardface .face .kn{font-size:12px;font-weight:800;text-align:center;padding:0 5px;text-shadow:0 2px 6px #000;line-height:1.15}
+#pile .cardface .face.none{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);text-align:center;padding:0 6px}
+#pile .cardface.cancelled .face{filter:grayscale(.8) brightness(.62)}
+#pile .cardface.cancelled{border-color:#5a6478}
+.disccx{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);z-index:3;pointer-events:none;border:2px solid var(--danger);color:#ffb3b3;background:rgba(11,13,16,.8);font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;padding:2px 8px;border-radius:5px}
+#pile .cardface.back{border-style:dashed;opacity:.9}
+#pile .cardface.answerable{border-color:#4bb1d9;box-shadow:0 5px 16px rgba(0,0,0,.45),0 0 0 3px rgba(75,177,217,.2)}
+.disctag{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);background:#0d1014;border:1px solid #4bb1d9;color:#8ad8f5;font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:9px;z-index:3;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.6);animation:markpop .9s ease-out infinite alternate}
+@keyframes pileready{0%,100%{box-shadow:0 0 0 4px rgba(127,196,143,.4),0 0 22px 4px rgba(127,196,143,.22),0 6px 18px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 6px rgba(159,224,175,.55),0 0 32px 8px rgba(127,196,143,.36),0 6px 18px rgba(0,0,0,.5)}}
+#pile .cardface.droppable{border-color:#a6e6b4;animation:pileready 1.15s ease-in-out infinite;box-shadow:none !important}
+#pile .cardface.dropping{border-color:#d8ffe2;animation:none;box-shadow:0 0 0 7px rgba(191,240,203,.8),0 0 40px 12px rgba(127,196,143,.55),0 8px 22px rgba(0,0,0,.6) !important;transform:translateY(-3px) scale(1.04);background:none !important}
+
+
+/* Pip dice, and the total beside them: red on a seven. */
+.die{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;padding:9px;width:58px;height:58px}
+.die i{display:block;border-radius:50%;background:radial-gradient(circle at 40% 35%,#333,#000);width:100%;height:100%;box-shadow:inset 0 1px 2px rgba(0,0,0,.8),0 1px 0 rgba(255,255,255,.35)}
+.die i.off{visibility:hidden}
+.die.red i{background:radial-gradient(circle at 40% 35%,#fff,#e8e0d0);box-shadow:inset 0 1px 2px rgba(0,0,0,.35),0 1px 0 rgba(0,0,0,.25)}
+.dicesum{font-family:var(--display);font-size:32px;line-height:58px;color:var(--ink);text-shadow:0 2px 6px rgba(0,0,0,.6);margin-left:6px}
+.dicesum.seven{color:var(--danger)}

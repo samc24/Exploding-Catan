@@ -2,7 +2,7 @@
    waiting on, else the current player, never a bot. Online: your own seat. */
 import { discardOwed, type GameState } from "@exploding-catan/engine";
 import { isBot, net } from "./online";
-import { manualSeat } from "./screen";
+import { manualSeat } from "../state/screen";
 
 /** The seat the table is waiting on, else the current player. */
 export function waitingOn(s: GameState): number {

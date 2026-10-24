@@ -61,6 +61,17 @@ const view   = viewFor(result.state, seat);        // what one player may see
   it without reverse-engineering a state diff. `eventsFor(events, seat)`
   redacts them per seat.
 
+### The files
+
+`state.ts` creates a game and holds the small helpers; `reduce.ts` is the
+one entry point, `applyAction`; `turn.ts` is the turn flow (setup,
+building, dice, the seven and the robber, ending a turn, the ticks);
+`clock.ts` the turn timer and the Imploding Kitten's twenty seconds;
+`victory.ts` who has won and who is forced to Nope it; `cards.ts` the kitten
+cards; `answers.ts` Nope and Defuse; `journal.ts` the record with its
+snapshots and the discard pile; `trade.ts`; `view.ts` what one seat may
+see; `answers-query.ts` what a card could answer right now, for a UI.
+
 ### What was deliberately kept
 
 The journal-with-snapshots design that makes Nope and Defuse work is kept
@@ -85,36 +96,74 @@ post-mortems in the original README.
 
 ## The web app
 
-`apps/web` has no framework. One `render()` (in `render.ts`) rebuilds each
-region of the page from the state: the SVG board, the seat strip, the bottom
-bar (hand and actions), the side feed, and the panels. Around it: `screen.ts`
-holds the screen-local state and the one way to ask for a repaint;
-`input.ts` turns clicks into actions; `focus.ts` decides which seat the
-screen is on; `online.ts` owns the connection, the lobby flow and the
-server's clock; `bots-host.ts` drives bots at a local table; `emotes.ts`,
-`game.ts` and `main.ts` (boot only) are small. A tick that moved nothing but
-the clocks repaints the clocks in place, and the feed is only rebuilt when
-its lines or their answerability changed, because the scroll after a rebuild
-forces a layout of the whole page. Panels are the important idea: every
-decision the engine says is owed (`discardOwed`, `select`, `forcedNope`,
-`trade`) is drawn as a panel for the seat that owes it, and the screen follows
-that seat. Nothing is modal except menus, so nothing the game needs can be
-dismissed.
+`apps/web` has no framework: plain DOM and SVG, one `render()` that rebuilds
+each region of the page from the state. The source is laid out in layers,
+and imports only point downwards:
 
-Clicks on the board arm a spot on the first click and act on the second, the
-way the original does. A card can be clicked or dragged: onto the pile to
-play it (or to answer with it), onto an open log line to answer that line,
-or within the hand to reorder. A Nope or Defuse with more than one thing to
-answer opens a chooser built from the engine's `answersFor`, which gives each
-choice a label and a sentence saying what it does (including what a
-cancelled turn would lose, from `describeTurnGains`); hovering a choice
-lights the line or the seat it means. Feed lines say which card in your hand
-answers them. Bot taunts come from `packages/bots` as a pure function over
-the journal and are shown as emotes, locally and through the server. Screen-local state (what is armed, which seat is being looked at,
-which composer is open) lives in `main.ts` and never touches the rules.
+```
+src/
+  main.ts        boot and wiring only: buttons, menus, the store subscriber
+  app/           the screen's own logic
+    render.ts    one function, every region, from the state
+    events.ts    one action's events → flights, reveals, sounds, standings
+    clocks.ts    the turn timer and the Imploding Kitten's banner, painted in
+                 place; the local host clock
+    screen.ts    screen-local state (armed spot, viewed seat, open composer,
+                 the feed lines), the standing advice and passing hints, and
+                 the one way to ask for a repaint
+    focus.ts     which seat this screen is on (follows whoever owes an answer)
+    online.ts    the connection's handlers, the lobby flow, chat, the
+                 server's clock, portraits
+    game.ts      starting and resuming a local game
+    bots-host.ts the bot driver at a local table (the server's twin)
+  input/         gestures → actions: clicks and arming (input.ts), dragging a
+                 card (drag.ts), zoom and pan (boardview.ts)
+  net/           the WebSocket (net.ts) and its dialogs (lobby.ts)
+  state/         the store (the one GameState, local or from the server) and
+                 the remembered settings (Motion, Tips)
+  media/         art paths, sound effects, music, emotes
+  ui/            drawing. Each file draws one region from a GameState and the
+                 callbacks it is given; nothing in ui/ imports from app/,
+                 input/ or net/, so a region can be read on its own.
+  styles/        one CSS file per region, imported in cascade order by
+                 style.css; phone.css holds EVERY small-screen override and is
+                 imported last, because an equal-specificity rule written
+                 later wins and a phone rule inside a topic file would lose to
+                 any desktop rule after it.
+```
 
-`e2e/` holds headless-Chrome smoke tests that play through setup, turns, and
-every kitten card flow and fail on any page error.
+Three rules the screen keeps:
+
+* **Compare before writing.** The feed, the seat strip, the bottom bar, the
+  dice and the pile are rebuilt only when what they show has changed. A
+  rebuild throws away every animation running inside the region, restarts
+  the portraits' images, drops the card being hovered and forces a layout
+  of the page. A tick that moved nothing but the clocks repaints the clocks
+  in place.
+* **Decisions are panels, not modals.** Everything the engine says is owed
+  (`discardOwed`, `select`, `forcedNope`, `trade`) is drawn as a panel for
+  the seat that owes it, and the screen follows that seat. Nothing is modal
+  except menus, so nothing the game needs can be dismissed.
+* **Gestures are not rules.** Arming a spot on the first click, what a drop
+  on the pile answers, when the chooser opens: `input/` decides, using the
+  engine's queries (`answersFor`, `canPlayToPile`, `seatPickable`). A card
+  can be clicked or dragged: onto the pile to play it or answer with it,
+  onto an open log line to answer that line, within the hand to reorder. A
+  Nope or Defuse with more than one thing to answer opens a chooser built
+  from `answersFor`, which gives each choice a label and a sentence saying
+  what it does.
+
+What you can see happen is decoration layered over the state, never read
+back by the rules: reveals queue in the middle of the board (`ui/showcase`),
+cards fly and rest at both ends with the counters holding until they land
+(`ui/fx`), pieces come down where they are placed, hexes flash, the robber
+and a swapped token pulse. All of it is driven off events and off what
+changed on the board between two renders, so watching somebody else act
+looks the same as acting. The Motion setting (full / calm / off) governs it.
+
+`e2e/` holds headless-Chrome tests that play through setup, turns, every
+kitten card flow, a table of bots, a phone, and two browsers at one server
+table; they fail on any page error. They run with Motion set to full.
 
 ## The bots
 
@@ -155,9 +204,19 @@ playing with nobody's tab open, and a session token gets a reloading player
 their seat back. Every server message carries the server's clock, and the
 client judges time windows by it.
 
+A seat is one of three things: a bot nobody has sat in, a person who is
+here, and a person who has gone. A dropped connection starts a twelve
+second clock rather than a takeover; past it, mid-game, the seat is marked
+away and a bot plays it (the chair stays theirs, and coming back hands it
+straight back), while in the lobby the chair simply frees. Anybody with the
+code may take an empty chair, lobby or mid-game: their own first, else a
+never-sat bot, else an abandoned seat; a reconnect never takes a chair that
+was not already theirs. The room tells the table in `notice` messages (who
+sat down, who left, why there is no chair).
+
 `packages/protocol` is the whole contract: `hello`, `create`/`join`, `sit`,
 `bot`, `start`, `action`, `chat` one way; `room`, `state`, `refused`,
-`chat` the other. One image (see `Dockerfile`) serves the web app and the
+`chat`, `notice` the other. One image (see `Dockerfile`) serves the web app and the
 WebSocket on one port.
 
 Rooms and sessions are persisted through a five-method `RoomStore`

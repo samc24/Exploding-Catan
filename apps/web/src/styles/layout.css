@@ -1,0 +1,35 @@
+/* The stage, the board's room, the side column and its tabs, the drawer button, the dice history. */
+
+/* ── stage ── */
+#stage{flex:1 1 auto;display:flex;min-height:0;position:relative}
+#boardArea{flex:1 1 auto;position:relative;min-width:0;background:var(--table)}
+#board{width:100%;height:100%;display:block;touch-action:none}
+#side{width:300px;flex:0 0 auto;border-left:1px solid #4a3a30;background:linear-gradient(180deg,#1f1612,#181110);display:flex;flex-direction:column;min-height:0}
+#sidetabs{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
+#feed,#log{flex:1;overflow-y:auto;padding:6px 8px;font-size:12.5px;user-select:text;-webkit-user-select:text}
+#log{color:var(--dim);font-size:11.5px}
+#chat{flex:1;display:flex;flex-direction:column;min-height:0}
+#chatlog{flex:1;overflow-y:auto;padding:6px 8px;font-size:12.5px;user-select:text;-webkit-user-select:text}
+#chatlog div{margin-bottom:4px}
+#chatlog b{margin-right:5px}
+#chatrow{display:flex;gap:6px;padding:6px 8px;border-top:1px solid var(--line);flex:0 0 auto}
+#chatrow input{flex:1;min-width:0;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit}
+#netTag{font-size:10.5px;border-radius:6px;padding:2px 7px;background:#2f5d3a;color:#dfe}
+#netTag.off{background:#6b2f2f}
+
+
+/* ── the side panel on a phone: a drawer ── */
+#sideBtn{display:none}
+#menu .phone{display:none}
+
+
+/* ── dice history ── */
+#dicepanel{flex:1;overflow-y:auto;padding:8px 10px;font-size:12px}
+.hist{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;align-items:end;height:120px;margin:6px 0 4px}
+.hist .bar{background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.hist .bar.red{background:var(--danger)}
+.hist .bar i{position:absolute;top:-16px;left:0;right:0;text-align:center;font-style:normal;font-size:10px;color:var(--dim)}
+.histlbl{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;text-align:center;color:var(--dim);font-size:11px;margin-bottom:10px}
+.recent{display:flex;flex-wrap:wrap;gap:4px}
+.recent span{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-weight:700}
+.recent span.seven{border-color:var(--danger);color:var(--danger)}

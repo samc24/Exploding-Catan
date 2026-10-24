@@ -1,0 +1,213 @@
+/* ══════════════════════════════════════════════════════════════════════
+   PHONES AND FINGERS — every override for a small screen, in one place.
+   Imported LAST (see style.css): a rule here beats any equal-specificity
+   desktop rule above it. Nothing phone-sized belongs in the topic files.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════════
+   PHONES. Upright: one column — header, a strip of seats, the board with
+   its furniture (dice, piles, clock) in a strip above it and the latest
+   log lines at its foot, then a compact hand. Anything the table is
+   waiting on is a sheet over the board's foot. A phone on its side is a
+   different shape altogether (the block after this one): the board takes
+   the full height on the left and everything else stacks in a column on
+   the right.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width:800px), (max-width:1000px) and (max-height:520px){
+  html,body{height:100dvh}
+  header{flex-wrap:nowrap;gap:6px;padding:6px 10px;padding-top:max(6px,env(safe-area-inset-top))}
+  header h1{font-size:15px;white-space:nowrap}
+  #onlineBtn,#newBtn{display:none}
+  #menu .phone{display:block}
+  #menu .mrow.phone{display:flex}
+  #dirTag .w{display:none}
+  /* the hint becomes a toast under the header */
+  #hint{position:fixed;left:50%;top:calc(46px + env(safe-area-inset-top));transform:translateX(-50%);z-index:45;margin:0;background:rgba(22,13,9,.92);border:1px solid var(--line);border-radius:10px;padding:6px 12px;max-width:92vw;text-align:center;font-size:13px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  #hint:empty{display:none}
+  /* seats: a strip that scrolls, the current one brought into view */
+  #seats{gap:6px;padding:6px 8px;scroll-snap-type:x proximity;scrollbar-width:none}
+  #seats::-webkit-scrollbar{display:none}
+  #seats{padding:8px 8px 6px}
+  .seat{--avW:34px;--avPull:0px;min-width:0;flex:0 0 auto;padding:4px 8px 4px 7px;gap:2px 7px;border-radius:9px;scroll-snap-align:center;grid-template-areas:"av name" "av stats"}
+  .seat .portrait{width:34px !important;height:34px !important;font-size:14px !important;border-width:2px}
+  .seat .avwrap{margin-top:0;align-self:center}
+  .seat .vpring{width:20px;height:20px;font-size:11px;left:-7px;top:-4px}
+  .seat .pname{font-size:12px;padding:1px 6px}
+  .seat .statgroup{font-size:10px}
+  .seat .statgroup.board{grid-area:stats}
+  .seat .statgroup.hand{position:static;transform:none;grid-area:stats;justify-self:end;background:rgba(0,0,0,.4);box-shadow:none}
+  .seat .stat{min-width:0;padding:1px 5px;font-size:10px;gap:3px}
+  .seat .stat b{font-size:12px}
+  .seat .stat i{font-size:10px}
+  .seat .tag{font-size:9px;top:-7px}
+  /* The board's furniture lives in a strip above it, off the hexes: dice
+     on the left, the clock in the middle, the piles on the right. Upright,
+     the board is as wide as the screen and has height to spare, so the
+     strip costs it nothing. */
+  #boardArea{padding-top:66px}
+  #dice{left:10px;top:10px;gap:5px}
+  .die{border-radius:7px}
+  #piles{right:10px;top:8px;bottom:auto;flex-direction:row;align-items:flex-start;gap:8px}
+  .cardface{width:34px;height:48px;font-size:7px;border-width:1px;border-radius:5px}
+  .cardface .ct{font-size:9px;padding:0 4px}
+  #deck .cardface .cost{display:none}
+  #pile .cardface::before,#pile .cardface::after{display:none}
+  .disccx{font-size:7px;padding:1px 4px;letter-spacing:.6px}
+  .disctag{font-size:7px;padding:1px 5px;bottom:-7px}
+  .pilelbl{font-size:8.5px;margin-top:1px}
+  #clock{font-size:12px;padding:4px 10px;max-width:calc(100vw - 180px)}
+  /* The latest log lines, at the board's foot, in whatever room the board
+     leaves there (render.ts measures it and sets the height; 17px a line).
+     A tap opens the full log. */
+  #ticker{display:flex;flex-direction:column;justify-content:flex-end;position:absolute;left:10px;right:10px;bottom:8px;height:0;overflow:hidden;cursor:pointer;z-index:4}
+  #ticker .tl{font-size:11.5px;line-height:15px;margin-top:2px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:7px;border-left:2px solid var(--line)}
+  #ticker .tl:last-child{color:var(--ink)}
+  #ticker .tl.attack{border-left-color:var(--danger)}
+  #ticker .tl.buy{border-left-color:var(--ok)}
+  #ticker .tl.roll{border-left-color:var(--accent)}
+  #ticker .tl.defend{border-left-color:#8ad8f5}
+  #ticker .tl.big{border-left-color:var(--accent)}
+  /* Fingers pinch to zoom; the buttons are down to one, to come back, and only once zoomed. */
+  #zoomWrap{left:auto;right:10px;bottom:10px;display:none}
+  #boardArea.zoomed #zoomWrap{display:flex}
+  #zoomIn,#zoomOut{display:none}
+  #panels:not(:empty) ~ #zoomWrap{display:none}
+  /* decisions and composers: a sheet at the foot of the board */
+  #panels{left:0;right:0;bottom:0;max-width:none;max-height:100%;overflow-y:auto;gap:0;overscroll-behavior:contain}
+  .panel{border-radius:16px 16px 0 0;padding:12px 12px 12px;border-bottom:0}
+  .panel + .panel{border-radius:0;border-top:1px solid var(--line)}
+  .panel .sub{font-size:12px}
+  .pick{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+  .pick button{flex-direction:column;justify-content:center;gap:2px;padding:7px 2px;font-size:11px;min-height:64px;line-height:1.2}
+  .pick button .swatch{width:20px;height:20px;border-radius:5px}
+  .pick button .ct{margin:0;font-size:12px}
+  .pick button small{font-size:10px}
+  .panel .btns button{flex:1;padding:10px 6px}
+  .counter button.sm{padding:6px 14px;font-size:15px}
+  /* The bottom bar: the name beside five chips, the hand (only when there
+     is one), then the buttons or a line about what is going on. */
+  #bottom{min-height:0;padding:6px 10px calc(6px + env(safe-area-inset-bottom));gap:6px 8px;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"who res" "hand hand" "actions actions";align-items:center}
+  #bottom .who{grid-area:who;min-width:0;flex-direction:row;align-items:center;gap:6px}
+  #bottom .who b{font-size:14px}
+  #bottom .who i{display:none}
+  .actions .note .st{display:inline}
+  .turntimer{min-width:58px;padding:3px 6px;font-size:11px}
+  .resrow{grid-area:res;flex-wrap:nowrap;gap:5px}
+  .chip{flex:1 1 0;min-width:0;justify-content:center;padding:4px 2px;gap:5px;font-size:13px}
+  .chip>span:not(.swatch){display:none}
+  .chip b{min-width:0}
+  .chip .swatch{width:16px;height:21px}
+  .hand{grid-area:hand;flex-wrap:nowrap;overflow-x:auto;min-height:0;padding:6px 2px 2px;align-items:flex-start;scrollbar-width:none}
+  .hand:not(:has(.kc)){display:none}
+  .hand::-webkit-scrollbar{display:none}
+  .kc{width:50px;height:70px;flex:0 0 auto}
+  .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45);z-index:auto}
+  .kc.live:hover{box-shadow:0 0 0 2px var(--ok)}
+  .kc.live.offturn:hover{box-shadow:0 0 0 2px #c76b6b}
+  .kc.answer:hover{box-shadow:0 0 0 2px #8ad8f5}
+  .actions{grid-area:actions;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;align-items:stretch}
+  .actions .note{max-width:none;font-size:12px;align-self:center;line-height:1.35}
+  .actions button{padding:10px 4px;font-size:13px;white-space:nowrap}
+  /* the side panel: a drawer */
+  #sideBtn{display:inline-block}
+  #side{display:none;position:absolute;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:30;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+  #side.open{display:flex}
+  /* menus and dialogs */
+  #emojiTray{left:8px;right:8px;top:48px;grid-template-columns:repeat(6,1fr)}
+  #emojiTray button{font-size:24px;padding:8px 0}
+  #menu{left:8px;right:8px;top:48px;min-width:0}
+  #menu .mrow.phone{color:var(--dim);font-size:12px;line-height:1.35}
+  #modal{align-items:flex-end}
+  #modal .box{width:100vw;max-height:92dvh;border-radius:16px 16px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
+  #modal .btns button{flex:1;padding:10px}
+  .roomcode{font-size:32px;letter-spacing:8px}
+}
+
+/* ── A phone on its side ──────────────────────────────────────────────
+   The board takes the whole height on the left. On the right, a column:
+   the header's buttons, the seats stacked (they scroll if they must),
+   then the hand and the buttons. The title goes; the ⚙ menu still leads
+   home. */
+@media (max-width:1000px) and (max-height:520px){
+  body{display:grid;grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"stage header" "stage seats" "stage bottom";padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  header{grid-area:header;padding:4px 8px;padding-top:max(4px,env(safe-area-inset-top));gap:5px;justify-content:flex-end;border-bottom:0;box-shadow:none;background:linear-gradient(180deg,#1f1612,#1a120f)}
+  header h1,header .spacer{display:none}
+  #modeTag{margin-right:auto}
+  #hint{top:calc(8px + env(safe-area-inset-top));left:calc((100vw - 250px) / 2);max-width:calc(100vw - 290px)}
+  #stage{grid-area:stage;border-right:1px solid #4a3a30}
+  #boardArea{padding:0}
+  #ticker{display:none}
+  #seats{grid-area:seats;flex-direction:column;overflow-x:hidden;overflow-y:auto;padding:4px 8px;gap:4px;border-bottom:0;scroll-snap-type:none}
+  .seat{--avW:26px;padding:2px 6px 3px 5px;gap:1px 6px;border-radius:8px;width:100%;grid-template-areas:"av name" "av stats"}
+  .seat .portrait{width:26px !important;height:26px !important;font-size:11px !important}
+  .seat .vpring{width:17px;height:17px;font-size:10px;left:-6px;top:-3px}
+  .seat .pname{font-size:11.5px;padding:0 5px}
+  .seat .stat{padding:0 4px;font-size:9.5px}
+  .seat .stat b{font-size:11px}
+  .seat .tag{top:50%;transform:translateY(-50%);right:6px}
+  #bottom{grid-area:bottom;grid-template-columns:minmax(0,1fr);grid-template-areas:"who" "res" "hand" "actions";padding:4px 8px calc(6px + env(safe-area-inset-bottom));gap:4px;border-top:1px solid #4a3a30}
+  #bottom .who{gap:6px;flex-wrap:wrap}
+  #bottom .who i{display:inline;font-size:11.5px}
+  .actions .note .st{display:none}
+  .resrow{gap:4px}
+  .chip{padding:3px 2px;gap:4px;font-size:12px}
+  .chip .swatch{width:14px;height:18px}
+  .hand{padding:4px 2px 2px}
+  .kc{width:40px;height:56px}
+  .actions{grid-auto-flow:row;grid-template-columns:1fr 1fr;gap:4px}
+  .actions .note,.actions button.primary:only-child{grid-column:1/-1}
+  .actions button{padding:7px 4px;font-size:12px}
+  .actions button.sm{grid-column:1/-1}
+  .actions .note{font-size:11.5px}
+  /* the board's corners again: the board is narrower than its room here */
+  #dice{left:8px;top:8px}
+  .die{border-radius:6px}
+  #piles{right:8px;top:8px;bottom:auto;flex-direction:row}
+  .cardface{width:30px;height:42px}
+  #clock{max-width:calc(100vw - 420px)}
+  #zoomWrap{right:8px;bottom:8px}
+  /* Decisions and composers: a sheet down the right of the board's room,
+     so the board stays in view while trading. Dialogs sit in the middle. */
+  #panels{left:auto;right:0;top:0;bottom:0;width:min(380px,64%);max-height:none;justify-content:flex-end}
+  .panel{border-radius:14px 0 0 0;padding:10px 12px}
+  .panel + .panel{border-radius:0}
+  .pick button{min-height:54px;padding:5px 2px}
+  .panel .btns button{padding:8px 6px}
+  #emojiTray{left:auto;right:8px;top:40px;width:min(320px,60vw)}
+  #menu{left:auto;right:8px;top:40px;min-width:240px}
+  #modal{align-items:center}
+  #modal .box{width:min(560px,94vw);max-height:96dvh;border-radius:16px;padding:16px 18px}
+}
+
+/* Fingers, not pointers: bigger things to hit. */
+@media (pointer:coarse){
+  .spothalo{pointer-events:stroke}
+  .spot.hexpick{stroke-width:4}
+  button.sm{min-height:32px}
+  #modal .answer{padding:11px 12px}
+  .fl.open{padding:8px 9px}
+}
+
+/* Phones: the pile is a thumbnail and the reveal a size down (after the base rules, so they win). */
+@media (max-width:800px), (max-width:1000px) and (max-height:520px){
+  #pile .cardface .face.none{font-size:0}
+  .showcard{width:clamp(96px,15vh,130px)}
+  .showcard.implode{width:clamp(140px,22vh,190px)}
+  .showseven,.showglyph{width:clamp(64px,10vh,90px);font-size:clamp(28px,4.5vh,40px)}
+  .showglyph.win{width:clamp(80px,12vh,110px);font-size:clamp(36px,5.5vh,52px)}
+  .showcap{font-size:14px;padding:7px 12px;max-width:min(420px,88%)}
+  .showcap.implode{font-size:15px}
+  .showcap .rchip{font-size:11px}
+}
+
+@media (max-width:800px), (max-width:1000px) and (max-height:520px){
+  .die{width:34px;height:34px;padding:5px;gap:2px;border-radius:8px}
+  .dicesum{font-size:22px;line-height:34px}
+  .seat.cur .portrait::before{inset:-5px;border-width:2px}
+  .pick .minus{width:22px;height:22px;top:-6px;right:-4px}
+  .actions .note.owed{grid-column:1/-1}
+}
+@media (max-width:1000px) and (max-height:520px){
+  .die{width:28px;height:28px;padding:4px;gap:1.5px;border-radius:7px}
+  .dicesum{font-size:18px;line-height:28px}
+}

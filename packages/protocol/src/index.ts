@@ -108,6 +108,12 @@ export function normalizeRoomConfig(raw: unknown, base?: RoomConfig): RoomConfig
 export function defaultAvatar(seat: number): string {
   return AVATAR_IDS[(seat * 7) % AVATAR_IDS.length];
 }
+/** A different face for each bot, never one a person at the table chose. */
+export function freeAvatar(seat: number, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  for (let k = 0; k < AVATAR_IDS.length; k++) { const id = AVATAR_IDS[((seat * 7) + k * 3) % AVATAR_IDS.length]; if (!used.has(id)) return id; }
+  return defaultAvatar(seat);
+}
 /** The tray: the original game"s eighteen, then five more. Anything else is
     refused, so a bot or a client cannot be given a wider vocabulary. */
 export const EMOJIS = [

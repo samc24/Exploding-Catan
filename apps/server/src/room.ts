@@ -19,16 +19,9 @@ import {
   type TauntMemory,
 } from "@exploding-catan/bots";
 import {
-  AVATAR_IDS, EMOJIS, MAX_CHAT, defaultAvatar, normalizeRoomConfig, validAvatar, type RoomConfig, type RoomInfo, type ServerMsg,
+  EMOJIS, MAX_CHAT, defaultAvatar, freeAvatar, normalizeRoomConfig, validAvatar, type RoomConfig, type RoomInfo, type ServerMsg,
 } from "@exploding-catan/protocol";
 import type { RoomSnapshot } from "./store";
-
-/** A different face for each bot, never one a person at the table chose. (Mirrors the web's.) */
-function freeAvatar(seat: number, taken: string[]): string {
-  const used = new Set(taken);
-  for (let k = 0; k < AVATAR_IDS.length; k++) { const id = AVATAR_IDS[((seat * 7) + k * 3) % AVATAR_IDS.length]; if (!used.has(id)) return id; }
-  return defaultAvatar(seat);
-}
 
 export interface Client {
   uid: string;

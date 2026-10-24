@@ -3,9 +3,9 @@
    The strip is rebuilt on every render, so a repaint mid-pop RESUMES the
    animation where it was rather than replaying the pop. */
 import { EMOJIS } from "@exploding-catan/protocol";
-import { $, h } from "./ui/dom";
+import { $, h } from "../ui/dom";
 
-export const EMOTE_MS = 3400;
+const EMOTE_MS = 3400;
 const bubbles = new Map<number, { emoji: string; since: number }>();
 export function showEmote(seat: number, emoji: string): void {
   bubbles.set(seat, { emoji, since: Date.now() });

@@ -1,7 +1,8 @@
 /* The painted portraits, and a picker for them. */
-import { AVATAR_IDS } from "@exploding-catan/protocol";
+import { AVATAR_IDS, freeAvatar } from "@exploding-catan/protocol";
+export { freeAvatar };
 import { h } from "./dom";
-import { avatarArt, has } from "../art";
+import { avatarArt, has } from "../media/art";
 import { closeModal, openModal } from "./dialogs";
 
 /** A round portrait with the player's colour ring; an initial when the art is missing. */
@@ -28,9 +29,4 @@ export function avatarGrid(current: string | null, onPick: (avatar: string) => v
 export function avatarDialog(current: string | null, onPick: (avatar: string) => void): void {
   openModal("Your picture", avatarGrid(current, (a) => { closeModal(); onPick(a); }), [{ label: "Keep it", fn: closeModal }]);
 }
-/** A different face for each bot, never one a person at the table chose. */
-export function freeAvatar(seat: number, taken: Iterable<string>): string {
-  const used = new Set(taken);
-  for (let k = 0; k < AVATAR_IDS.length; k++) { const id = AVATAR_IDS[((seat * 7) + k * 3) % AVATAR_IDS.length]; if (!used.has(id)) return id; }
-  return AVATAR_IDS[(seat * 7) % AVATAR_IDS.length];
-}
+

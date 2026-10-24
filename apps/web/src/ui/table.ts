@@ -1,8 +1,8 @@
 /* The middle of the table: dice, the discard pile, the deck, the mode tag. */
 import { KITTEN, MODES, answersFor, playableWhenDrawn, type GameState } from "@exploding-catan/engine";
 import { $, clear, h } from "./dom";
-import { cardArt, cardBack, has } from "../art";
-import { motion } from "../settings";
+import { cardArt, cardBack, has } from "../media/art";
+import { motion } from "../state/settings";
 import { pileRevealed } from "./showcase";
 
 let lastRoll = -1;

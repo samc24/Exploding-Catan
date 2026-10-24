@@ -1,0 +1,44 @@
+/* The bottom bar: who, the resource chips, the hand, the actions, the turn clock; dragging. */
+
+/* ── bottom bar / hand ── */
+#bottom{flex:0 0 auto;background:linear-gradient(180deg,#1f1612,#171110);border-top:1px solid #4a3a30;padding:8px 12px;display:flex;gap:14px;align-items:center;min-height:118px;flex-wrap:wrap;box-shadow:0 -4px 16px rgba(0,0,0,.3)}
+#bottom .who{display:flex;flex-direction:column;gap:4px;min-width:120px}
+#bottom .who b{font-size:15px}
+#bottom .who i{color:var(--dim);font-size:12px;font-style:normal}
+.resrow{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+.chip .swatch{width:14px;height:18px;border-radius:3px;background-size:cover}
+.chip b{min-width:14px;text-align:right}
+.chip.zero{opacity:.4}
+.hand{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;min-height:80px}
+.kc{width:60px;height:84px;border-radius:8px;border:1px solid rgba(255,235,200,.35);background:#2a2f3a;background-size:cover;background-position:center;position:relative;cursor:pointer;transition:transform .12s ease-out,box-shadow .12s ease-out;transform-origin:bottom center;font-size:9.5px;display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:3px;color:#fff;text-shadow:0 1px 2px #000;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+/* The card grows in place to be read, anchored at its bottom edge so it rises into the board. */
+.kc:hover{transform:translateY(-10px) scale(3.4);z-index:40;box-shadow:0 16px 44px rgba(0,0,0,.85)}
+body.dragging .kc{transition:none}
+body.dragging .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45);z-index:auto}
+.kc.dead{opacity:.45;cursor:not-allowed}
+.kc.dead.vp{opacity:.8;cursor:default}
+.kc.live{box-shadow:0 0 0 2px var(--ok)}
+.kc.live.offturn{box-shadow:0 0 0 2px #c76b6b}
+.kc.answer{box-shadow:0 0 0 2px #8ad8f5}
+.kc.reaction{box-shadow:0 0 0 2px #6b5a8f}
+.kc .pip{position:absolute;top:3px;right:3px;z-index:2;font-size:8px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);border-radius:3px;padding:0 4px;pointer-events:none;letter-spacing:.02em}
+.kc .pip.now{background:#a33}
+.kc.answer .pip.now{background:#1d6f8a}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center}
+.actions .note{color:var(--dim);font-size:12.5px;max-width:260px}
+.actions .note .st{display:none}
+.turntimer{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font-size:12px;min-width:84px;position:relative;overflow:hidden}
+.turntimer .fill{position:absolute;left:0;top:0;bottom:0;background:#2f5d3a;z-index:0;transition:width .25s linear}
+.turntimer .txt{position:relative;z-index:1;font-weight:700}
+
+
+/* ── dragging ── */
+.kc.lifted{opacity:.35}
+.kc.ghost{position:absolute;transform:translate(-50%,-60%) rotate(-4deg) scale(1.12);pointer-events:none;box-shadow:0 18px 40px rgba(0,0,0,.7);z-index:70;cursor:grabbing}
+.droppable{box-shadow:0 0 0 2px var(--ok) !important}
+.dropping{box-shadow:0 0 0 3px var(--accent) !important;background:#2e2a1c !important}
+.hand.droppable{border-radius:8px;outline:2px dashed rgba(89,179,100,.6);outline-offset:4px;box-shadow:none !important}
+.kc{touch-action:none;cursor:grab}
+
+.actions .note.owed{color:var(--accent)}
