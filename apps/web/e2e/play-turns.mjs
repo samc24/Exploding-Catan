@@ -16,8 +16,18 @@ if (tumbling !== 2) errors.push("the dice did not tumble on a new roll");
 await page.waitForTimeout(300);
 s = await state(page);
 console.log("rolled:", s.rolled, "phase", s.phase, "seven?", !!s.seven, "select", s.select && s.select.kind);
+// A seven gets a disc in the middle of the board; the robbery that follows gets a moment of its own.
+const sevenShown = await page.locator("#showcase:not([hidden]) .showseven").count();
 await page.screenshot({ path: `${OUT}/04-rolled.png` });
 await settle(page);
+if (s.select && s.select.kind === "robber") {
+  // The seven holds the middle for its full beat first; the robbery queues behind it.
+  const robbery = await page.locator("#showcase:not([hidden]) .showglyph.robbery").waitFor({ timeout: 6000 }).then(() => 1).catch(() => 0);
+  console.log("seven disc:", sevenShown, "| robbery moment:", robbery);
+  if (!sevenShown) errors.push("the seven was not shown in the middle of the board");
+  if (!robbery) errors.push("the robbery had no moment in the middle of the board");
+  await page.screenshot({ path: `${OUT}/05-robbery.png` });
+}
 for (const b of ["Bank", "Trade", "Buy cards"]) {
   const btn = page.locator(`#bottom button:has-text("${b}")`);
   if (await btn.isEnabled()) { await btn.click(); await page.waitForTimeout(150); await page.screenshot({ path: `${OUT}/06-${b.replace(" ", "")}.png` }); await btn.click(); }

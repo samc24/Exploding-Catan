@@ -83,24 +83,44 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .fl.open{box-shadow:0 0 0 1px #8ad8f5 inset;cursor:pointer}
 .fl.open:hover{background:#3a2e26}
 .fl .ans{display:inline-block;margin-left:6px;font-size:10px;padding:0 5px;border-radius:4px;background:#8ad8f5;color:#111;font-weight:700}
+.fl .evturn{display:block;font-size:9.5px;letter-spacing:.4px;color:var(--dim);text-transform:uppercase;margin-bottom:1px}
+/* Rewound by a Nope or a Defuse: it happened, then it un-happened. */
+.fl.undone{opacity:.42;text-decoration:line-through}
+.fl.undone .evturn,.fl.undone .evmarks,.fl.undone .rchip{text-decoration:none}
+.fl.new{animation:evin .2s ease-out}
+@keyframes evin{from{transform:translateX(-10px);opacity:0}to{transform:none;opacity:1}}
+/* The card that answers a line, pinned to its corner; a Defuse pulses. */
+.fl{position:relative}
+.evmarks{position:absolute;top:-8px;right:4px;display:flex;gap:3px;z-index:2;pointer-events:none}
+.evmark{width:26px;height:36px;border-radius:4px;background:#0d1014 center/cover;border:2px solid;box-shadow:0 2px 8px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1}
+.evmark.defuse{border-color:#4bb1d9;animation:markpop .9s ease-out infinite alternate}
+.evmark.nope{border-color:#c76b6b;opacity:.9}
+@keyframes markpop{from{box-shadow:0 2px 8px rgba(0,0,0,.7),0 0 0 0 rgba(75,177,217,0)}to{box-shadow:0 2px 8px rgba(0,0,0,.7),0 0 0 5px rgba(75,177,217,.2)}}
+/* A player's name wherever it is written into a line of text: their own colour, weighted and shadowed. */
+.pn{font-weight:800;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.6)}
+/* Resources as chips tinted with the resource's own colour. */
+.rchip{display:inline-block;border:1px solid var(--rc,var(--line));border-left:4px solid var(--rc,var(--line));border-radius:4px;padding:0 5px 0 4px;margin:1px 1px;font-size:11px;background:color-mix(in srgb,var(--rc,#888) 22%,#0b0d10);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rchip .rdot{display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--rc);margin-right:4px;vertical-align:0}
 
 /* ── dice / piles / clock ── */
 #dice{position:absolute;left:12px;top:12px;display:flex;gap:6px;pointer-events:none}
 .die{width:34px;height:34px;border-radius:8px;background:#f1ece2;color:#111;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 .die.red{background:#d94b4b;color:#fff}
-/* The piles sit small and dim in the corner: the board is the thing to look
-   at. They come forward when hovered, or when a card is being dragged. */
-#piles{position:absolute;right:12px;top:12px;display:flex;gap:8px;align-items:flex-start;opacity:.55;transition:opacity .2s,transform .2s;transform-origin:top right}
-#piles:hover,body.dragging #piles{opacity:1;transform:scale(1.25)}
+/* Two piles one above the other down the right-hand side, as in JP's game:
+   the discard on top, the draw pile under it, both card-sized and always
+   in plain view. The pile is the answer to "what just happened" for anybody
+   not reading the log. */
+#piles{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:9px;align-items:center;z-index:3}
 /* The deck is a stack: two more backs peep out beneath the top card. */
 #deck .cardface{box-shadow:2px 2px 0 -1px #1b1b2a,2px 2px 0 0 rgba(255,235,200,.35),4px 4px 0 -1px #1b1b2a,4px 4px 0 0 rgba(255,235,200,.3),0 6px 14px rgba(0,0,0,.5)}
-#deck .cardface .ct{font-size:11px;padding:0 6px}
+#deck .cardface .ct{font-size:12px;padding:0 7px}
 /* With three different resources in hand on your turn, the deck sells: it lifts, and a click opens the buy. */
 #deck.buyable{cursor:pointer}
 #deck.buyable .cardface{box-shadow:0 0 0 2px var(--ok),2px 2px 0 -1px #1b1b2a,2px 2px 0 0 rgba(255,235,200,.35),4px 4px 0 -1px #1b1b2a,4px 4px 0 0 rgba(255,235,200,.3),0 6px 14px rgba(0,0,0,.5);transition:transform .12s}
 #deck.buyable:hover .cardface{transform:translateY(-4px)}
 #piles:has(#deck.buyable){opacity:1}
-.cardface{width:50px;height:70px;border-radius:5px;background:#2a2f3a;border:1px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:flex-end;justify-content:center;font-size:8px;text-align:center;padding:3px;color:#fff;text-shadow:0 1px 2px #000;position:relative;overflow:hidden}
+.cardface{width:84px;height:118px;border-radius:8px;background:#2a2f3a;border:2px solid var(--line);background-size:cover;background-position:center;display:flex;align-items:flex-end;justify-content:center;font-size:10px;text-align:center;padding:4px;color:#fff;text-shadow:0 1px 2px #000;position:relative;overflow:hidden;box-shadow:0 5px 16px rgba(0,0,0,.45)}
+#deck .cardface .cost{position:absolute;left:0;right:0;bottom:4px;font-size:8.5px;letter-spacing:.3px;color:#e8dcc8;opacity:.85}
 .cardface.back{background-image:linear-gradient(135deg,#3a2f4a,#1b1b2a)}
 .cardface .ct{position:absolute;top:3px;right:4px;background:rgba(0,0,0,.6);border-radius:10px;padding:0 5px;font-size:10px;font-weight:700}
 .pilelbl{font-size:9.5px;color:var(--dim);text-align:center;margin-top:2px}
@@ -109,12 +129,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
 #clock.urgent{animation:pulse .6s infinite alternate}
 @keyframes pulse{from{background:#3a1e1e}to{background:#7a2a2a}}
 
-/* ── showcase ── */
-#showcase{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:40}
-#showcase .big{width:180px;height:252px;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.8);background-size:cover;background-position:center;background-color:#2a2f3a;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;animation:drop .5s cubic-bezier(.2,.9,.3,1.2)}
-#showcase .big b{font-size:18px;text-shadow:0 2px 4px #000}
-#showcase .big i{font-size:12px;color:#ddd;text-shadow:0 1px 2px #000}
-@keyframes drop{from{transform:scale(.3) rotate(-20deg);opacity:0}to{transform:none;opacity:1}}
+/* ── showcase: see the block near the end ── */
 
 /* ── panels (pending decisions) ── */
 #panels{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;max-width:360px;z-index:20}
@@ -149,13 +164,20 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .chip b{min-width:14px;text-align:right}
 .chip.zero{opacity:.4}
 .hand{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;min-height:80px}
-.kc{width:60px;height:84px;border-radius:8px;border:1px solid rgba(255,235,200,.35);background:#2a2f3a;background-size:cover;background-position:center;position:relative;cursor:pointer;transition:transform .12s,box-shadow .12s;font-size:9.5px;display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:3px;color:#fff;text-shadow:0 1px 2px #000;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.45)}
-.kc:hover{transform:translateY(-8px) rotate(-1.5deg);box-shadow:0 12px 24px rgba(0,0,0,.55)}
+.kc{width:60px;height:84px;border-radius:8px;border:1px solid rgba(255,235,200,.35);background:#2a2f3a;background-size:cover;background-position:center;position:relative;cursor:pointer;transition:transform .12s ease-out,box-shadow .12s ease-out;transform-origin:bottom center;font-size:9.5px;display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:3px;color:#fff;text-shadow:0 1px 2px #000;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+/* The card grows in place to be read, anchored at its bottom edge so it rises into the board. */
+.kc:hover{transform:translateY(-10px) scale(3.4);z-index:40;box-shadow:0 16px 44px rgba(0,0,0,.85)}
+body.dragging .kc{transition:none}
+body.dragging .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45);z-index:auto}
 .kc.dead{opacity:.45;cursor:not-allowed}
-.kc.dead:hover{transform:none}
+.kc.dead.vp{opacity:.8;cursor:default}
 .kc.live{box-shadow:0 0 0 2px var(--ok)}
+.kc.live.offturn{box-shadow:0 0 0 2px #c76b6b}
 .kc.answer{box-shadow:0 0 0 2px #8ad8f5}
-.kc .react{position:absolute;top:4px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;background:#8ad8f5;color:#0e1a22;border-radius:4px;padding:1px 6px;box-shadow:0 2px 6px rgba(0,0,0,.5);pointer-events:none}
+.kc.reaction{box-shadow:0 0 0 2px #6b5a8f}
+.kc .pip{position:absolute;top:3px;right:3px;z-index:2;font-size:8px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);border-radius:3px;padding:0 4px;pointer-events:none;letter-spacing:.02em}
+.kc .pip.now{background:#a33}
+.kc.answer .pip.now{background:#1d6f8a}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center}
 .actions .note{color:var(--dim);font-size:12.5px;max-width:260px}
 .actions .note .st{display:none}
@@ -198,8 +220,6 @@ button.on{border-color:var(--accent);color:var(--accent)}
 .spot.hexpick{fill:rgba(89,179,100,.18);stroke:#59b364;stroke-width:3;stroke-dasharray:6 4}
 .spot.hexpick.armed{fill:rgba(226,179,60,.35);stroke:#e2b33c}
 .piece{stroke:#0e1116;stroke-width:1.2}
-#showcase .big.plain{background:linear-gradient(160deg,#5a3a22,#2a1a12);border:1px solid #8a6a4a}
-#showcase .big.plain b{font-size:26px}
 
 /* ── cards in flight ── */
 #fxroot{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
@@ -215,9 +235,11 @@ button.on{border-color:var(--accent);color:var(--accent)}
 #emojiTray{position:absolute;top:44px;right:12px;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;display:grid;grid-template-columns:repeat(6,36px);gap:4px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
 #emojiTray button{font-size:20px;padding:4px 0;line-height:1;border:0;background:transparent}
 #emojiTray button:hover{background:var(--panel2)}
-/* An emote fills the player's portrait for a moment, as in JP's game. */
-.portrait .emo{position:absolute;inset:-3px;border-radius:50%;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:1.55em;line-height:1;animation:emo 3s forwards;pointer-events:none;z-index:2}
-@keyframes emo{0%{opacity:0;transform:scale(.4)}12%{opacity:1;transform:scale(1.18)}24%{transform:scale(1)}80%{opacity:1}100%{opacity:0}}
+/* A thrown emoji lands big over the middle of the player's portrait, no bubble,
+   two drop shadows, and fades after 3.4 s. A repaint resumes it (see emotes.ts). */
+.portrait{overflow:visible}
+.portrait .emo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:2.1em;line-height:1;animation:emo 3.4s forwards;pointer-events:none;z-index:2;filter:drop-shadow(0 2px 3px #000) drop-shadow(0 0 10px rgba(0,0,0,.7))}
+@keyframes emo{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}24%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
 
 /* ── answering: the chooser, the lit line, the badges ── */
 #modal .answer{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);cursor:pointer;margin-bottom:6px}
@@ -364,10 +386,13 @@ button.on{border-color:var(--accent);color:var(--accent)}
   #boardArea{padding-top:66px}
   #dice{left:10px;top:10px;gap:5px}
   .die{width:30px;height:30px;font-size:15px;border-radius:7px}
-  #piles{right:10px;top:8px;opacity:.8;gap:8px}
-  #piles:hover{transform:none}
-  .cardface{width:34px;height:48px;font-size:7px}
+  #piles{right:10px;top:8px;bottom:auto;flex-direction:row;align-items:flex-start;gap:8px}
+  .cardface{width:34px;height:48px;font-size:7px;border-width:1px;border-radius:5px}
   .cardface .ct{font-size:9px;padding:0 4px}
+  #deck .cardface .cost{display:none}
+  #pile .cardface::before,#pile .cardface::after{display:none}
+  .disccx{font-size:7px;padding:1px 4px;letter-spacing:.6px}
+  .disctag{font-size:7px;padding:1px 5px;bottom:-7px}
   .pilelbl{font-size:8.5px;margin-top:1px}
   #clock{font-size:12px;padding:4px 10px;max-width:calc(100vw - 180px)}
   /* The latest log lines, at the board's foot, in whatever room the board
@@ -386,7 +411,6 @@ button.on{border-color:var(--accent);color:var(--accent)}
   #boardArea.zoomed #zoomWrap{display:flex}
   #zoomIn,#zoomOut{display:none}
   #panels:not(:empty) ~ #zoomWrap{display:none}
-  #showcase .big{width:150px;height:210px}
   /* decisions and composers: a sheet at the foot of the board */
   #panels{left:0;right:0;bottom:0;max-width:none;max-height:100%;overflow-y:auto;gap:0;overscroll-behavior:contain}
   .panel{border-radius:16px 16px 0 0;padding:12px 12px 12px;border-bottom:0}
@@ -416,8 +440,9 @@ button.on{border-color:var(--accent);color:var(--accent)}
   .hand:not(:has(.kc)){display:none}
   .hand::-webkit-scrollbar{display:none}
   .kc{width:50px;height:70px;flex:0 0 auto}
-  .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45)}
+  .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45);z-index:auto}
   .kc.live:hover{box-shadow:0 0 0 2px var(--ok)}
+  .kc.live.offturn:hover{box-shadow:0 0 0 2px #c76b6b}
   .kc.answer:hover{box-shadow:0 0 0 2px #8ad8f5}
   .actions{grid-area:actions;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;align-items:stretch}
   .actions .note{max-width:none;font-size:12px;align-self:center;line-height:1.35}
@@ -473,7 +498,7 @@ button.on{border-color:var(--accent);color:var(--accent)}
   /* the board's corners again: the board is narrower than its room here */
   #dice{left:8px;top:8px}
   .die{width:26px;height:26px;font-size:14px}
-  #piles{right:8px;top:8px}
+  #piles{right:8px;top:8px;bottom:auto;flex-direction:row}
   .cardface{width:30px;height:42px}
   #clock{max-width:calc(100vw - 420px)}
   #zoomWrap{right:8px;bottom:8px}
@@ -496,4 +521,100 @@ button.on{border-color:var(--accent);color:var(--accent)}
   button.sm{min-height:32px}
   #modal .answer{padding:11px 12px}
   .fl.open{padding:8px 9px}
+}
+
+/* ══ The discard pile ═══════════════════════════════════════════════════
+   Two slivers behind the top card so it reads as a pile even with one card
+   in it. A cancelled card is greyed and stamped. While a Defuse in THIS
+   hand answers something, the pile wears the word "answer" (nobody else's
+   screen shows it). While a card is being carried it is the loudest thing
+   on screen. */
+#pile .cardface{overflow:visible;background:linear-gradient(150deg,#242a36,#171b23);cursor:default;transition:transform .12s ease,box-shadow .12s ease}
+#pile .cardface::before,#pile .cardface::after{content:"";position:absolute;inset:-2px;border-radius:8px;z-index:0;border:1px solid #0b0d10;background:#1b2029}
+#pile .cardface::before{transform:translate(4px,4px)}
+#pile .cardface::after{transform:translate(2px,2px)}
+#pile .cardface.empty::before,#pile .cardface.empty::after{display:none}
+#pile .cardface .face{position:absolute;inset:0;border-radius:6px;overflow:hidden;z-index:1;background:linear-gradient(150deg,#2c3444,#1c222c) center/cover;display:flex;align-items:center;justify-content:center}
+#pile .cardface .face .kn{font-size:12px;font-weight:800;text-align:center;padding:0 5px;text-shadow:0 2px 6px #000;line-height:1.15}
+#pile .cardface .face.none{font-size:9px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);text-align:center;padding:0 6px}
+#pile .cardface.cancelled .face{filter:grayscale(.8) brightness(.62)}
+#pile .cardface.cancelled{border-color:#5a6478}
+.disccx{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);z-index:3;pointer-events:none;border:2px solid var(--danger);color:#ffb3b3;background:rgba(11,13,16,.8);font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;padding:2px 8px;border-radius:5px}
+#pile .cardface.back{border-style:dashed;opacity:.9}
+#pile .cardface.answerable{border-color:#4bb1d9;box-shadow:0 5px 16px rgba(0,0,0,.45),0 0 0 3px rgba(75,177,217,.2)}
+.disctag{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);background:#0d1014;border:1px solid #4bb1d9;color:#8ad8f5;font-size:9px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;padding:2px 8px;border-radius:9px;z-index:3;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.6);animation:markpop .9s ease-out infinite alternate}
+@keyframes pileready{0%,100%{box-shadow:0 0 0 4px rgba(127,196,143,.4),0 0 22px 4px rgba(127,196,143,.22),0 6px 18px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 6px rgba(159,224,175,.55),0 0 32px 8px rgba(127,196,143,.36),0 6px 18px rgba(0,0,0,.5)}}
+#pile .cardface.droppable{border-color:#a6e6b4;animation:pileready 1.15s ease-in-out infinite;box-shadow:none !important}
+#pile .cardface.dropping{border-color:#d8ffe2;animation:none;box-shadow:0 0 0 7px rgba(191,240,203,.8),0 0 40px 12px rgba(127,196,143,.55),0 8px 22px rgba(0,0,0,.6) !important;transform:translateY(-3px) scale(1.04);background:none !important}
+
+/* ══ The showcase ═══════════════════════════════════════════════════════
+   A play announces itself in the middle of the board. Nothing here takes
+   a click. With a dialog open it moves to a strip along the top instead
+   of fighting the dialog for the middle. */
+#showcase{position:absolute;inset:0;z-index:40;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+body.hasmodal #showcase{bottom:auto;flex-direction:row;align-items:center;justify-content:center;padding:4px 8px 0;gap:9px;z-index:110;position:fixed;top:0;left:0;right:0}
+body.hasmodal .showcard{width:clamp(46px,6.4vh,60px);border-width:1px;border-radius:7px}
+body.hasmodal .showcard.implode{width:clamp(76px,11vh,100px)}
+body.hasmodal .showseven,body.hasmodal .showglyph{width:clamp(40px,5.6vh,52px);font-size:clamp(19px,3vh,26px);border-width:2px}
+body.hasmodal .showcap{font-size:14px;padding:6px 13px;max-width:min(370px,66%)}
+#showcase.out{animation:showout .4s ease-in forwards}
+@keyframes showout{to{opacity:0;transform:scale(.94)}}
+.showcard{width:clamp(112px,17vh,156px);aspect-ratio:5/7;border-radius:12px;border:2px solid var(--accent);background:linear-gradient(160deg,#2c3444,#1c222c) center/cover;box-shadow:0 26px 64px rgba(0,0,0,.85),0 0 0 5px rgba(0,0,0,.45);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;animation:flipin .55s cubic-bezier(.2,.85,.3,1.25) both}
+.showcard .kn{position:relative;z-index:1;font-size:17px;font-weight:800;text-align:center;padding:0 8px;text-shadow:0 2px 6px #000}
+@keyframes flipin{0%{transform:perspective(900px) rotateY(-115deg) scale(.5);opacity:0}55%{transform:perspective(900px) rotateY(14deg) scale(1.08);opacity:1}100%{transform:perspective(900px) rotateY(0) scale(1)}}
+/* The Imploding Kitten: half again the size, spun up out of a point, stopped dead at full size. */
+.showcard.implode{width:clamp(178px,27vh,250px);border-color:var(--danger);box-shadow:0 30px 80px rgba(0,0,0,.9),0 0 0 6px rgba(0,0,0,.5),0 0 46px rgba(255,90,90,.35);animation:implodein 1.05s cubic-bezier(.13,.86,.24,1) both}
+@keyframes implodein{0%{transform:scale(.012) rotate(0turn);opacity:0}7%{opacity:1}100%{transform:scale(1) rotate(5turn)}}
+/* The answer prompt: the card you hold, with the word on it. Blue like every other "you may respond" thing. */
+.showcard.answer{border-color:#4bb1d9;box-shadow:0 26px 64px rgba(0,0,0,.85),0 0 0 5px rgba(75,177,217,.18),0 0 34px rgba(75,177,217,.27)}
+.answerflag{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);z-index:2;background:rgba(13,16,20,.9);border:1px solid #4bb1d9;color:#8ad8f5;font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;padding:2px 10px;border-radius:9px;white-space:nowrap}
+.answerline{color:#8ad8f5;font-weight:800}
+/* Moments with no card to turn over: a seven, a turn running out, a win taken away, a robbery, and the win itself. */
+.showseven,.showglyph{width:clamp(84px,13vh,116px);aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:clamp(38px,6vh,56px);line-height:1;box-shadow:0 26px 64px rgba(0,0,0,.85);animation:sevenin .5s cubic-bezier(.2,.9,.3,1.3) both}
+.showseven{background:#f2ead6;border:3px solid var(--danger);color:#b3261e;font-weight:700;font-size:clamp(40px,6.5vh,60px)}
+.showglyph.timeout{background:#2a2f3a;border:3px solid #7f8ba0;color:#e7ebf1}
+.showglyph.robbery{background:#1c1f26;border:3px solid #7f8ba0;color:#e7ebf1}
+.showglyph.winnoped{background:#3a2b1c;border:3px solid var(--accent);color:#ffd77a}
+/* The win and the denied win are the same trophy, so they must not look the same: the win is the disc filled in, lit, and a size up. */
+.showglyph.win{background:radial-gradient(circle at 35% 30%,#ffe9a8,var(--accent) 62%,#b8801f);border:3px solid #fff3cf;color:#3a2708;width:clamp(104px,16vh,148px);font-size:clamp(48px,7.5vh,72px);box-shadow:0 26px 64px rgba(0,0,0,.85),0 0 0 10px rgba(255,215,122,.13),0 0 90px rgba(255,215,122,.33)}
+@keyframes sevenin{0%{transform:scale(.3) rotate(-25deg);opacity:0}60%{transform:scale(1.14) rotate(6deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+.showcap{background:rgba(11,13,16,.93);border:1px solid var(--line);border-radius:10px;padding:10px 20px;font-size:19px;font-weight:700;letter-spacing:.2px;line-height:1.35;max-width:min(480px,80%);text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.75);box-shadow:0 10px 30px rgba(0,0,0,.6);animation:capin .45s .12s ease-out both;color:var(--ink)}
+.showcap.seven,.showcap.attack{border-color:var(--danger);color:#ffd9d9}
+.showcap.implode{border-color:var(--danger);color:#ffd9d9;font-weight:800;font-size:21px}
+.showcap.big{border-color:var(--accent)}
+.showcap.defend{border-color:#4bb1d9}
+.showcap .rchip{font-size:14px}
+@keyframes capin{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+
+/* ══ Motion: calm and off ══════════════════════════════════════════════
+   Nothing below hides anything: the card is still turned over, the caption
+   still says who did what. What goes is the spinning and the flying in. */
+@keyframes calmin{from{opacity:0}to{opacity:1}}
+body.calmfx .showcard,body.calmfx .showcard.implode,body.calmfx .showseven,body.calmfx .showglyph{animation:calmin .28s ease-out both}
+body.calmfx .showcap{animation:calmin .28s .08s ease-out both}
+body.calmfx #showcase.out{animation:calmin .3s ease-in reverse both}
+body.calmfx .fl.new,body.calmfx .die.tumble{animation:none}
+body.nofx .showcard,body.nofx .showcard.implode,body.nofx .showseven,body.nofx .showglyph,body.nofx .showcap,body.nofx #showcase.out,body.nofx .fl.new,body.nofx .die.tumble,body.nofx .portrait .emo,body.nofx .evmark.defuse,body.nofx .disctag,body.nofx #pile .cardface.droppable{animation:none}
+body.nofx .portrait .emo{opacity:1}
+#menu button.off{opacity:.6}
+
+/* ══ Standings ════════════════════════════════════════════════════════ */
+.rank .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
+#modal .hands{margin-top:12px}
+#modal .hands h4{margin:0 0 6px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);font-weight:600}
+#modal .handrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;font-size:12.5px}
+#modal .handrow .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+.kchip{display:inline-block;border:1px solid var(--line);border-radius:5px;padding:0 6px;font-size:11.5px;background:var(--panel2)}
+.kchip.vp{border-color:var(--accent);color:var(--accent)}
+
+/* Phones: the pile is a thumbnail and the reveal a size down (after the base rules, so they win). */
+@media (max-width:800px), (max-width:1000px) and (max-height:520px){
+  #pile .cardface .face.none{font-size:0}
+  .showcard{width:clamp(96px,15vh,130px)}
+  .showcard.implode{width:clamp(140px,22vh,190px)}
+  .showseven,.showglyph{width:clamp(64px,10vh,90px);font-size:clamp(28px,4.5vh,40px)}
+  .showglyph.win{width:clamp(80px,12vh,110px);font-size:clamp(36px,5.5vh,52px)}
+  .showcap{font-size:14px;padding:7px 12px;max-width:min(420px,88%)}
+  .showcap.implode{font-size:15px}
+  .showcap .rchip{font-size:11px}
 }

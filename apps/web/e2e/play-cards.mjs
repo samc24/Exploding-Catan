@@ -29,6 +29,23 @@ await page.screenshot({ path: `${OUT}/11-aiming.png` });
 await page.locator("#seats .seat").nth(foe).click(); await page.waitForTimeout(250);
 s = await state(page);
 console.log("attackDue:", JSON.stringify(s.attackDue), "panel:", await page.locator("#panels .panel h3").first().textContent());
+// The card is turned over in the middle with its line as a caption, the players' names in their colours;
+// the pile waits for that moment to finish before showing the card on top.
+{
+  const card = await page.locator("#showcase:not([hidden]) .showcard").count();
+  const names = await page.locator("#showcase .showcap .pn").count();
+  const onPileEarly = await page.locator('#pile .cardface[data-jid]').count();
+  await page.screenshot({ path: `${OUT}/12-showcase.png` });
+  await page.waitForTimeout(3000);
+  const onPile = await page.locator('#pile .cardface[data-jid]').count();
+  const turns = await page.locator("#feed .fl .evturn").count();
+  console.log("showcase: card", card, "| tinted names", names, "| pile before/after the reveal", onPileEarly, onPile, "| turn captions", turns);
+  if (!card) errors.push("the played card was not shown in the middle of the board");
+  if (!names) errors.push("the showcase caption does not colour the players' names");
+  if (onPileEarly) errors.push("the pile showed the card while it was still being revealed");
+  if (!onPile) errors.push("the pile did not show the card after its reveal");
+  if (!turns) errors.push("the feed lines carry no turn caption");
+}
 await page.screenshot({ path: `${OUT}/12-discard.png` });
 await page.click('.kc[title^="Defuse"]'); await page.waitForTimeout(300);
 // More than one thing to answer (a robbery too): pick the Attack.
@@ -36,6 +53,21 @@ if (!(await page.locator("#modal").isHidden())) { await page.locator('#modal .an
 s = await state(page);
 console.log("after defuse: attackDue", JSON.stringify(s.attackDue), "last:", s.journal[s.journal.length - 1].text);
 if (!s.journal[s.journal.length - 1].text.includes("Defuses")) errors.push("the Defuse did not land");
+// The Defused line stays in the feed, struck through; the cancelled Attack stays on the pile, greyed, one card down.
+{
+  const undone = await page.locator("#feed .fl.undone").count();
+  // The victim's screen was shown the answer prompt too, so the queue runs a while: wait for the middle to clear.
+  await page.locator("#showcase[hidden]").waitFor({ state: "attached", timeout: 12000 }).catch(() => errors.push("the showcase never cleared"));
+  const pile = await page.locator("#pile .cardface").boundingBox();
+  await page.mouse.move(pile.x + pile.width / 2, pile.y + pile.height / 2);
+  await page.mouse.wheel(0, -100); await page.waitForTimeout(150);
+  const cancelled = await page.locator("#pile .cardface.back.cancelled .disccx").count();
+  await page.screenshot({ path: `${OUT}/13-cancelled.png` });
+  await page.mouse.wheel(0, 100); await page.waitForTimeout(100);
+  console.log("after the Defuse: struck lines", undone, "| cancelled card down the pile", cancelled);
+  if (!undone) errors.push("the Defused line is not struck through");
+  if (!cancelled) errors.push("the cancelled card is not kept on the pile, greyed");
+}
 await confirmDiscard(page);
 s = await state(page);
 console.log("after paying: attackDue", JSON.stringify(s.attackDue));
@@ -51,6 +83,16 @@ console.log("favor done:", s.journal[s.journal.length - 1].text);
 
 // Somebody Nopes: view as the third player and click their Nope.
 await page.locator("#seats .seat").nth((me + 2) % 4).click(); await page.waitForTimeout(150);
+// A reaction that answers something right now wears the red "answer" pip; hovering a card grows it to be read.
+{
+  const pip = await page.locator('.kc[title^="Nope"] .pip.now').textContent().catch(() => "");
+  await page.hover('.kc[title^="Nope"]'); await page.waitForTimeout(200);
+  const grown = await page.locator('.kc[title^="Nope"]').evaluate((el) => getComputedStyle(el).transform !== "none");
+  await page.screenshot({ path: `${OUT}/15-hover.png` });
+  console.log("Nope pip:", pip, "| grows on hover:", grown);
+  if (pip !== "answer") errors.push("an answerable Nope does not say so on the card");
+  if (!grown && !process.env.E2E_PHONE) errors.push("a hovered card does not grow"); // a finger has no hover
+}
 await page.click('.kc[title^="Nope"]'); await page.waitForTimeout(200);
 await page.screenshot({ path: `${OUT}/15-nope-choice.png` });
 console.log("nope choices:", await page.locator("#modal .answer b").allTextContents());
@@ -93,6 +135,9 @@ if (s.trade !== null) errors.push("the trade did not settle");
   await page.mouse.down();
   for (let i = 1; i <= 12; i++) { await page.mouse.move(a.x + ((b.x + b.width / 2) - a.x) * (i / 12), a.y + ((b.y + b.height / 2) - a.y) * (i / 12)); await page.waitForTimeout(16); }
   const droppable = await page.locator("#pile .cardface.droppable").count();
+  const lifted = await page.locator(".kc.lifted").count();
+  const under = await page.evaluate(([x, y]) => { const g = document.querySelector(".kc.ghost"); if (g) g.style.display = "none"; const el = document.elementFromPoint(x, y); if (g) g.style.display = ""; return el ? el.tagName + "#" + el.id + "." + el.className : null; }, [b.x + b.width / 2, b.y + b.height / 2]);
+  console.log("drag: lifted", lifted, "| under the pointer:", under, "| hand card at", JSON.stringify(a));
   await page.mouse.up(); await page.waitForTimeout(250);
   s = await state(page);
   console.log("dragged Skip to the pile: pile lit", droppable === 1, "| select", s.select && s.select.kind);
@@ -125,4 +170,17 @@ s = await state(page);
 console.log("deck now", s.deck.length, "hand", s.players[me].cards.length);
 if (s.deck.length !== 53) errors.push("the purchase did not draw");
 await page.screenshot({ path: `${OUT}/20-bought.png` });
+// The Motion and Tips switches live in the menu and are remembered.
+{
+  await page.click("#menuBtn"); await page.waitForTimeout(100);
+  const before = await page.locator("#fxBtn").textContent();
+  await page.click("#fxBtn"); await page.waitForTimeout(100);
+  const after = await page.locator("#fxBtn").textContent();
+  const saved = await page.evaluate(() => localStorage.getItem("exploding-catan:motion"));
+  const calm = await page.evaluate(() => document.body.classList.contains("calmfx"));
+  console.log("motion:", before, "→", after, "| saved", saved, "| calm class", calm);
+  if (before !== "Motion: full" || after !== "Motion: calm" || saved !== "calm" || !calm) errors.push("the Motion switch does not cycle and remember");
+  await page.click("#fxBtn"); await page.click("#fxBtn"); // back to full
+  await page.keyboard.press("Escape");
+}
 await finish(browser, errors);

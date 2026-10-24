@@ -42,7 +42,7 @@ export function log(c: Ctx, text: string): void {
   while (c.s.log.length > LOG_KEEP) c.s.log.shift();
 }
 export function feed(c: Ctx, text: string, kind: FeedKind, ms?: number): void {
-  c.events.push(ms === undefined ? { type: "feed", text, kind } : { type: "feed", text, kind, ms });
+  c.events.push(ms === undefined ? { type: "feed", text, kind, turn: c.s.turnCounter } : { type: "feed", text, kind, ms, turn: c.s.turnCounter });
 }
 export function hint(c: Ctx, seat: number, text: string): void {
   c.events.push({ type: "hint", seat, text });

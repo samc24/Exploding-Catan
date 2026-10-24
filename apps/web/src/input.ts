@@ -107,6 +107,11 @@ export function onCardOnEntry(c: Card, jid: number): void {
 export function installKeys(): void {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    // Whatever is most recent goes first: a tray or menu, the drawer, a dialog, then the table's own state.
+    const tray = $("emojiTray"), menu = $("menu"), side = $("side");
+    if (!tray.hidden) { tray.hidden = true; return; }
+    if (!menu.hidden) { menu.hidden = true; return; }
+    if (side.classList.contains("open")) { side.classList.remove("open"); $("sideBtn").classList.remove("on"); return; }
     if (modalOpen()) { closeModal(); return; }
     if (ui.armed) { ui.armed = null; requestRender(); return; }
     if (panelCb.composer) { panelCb.composer = null; requestRender(); return; }

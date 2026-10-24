@@ -73,7 +73,7 @@ export const net = new Net({
     chatLines.push({ seat, name, text });
     drawChat();
     // Also a line in the game log, so talk is seen whatever tab is open.
-    feed.lines.push({ text: `${name}: ${text}`, kind: "chat", jid: null });
+    feed.add(`${name}: ${text}`, "chat", null, null);
     if ($("chat").hidden) { unread++; paintChatTab(); }
     requestRender();
   },

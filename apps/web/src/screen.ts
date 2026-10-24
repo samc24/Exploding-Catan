@@ -12,6 +12,7 @@ import { $ } from "./ui/dom";
 import type { BoardUI } from "./ui/board";
 import type { PanelCallbacks } from "./ui/panels";
 import { Feed } from "./ui/feed";
+import { tipsOn } from "./settings";
 
 export const ui: BoardUI = { seat: 0, armed: null, zoom: 1, panX: 0, panY: 0 };
 export const feed = new Feed();
@@ -44,6 +45,8 @@ export function act(a: Action): string | null {
 }
 let hintTimer: number | null = null;
 export function hint(text: string, isError = false, ms = 3500): void {
+  // Advice can be turned off (Tips); a refusal is always said.
+  if (!isError && !tipsOn()) return;
   const el = $("hint");
   el.textContent = text;
   el.style.color = isError ? "var(--danger)" : "var(--dim)";

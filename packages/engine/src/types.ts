@@ -155,7 +155,8 @@ export type ShowKind =
   | "win"
   | "winnoped"
   | "timeout"
-  | "implode";
+  | "implode"
+  | "robbery";
 
 export interface TurnPointer {
   cur: number;
@@ -321,7 +322,7 @@ export type Action = SeatAction | { type: "tick"; hidden?: boolean };
 export type FeedKind = EntryKind | "buy" | "defend";
 export type GameEvent =
   | { type: "log"; text: string }
-  | { type: "feed"; text: string; kind: FeedKind; jid?: number; ms?: number }
+  | { type: "feed"; text: string; kind: FeedKind; jid?: number; ms?: number; turn?: number }
   | { type: "amend"; jid: number | null; text: string }
   | { type: "production"; sources: { hid: number; pid: number; r: Res; n: number }[]; paid: Bundle[] }
   | { type: "cards"; from: number | null; to: number | null; bundle: Bundle; hidden: boolean }

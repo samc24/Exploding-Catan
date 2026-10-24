@@ -11,7 +11,7 @@
    is a request that made no sense (the client is told, nothing changes).
    ══════════════════════════════════════════════════════════════════════ */
 import {
-  PLAYER_NAMES, applyAction, createGame, eventsFor, handoverActive, implodeActive, timerEnabled, viewFor,
+  IMPLODE_REVEAL_MS, PLAYER_NAMES, applyAction, createGame, eventsFor, handoverActive, implodeActive, timerEnabled, viewFor,
   type Action, type GameConfig, type GameEvent, type GameState,
 } from "@exploding-catan/engine";
 import {
@@ -34,7 +34,7 @@ interface Seat { uid: string | null; name: string | null; bot: boolean; avatar?:
 export class Refused extends Error {}
 
 /** Bots deliberately move slowly, so a Nope can be reached for before the line scrolls away. */
-export const BOT_PACE = 1800;
+export const BOT_PACE = 3000;
 const TICK_MS = 250;
 const EMOTE_GAP_MS = 1500;
 
@@ -223,7 +223,7 @@ export class Room {
     this.seed = seed;
     const cfg: GameConfig = {
       players: this.seats.map((s, i) => ({ name: s.name ?? PLAYER_NAMES[i], avatar: s.avatar ?? defaultAvatar(i) })),
-      mode: this.config.mode, winPoints: this.config.winPoints, turnSeconds: this.config.turnSeconds, implodeRevealMs: 2500,
+      mode: this.config.mode, winPoints: this.config.winPoints, turnSeconds: this.config.turnSeconds, implodeRevealMs: IMPLODE_REVEAL_MS,
     };
     if (this.config.board !== "auto") cfg.board = this.config.board;
     this.state = createGame(cfg, seed);

@@ -3,19 +3,25 @@
    ══════════════════════════════════════════════════════════════════════
    The engine says what moved (a production payout, cards between seats,
    a kitten card drawn); this draws it moving. Pure decoration: nothing here
-   is read back, and with reduced motion on, nothing here runs at all.
+   is read back. With motion set to calm a card is shown where it left and
+   where it landed without travelling; with motion off, or in a tab nobody
+   is looking at, nothing here runs at all (and nothing is queued to replay
+   later). Bursts are capped so a six-player payout cannot carpet the screen.
    ══════════════════════════════════════════════════════════════════════ */
 import { RES, type GameEvent, type GameState, type Res } from "@exploding-catan/engine";
 import { geometry } from "@exploding-catan/engine";
 import { $, h } from "./dom";
 import { cardArt, cardBack, has, resArt } from "../art";
+import { fxWillPlay, motion } from "../settings";
 
 export interface Point { x: number; y: number }
 
-function reduced(): boolean {
-  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
-}
-function layer(): HTMLElement {
+const MAX_PER_FLIGHT = 16; // cards in one flight
+const MAX_LIVE = 60; // flying nodes on screen at once
+const MAX_FLIGHTS = 8; // flights out of one action
+let live = 0;
+
+export function layer(): HTMLElement {
   let el = document.getElementById("fxroot");
   if (!el) { el = h("div", { id: "fxroot" }); document.body.append(el); }
   return el;
@@ -58,23 +64,39 @@ export const STAGGER_MS = 110;
 /** The dice settle before the cards they produced start moving. */
 export const AFTER_ROLL_MS = 850;
 
-/** One thing flying from a to b. Lifts, grows a little in the air so it can be read, and shrinks into its landing. */
+/** One thing flying from a to b. Lifts, grows a little in the air so it can be read, and shrinks into its landing.
+    Calm: fades up where it left, holds, fades down, and does the same where it landed. */
 export function fly(a: Point, b: Point, face: HTMLElement, delay = 0, ms = FLY_MS): void {
-  if (reduced()) return;
+  if (!fxWillPlay() || live >= MAX_LIVE) return;
   const el = h("div", { class: "flyer" }, face);
   Object.assign(el.style, { left: a.x + "px", top: a.y + "px" });
   layer().append(el);
+  live++;
   const dx = b.x - a.x, dy = b.y - a.y;
   const lift = -Math.min(120, Math.hypot(dx, dy) * 0.25);
-  const anim = el.animate([
-    { transform: "translate(-50%,-50%) translate(0,0) scale(0.8)", opacity: 0 },
-    { transform: `translate(-50%,-50%) translate(${dx * 0.06}px,${dy * 0.06 + lift * 0.4}px) scale(1.25)`, opacity: 1, offset: 0.14 },
-    { transform: `translate(-50%,-50%) translate(${dx * 0.45}px,${dy * 0.45 + lift}px) scale(1.3)`, opacity: 1, offset: 0.5 },
-    { transform: `translate(-50%,-50%) translate(${dx * 0.88}px,${dy * 0.88 + lift * 0.15}px) scale(1.05)`, opacity: 1, offset: 0.86 },
-    { transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(0.6)`, opacity: 0 },
-  ], { duration: ms, delay, easing: "cubic-bezier(.35,.6,.3,1)", fill: "forwards" });
-  anim.onfinish = () => el.remove();
-  anim.oncancel = () => el.remove();
+  const at = (f: number, up: number, scale: number) => `translate(-50%,-50%) translate(${dx * f}px,${dy * f + up}px) scale(${scale})`;
+  const frames: Keyframe[] = motion() === "calm"
+    ? [
+      { transform: at(0, 0, 1.1), opacity: 0 },
+      { transform: at(0, 0, 1.2), opacity: 1, offset: 0.15 },
+      { transform: at(0, 0, 1.2), opacity: 1, offset: 0.42 },
+      { transform: at(0, 0, 1.1), opacity: 0, offset: 0.5 },
+      { transform: at(1, 0, 1.1), opacity: 0, offset: 0.5 },
+      { transform: at(1, 0, 1.2), opacity: 1, offset: 0.65 },
+      { transform: at(1, 0, 1.2), opacity: 1, offset: 0.9 },
+      { transform: at(1, 0, 1.0), opacity: 0 },
+    ]
+    : [
+      { transform: at(0, 0, 0.8), opacity: 0 },
+      { transform: at(0.06, lift * 0.4, 1.25), opacity: 1, offset: 0.14 },
+      { transform: at(0.45, lift, 1.3), opacity: 1, offset: 0.5 },
+      { transform: at(0.88, lift * 0.15, 1.05), opacity: 1, offset: 0.86 },
+      { transform: at(1, 0, 0.6), opacity: 0 },
+    ];
+  const anim = el.animate(frames, { duration: ms, delay, easing: motion() === "calm" ? "ease-in-out" : "cubic-bezier(.35,.6,.3,1)", fill: "forwards" });
+  const done = () => { el.remove(); live = Math.max(0, live - 1); };
+  anim.onfinish = done;
+  anim.oncancel = done;
 }
 
 export function resFace(r: Res): HTMLElement {
@@ -88,33 +110,35 @@ export function kittenFace(key: string | null, flavor: string | null): HTMLEleme
 
 /** Turn one action's events into flights. `view` is the seat at this screen. */
 export function playEvents(s: GameState, events: GameEvent[], view: number): void {
-  if (reduced()) return;
+  if (!fxWillPlay()) return;
   // Cards grown by a roll wait for the dice to settle.
   let delay = events.some((e) => e.type === "feed" && e.kind === "roll") ? AFTER_ROLL_MS : 0;
+  let flights = 0;
   for (const ev of events) {
+    if (flights >= MAX_FLIGHTS) break;
     if (ev.type === "production") {
       // Each card leaves the hex that grew it for the seat that owns it.
       let i = 0;
       for (const src of ev.sources) {
         const a = hexPoint(s, src.hid), b = src.pid === view ? handPoint() : seatPoint(src.pid);
         if (!a || !b) continue;
-        for (let k = 0; k < src.n; k++) fly(a, b, resFace(src.r), delay + i++ * STAGGER_MS);
+        for (let k = 0; k < src.n && i < MAX_PER_FLIGHT; k++) fly(a, b, resFace(src.r), delay + i++ * STAGGER_MS);
       }
-      delay += 400;
+      delay += 400; flights++;
     } else if (ev.type === "cards") {
       const a = ev.from === null ? bankPoint() : ev.from === view ? handPoint() : seatPoint(ev.from);
       const b = ev.to === null ? bankPoint() : ev.to === view ? handPoint() : seatPoint(ev.to);
       if (!a || !b) continue;
       let i = 0;
       const total = RES.reduce((t, r) => t + ev.bundle[r], 0);
-      if (ev.hidden || total === 0) { fly(a, b, h("div", { class: "fly-res back" }), delay); delay += 350; continue; }
-      for (const r of RES) for (let k = 0; k < ev.bundle[r]; k++) fly(a, b, resFace(r), delay + i++ * STAGGER_MS);
-      delay += 400;
+      if (ev.hidden || total === 0) { fly(a, b, h("div", { class: "fly-res back" }), delay); delay += 350; flights++; continue; }
+      for (const r of RES) for (let k = 0; k < ev.bundle[r] && i < MAX_PER_FLIGHT; k++) fly(a, b, resFace(r), delay + i++ * STAGGER_MS);
+      delay += 400; flights++;
     } else if (ev.type === "kitten") {
       const a = deckPoint(), b = ev.pid === view ? handPoint() : seatPoint(ev.pid);
       if (!a || !b) continue;
       fly(a, b, kittenFace(ev.pid === view ? ev.card.key : null, ev.card.flavor), delay, KITTEN_FLY_MS);
-      delay += 450;
+      delay += 450; flights++;
     }
   }
 }

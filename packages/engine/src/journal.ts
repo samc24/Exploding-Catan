@@ -149,7 +149,7 @@ export function logAction(c: Ctx, text: string, kind: EntryKind, opts: LogOpts =
   while (s.journal.length > JOURNAL_KEEP) s.journal.shift();
   trimSnapshots(s);
   if (opts.log) { s.log.push(text + "."); }
-  c.events.push(opts.ms === undefined ? { type: "feed", text, kind, jid: e.id } : { type: "feed", text, kind, jid: e.id, ms: opts.ms });
+  c.events.push(opts.ms === undefined ? { type: "feed", text, kind, jid: e.id, turn: e.turn } : { type: "feed", text, kind, jid: e.id, ms: opts.ms, turn: e.turn });
   if (e.show) c.events.push({ type: "show", what: e.show, pid: e.actor, jid: e.id });
   return e;
 }

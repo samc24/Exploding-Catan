@@ -100,6 +100,11 @@ export const NOPE_REACH = 4;
 export const HANDOVER_MS = 3000;
 /** The Imploding Kitten's turn ends this long after the card has landed. */
 export const IMPLODE_MS = 20000;
+/** How long the Imploding Kitten is held up in the middle of the board, and its fade. The
+    table stays frozen for exactly that long: `IMPLODE_REVEAL_MS` is what games are created with. */
+export const IMPLODE_SHOW_MS = 4600;
+export const SHOWCASE_FADE_MS = 400;
+export const IMPLODE_REVEAL_MS = IMPLODE_SHOW_MS + SHOWCASE_FADE_MS;
 /* Journal depth. Nothing reaches further back than the turn in progress and
    the one before it (NOPE_REACH lines, turnStartSnap's scan), and the view
    sends the last 40; measured, no live snapshot ever sat more than 18 entries

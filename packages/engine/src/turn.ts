@@ -377,6 +377,7 @@ function journalRobber(c: Ctx, move: RobberMove): void {
     snap: snapAll(s),
     payload: { robber: true, hex: s.robber },
     noDefuse: move.noDefuse,
+    show: "robbery",
   });
   ent.stolen = move.stole ?? null;
   ent.fromHex = move.fromHex;
