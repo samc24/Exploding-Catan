@@ -24,6 +24,8 @@ export interface ServerOptions {
   roomIdleMs?: number;
   /** Let a client choose the game's seed. Tests only: a host who picks the seed knows every card. */
   allowClientSeed?: boolean;
+  /** How long a vanished player is given to come back before a bot plays their seat. */
+  seatGraceMs?: number;
 }
 
 export function randomCode(rng: () => number = Math.random): string {
@@ -44,7 +46,7 @@ export function startServer(opts: ServerOptions = {}) {
   // Pick up where the last process left off.
   for (const snap of store.loadRooms()) {
     try {
-      const room = Room.fromSnapshot(snap, opts.botPace);
+      const room = Room.fromSnapshot(snap, opts.botPace, opts.seatGraceMs);
       room.onChange = persistRoom;
       rooms.set(room.code, room);
     } catch (err) { log(`could not restore room ${snap.code}: ${err instanceof Error ? err.message : err}`); }
@@ -83,7 +85,7 @@ export function startServer(opts: ServerOptions = {}) {
           s.name = name || s.name;
           persistSession(s);
           send({ t: "welcome", v: PROTOCOL_VERSION, token: s.token, name: s.name });
-          if (s.room) s.room.join(clientOf(s));
+          if (s.room) s.room.join(clientOf(s), false);
           return;
         }
         if (!me) { fail("say hello first"); return; }
@@ -96,7 +98,7 @@ export function startServer(opts: ServerOptions = {}) {
             if (s.room) s.room.leave(s.uid);
             let code = randomCode();
             while (rooms.has(code)) code = randomCode();
-            const room = Room.create(code, clientOf(s), msg.seats, msg.config, opts.botPace);
+            const room = Room.create(code, clientOf(s), msg.seats, msg.config, opts.botPace, opts.seatGraceMs);
             room.onChange = persistRoom;
             rooms.set(code, room);
             s.room = room;

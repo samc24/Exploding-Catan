@@ -29,12 +29,21 @@ export interface Client {
   send(msg: ServerMsg): void;
   connected: boolean;
 }
-interface Seat { uid: string | null; name: string | null; bot: boolean; avatar?: string }
+/* Three kinds of seat: a bot nobody has sat in, a person who is here, and a
+   person who has gone (`away`: a bot plays it until they are back or somebody
+   takes it). The first and last are both empty chairs, and anybody with the
+   code may sit in either, lobby or mid-game. */
+interface Seat { uid: string | null; name: string | null; bot: boolean; avatar?: string; away?: boolean }
 
 export class Refused extends Error {}
 
 /** Bots deliberately move slowly, so a Nope can be reached for before the line scrolls away. */
 export const BOT_PACE = 3000;
+/* How long a dropped connection is given to come back before the table is
+   told. A wifi handover or a laptop lid is not leaving; twelve seconds of
+   silence is. Shorter than it might be, because a seat that is really gone
+   holds up the turn it is sitting on. */
+export const SEAT_GRACE_MS = 12000;
 const TICK_MS = 250;
 const EMOTE_GAP_MS = 1500;
 
@@ -51,23 +60,26 @@ export class Room {
   /** Called after anything worth keeping changed. The server persists it. */
   onChange: ((room: Room) => void) | null = null;
   readonly botPace: number;
+  readonly seatGraceMs: number;
   private seed = 0;
+  private graceTimers = new Map<string, NodeJS.Timeout>();
   private botTimer: NodeJS.Timeout | null = null;
   private tickTimer: NodeJS.Timeout | null = null;
   private lastEmote = new Map<string, number>();
   private taunts: TauntMemory = createTauntMemory(0);
 
-  constructor(code: string, seats: number, config: RoomConfig, botPace = BOT_PACE) {
+  constructor(code: string, seats: number, config: RoomConfig, botPace = BOT_PACE, seatGraceMs = SEAT_GRACE_MS) {
     this.code = code;
     this.botPace = botPace;
+    this.seatGraceMs = seatGraceMs;
     this.hostUid = "";
     this.config = normalizeRoomConfig(config);
     this.seats = Array.from({ length: Math.min(6, Math.max(2, seats)) }, () => ({ uid: null, name: null, bot: false }));
     this.table = createTable([], 0);
   }
   /** A fresh table: the host sits in the first chair. */
-  static create(code: string, host: Client, seats: number, config: RoomConfig, botPace?: number): Room {
-    const room = new Room(code, seats, config, botPace);
+  static create(code: string, host: Client, seats: number, config: RoomConfig, botPace?: number, seatGraceMs?: number): Room {
+    const room = new Room(code, seats, config, botPace, seatGraceMs);
     room.hostUid = host.uid;
     room.clients.set(host.uid, host);
     room.seats[0] = { uid: host.uid, name: host.name, bot: false };
@@ -75,8 +87,8 @@ export class Room {
     return room;
   }
   /** A room as it was saved: nobody connected yet, bots and clocks running again. */
-  static fromSnapshot(snap: RoomSnapshot, botPace?: number): Room {
-    const room = new Room(snap.code, snap.seats.length, snap.config, botPace);
+  static fromSnapshot(snap: RoomSnapshot, botPace?: number, seatGraceMs?: number): Room {
+    const room = new Room(snap.code, snap.seats.length, snap.config, botPace, seatGraceMs);
     room.hostUid = snap.hostUid;
     room.seats = snap.seats.map((s) => ({ ...s }));
     room.seed = snap.seed;
@@ -85,6 +97,8 @@ export class Room {
     room.table = createTable(room.botSeats(), room.seed);
     room.taunts = createTauntMemory(room.seed ^ 0x5eed, room.state ?? undefined);
     if (room.state) { room.scheduleBots(room.botPace); room.armTicks(); }
+    // Nobody is connected yet. Whoever is not back within the grace is played for.
+    for (const s of room.seats) if (s.uid && !s.away) room.armGrace(s.uid);
     return room;
   }
   toSnapshot(): RoomSnapshot {
@@ -94,7 +108,14 @@ export class Room {
     };
   }
   private changed(): void { if (this.onChange) this.onChange(this); }
-  private botSeats(): number[] { return this.seats.map((x, i) => (x.bot ? i : -1)).filter((i) => i >= 0); }
+  private botSeats(): number[] { return this.seats.map((x, i) => (x.bot || x.away ? i : -1)).filter((i) => i >= 0); }
+  /** A word to everybody at the table (into the feed, mid-game), or to one person. */
+  private notice(text: string, kind: "info" | "big" = "info", toUid?: string): void {
+    const msg: ServerMsg = { t: "notice", text, kind, at: Date.now() };
+    if (toUid) { const c = this.clients.get(toUid); if (c?.connected) c.send(msg); return; }
+    this.send(msg);
+  }
+  private seatName(i: number): string { return (this.state ? this.state.players[i].name : this.seats[i].name) || PLAYER_NAMES[i]; }
 
   /* ── who is here ───────────────────────────────────────────────────── */
   seatOf(uid: string): number | null {
@@ -112,42 +133,100 @@ export class Room {
     const anyone = [...this.clients.values()].some((x) => x.connected);
     this.emptySince = anyone ? null : Date.now();
   }
-  /** Arriving, or coming back: the seat they held, else the first free chair. */
-  join(c: Client): void {
+  /** Arriving, or coming back: their own chair first if it is still theirs, else any open one.
+      Joining a game and coming back to it are the same act, with one difference: a reconnect
+      (`fresh` false) never takes a chair mid-game that was not already theirs. Somebody who
+      stood up to watch is not sat down again by their own wifi. */
+  join(c: Client, fresh = true): void {
     this.clients.set(c.uid, c);
     c.connected = true;
+    this.clearGrace(c.uid);
     this.noteEmpty();
     const seat = this.seatOf(c.uid);
     if (seat !== null) {
-      this.seats[seat].name = c.name;
+      const s = this.seats[seat];
+      s.name = c.name;
       if (this.state) this.state.players[seat].name = c.name;
+      // The blip outlasted the grace and a bot took the chair: they get it straight back.
+      if (s.away) { s.away = false; removeBot(this.table, seat); if (this.state) this.notice(`${this.seatName(seat)} is back`); }
     } else {
-      const free = this.seats.findIndex((s) => s.uid === null && !s.bot);
-      if (free >= 0) this.seats[free] = { uid: c.uid, name: c.name, bot: false };
-      if (free >= 0 && this.state) this.state.players[free].name = c.name;
+      // An empty chair: one nobody holds (lobby), or mid-game a bot nobody ever sat in or a seat somebody abandoned.
+      let free = this.seats.findIndex((s) => s.uid === null && !s.bot);
+      if (free < 0 && this.state && fresh) free = this.seats.findIndex((s) => (s.bot && s.uid === null) || s.away);
+      if (free >= 0) {
+        const took = this.seats[free];
+        const was = took.away ? `${this.seatName(free)}'s seat` : took.bot ? `the ${took.name ?? PLAYER_NAMES[free]} seat` : null;
+        if (took.bot || took.away) removeBot(this.table, free);
+        this.seats[free] = { uid: c.uid, name: c.name, bot: false, ...(took.avatar ? { avatar: took.avatar } : {}) };
+        if (this.state) { this.state.players[free].name = c.name; if (was) this.notice(`${c.name} takes over ${was}`, "big"); }
+      } else {
+        // Nobody gave them a chair: say what they can see for themselves, rather than leave them waiting.
+        if (fresh) this.notice(this.state
+          ? "The game has already started and every seat is taken, so you are watching. A seat opens the moment somebody leaves."
+          : `Everybody in ${this.code} is sitting down and nobody has left, so there is no chair to take. A seat opens the moment somebody goes.`, "info", c.uid);
+      }
     }
     this.changed();
     this.pushRoom();
     if (this.state) this.sendState(c.uid, []);
   }
+  /* A connection dropping is EVIDENCE of leaving, and weak evidence. So a drop
+     starts a clock instead of a takeover; anybody back before it runs out was
+     never gone, and the table is never told. */
+  private armGrace(uid: string): void {
+    if (this.graceTimers.has(uid)) return;
+    this.graceTimers.set(uid, setTimeout(() => { this.graceTimers.delete(uid); this.seatGone(uid); }, this.seatGraceMs));
+  }
+  private clearGrace(uid: string): void {
+    const t = this.graceTimers.get(uid);
+    if (t) { clearTimeout(t); this.graceTimers.delete(uid); }
+  }
+  /* Somebody really is gone. In the lobby the chair goes back to the table.
+     Mid-game it cannot: it holds a hand, a colour and pieces, and an empty
+     human seat never rolls, so play would reach it and stop there for good.
+     It is marked away and a bot picks the turn up; the chair stays open. */
+  private seatGone(uid: string): void {
+    const c = this.clients.get(uid);
+    if (c?.connected) return;
+    const seat = this.seatOf(uid);
+    if (seat === null) return;
+    if (!this.state) {
+      this.seats[seat] = { uid: null, name: null, bot: false };
+    } else if (!this.seats[seat].away) {
+      this.seats[seat].away = true;
+      addBot(this.table, seat);
+      this.scheduleBots(this.botPace);
+      this.notice(`${this.seatName(seat)} has left — a bot is playing that seat until somebody takes it`);
+    }
+    this.changed();
+    this.pushRoom();
+  }
   sit(uid: string, seat: number): void {
     const c = this.clients.get(uid);
     if (!c) throw new Error("you are not at this table");
     const s = this.seats[seat];
-    if (!s || s.bot || (s.uid !== null && s.uid !== uid)) throw new Error("that seat is taken");
+    if (!s) throw new Error("no such seat");
+    // Lobby: an empty chair. Mid-game: also a bot nobody sat in, or a seat somebody abandoned.
+    const open = s.uid === uid || (s.uid === null && !s.bot) || (!!this.state && ((s.bot && s.uid === null) || !!s.away));
+    if (!open) throw new Error("that seat is taken");
     const prev = this.seatOf(uid);
-    if (prev !== null) this.seats[prev] = { uid: null, name: null, bot: false };
-    this.seats[seat] = { uid, name: c.name, bot: false };
-    if (this.state) this.state.players[seat].name = c.name;
+    if (prev !== null && prev !== seat) { this.seats[prev] = { uid: null, name: null, bot: false }; if (this.state) this.setBot(prev, true, false); }
+    const was = s.uid !== uid ? (s.away ? `${this.seatName(seat)}'s seat` : s.bot ? `the ${s.name ?? PLAYER_NAMES[seat]} seat` : null) : null;
+    if (s.bot || s.away) removeBot(this.table, seat);
+    this.seats[seat] = { uid, name: c.name, bot: false, ...(s.avatar ? { avatar: s.avatar } : {}) };
+    if (this.state) { this.state.players[seat].name = c.name; if (was) this.notice(`${c.name} takes over ${was}`, "big"); }
     this.changed();
     this.pushRoom();
   }
   /** Give the chair up. Mid-game, an empty chair plays itself until somebody sits down. */
   private vacate(uid: string): void {
+    this.clearGrace(uid);
     const prev = this.seatOf(uid);
     if (prev === null) return;
+    const name = this.seatName(prev);
+    const wasBot = !!this.seats[prev].away;
     this.seats[prev] = { uid: null, name: null, bot: false };
-    if (this.state) this.setBot(prev, true, false);
+    if (this.state) { if (wasBot) removeBot(this.table, prev); this.setBot(prev, true, false); this.notice(`${name} has left — a bot is playing that seat until somebody takes it`); }
   }
   stand(uid: string): void {
     this.vacate(uid);
@@ -170,6 +249,7 @@ export class Room {
     if (!c) return;
     c.connected = false;
     this.noteEmpty();
+    if (this.seatOf(uid) !== null) this.armGrace(uid);
     this.pushRoom();
   }
   rename(uid: string, name: string): void {
@@ -238,6 +318,9 @@ export class Room {
   restart(): void {
     if (!this.state || this.state.phase !== "over") throw new Error("the game is not over");
     this.state = null;
+    // A new board does not count an away seat as a player: their chair goes back to the table.
+    this.seats = this.seats.map((s) => (s.away ? { uid: null, name: null, bot: false } : s));
+    this.table = createTable(this.botSeats(), this.seed);
     this.stopTimers();
     this.changed();
     this.pushRoom();
@@ -327,6 +410,8 @@ export class Room {
   stopTimers(): void {
     if (this.botTimer) { clearTimeout(this.botTimer); this.botTimer = null; }
     if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = null; }
+    for (const t of this.graceTimers.values()) clearTimeout(t);
+    this.graceTimers.clear();
   }
 
   /* ── what goes over the wire ──────────────────────────────────────── */
@@ -336,8 +421,9 @@ export class Room {
       code: this.code,
       config: this.config,
       seats: this.seats.map((s, i) => ({
-        seat: i, name: s.name, avatar: s.avatar ?? (s.bot || s.uid ? defaultAvatar(i) : null), bot: s.bot, taken: s.bot || s.uid !== null,
+        seat: i, name: s.name, avatar: s.avatar ?? (s.bot || s.uid ? defaultAvatar(i) : null), bot: s.bot || !!s.away, taken: s.bot || s.uid !== null,
         connected: s.bot || (!!s.uid && !!this.clients.get(s.uid)?.connected),
+        ...(s.away ? { away: true } : {}),
         ...(i === seat ? { you: true } : {}),
       })),
       started: !!this.state,

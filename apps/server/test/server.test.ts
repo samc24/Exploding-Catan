@@ -5,7 +5,7 @@ import { geometry, canPlaceSettlement, type GameState } from "@exploding-catan/e
 import { startServer } from "../src/server";
 
 let srv: ReturnType<typeof startServer>;
-beforeAll(() => { srv = startServer({ port: 0, log: () => {}, botPace: 2, allowClientSeed: true }); });
+beforeAll(() => { srv = startServer({ port: 0, log: () => {}, botPace: 2, allowClientSeed: true, seatGraceMs: 150 }); });
 afterAll(async () => { await srv.close(); });
 
 /** A tiny test client: send, and wait for the next message of a kind. */
@@ -101,7 +101,7 @@ describe("rooms", () => {
     again.close();
   }, 40000);
 
-  it("keeps a seat across a disconnect and hands it to a bot only when the player stands", async () => {
+  it("keeps a seat across a blip; past the grace a bot plays it and the table is told; the player gets it straight back", async () => {
     const a = await hello("Ann"), b = await hello("Ben");
     a.send({ t: "create", seats: 2, config });
     const code = (await a.next("room")).room.code;
@@ -113,14 +113,75 @@ describe("rooms", () => {
     b.close();
     const room = srv.rooms.get(code)!;
     await new Promise((r) => setTimeout(r, 50));
+    // Within the grace: still Ben's chair, just not connected. No bot, no word to the table.
     expect(room.seats[1].uid).not.toBeNull();
+    expect(room.seats[1].away).toBeFalsy();
     expect(room.info(room.hostUid).seats[1].connected).toBe(false);
+    // Past it: a bot plays the seat, the chair stays Ben's, and the table is told.
+    const gone = await a.next("notice", 3000);
+    expect(gone.text).toMatch(/Ben has left — a bot is playing/);
+    expect(room.seats[1].away).toBe(true);
+    expect(room.seats[1].uid).not.toBeNull();
+    expect(room.info(room.hostUid).seats[1].bot).toBe(true);
+    // Ben comes back: the bot is removed, the seat is exactly as he left it.
     const b2 = await hello("Ben", b.token);
     expect((await b2.next("room")).room.seat).toBe(1);
+    expect((await a.next("notice", 3000)).text).toMatch(/Ben is back/);
+    expect(room.seats[1].away).toBe(false);
+    expect(room.info(room.hostUid).seats[1].bot).toBe(false);
+    // Saying so frees the chair at once; mid-game that is a bot too.
     b2.send({ t: "stand" });
     await new Promise((r) => setTimeout(r, 50));
     expect(room.seats[1].bot).toBe(true);
+    expect(room.seats[1].uid).toBeNull();
     a.close(); b2.close();
+  });
+
+  it("anybody with the code may take an abandoned seat or a never-sat bot mid-game, and the table hears who sat down", async () => {
+    const a = await hello("Ann"), b = await hello("Ben");
+    a.send({ t: "create", seats: 3, config });
+    const code = (await a.next("room")).room.code;
+    b.send({ t: "join", code }); await b.next("room");
+    a.send({ t: "bot", seat: 2, on: true });
+    a.drain("room"); b.drain("room");
+    a.send({ t: "start", seed: 3 });
+    await a.next("state"); await b.next("state");
+    // Ben walks away for good.
+    b.close();
+    await a.next("notice", 3000);
+    // Cal arrives mid-game: Ben's abandoned chair is his, and everybody is told.
+    const c = await hello("Cal");
+    c.send({ t: "join", code });
+    expect((await c.next("room")).room.seat).toBe(1);
+    expect((await a.next("notice", 3000)).text).toMatch(/Cal takes over Ben's seat/);
+    // Dee arrives: the only chair left is the bot nobody ever sat in. She may ask for it by name.
+    const d = await hello("Dee");
+    d.send({ t: "join", code });
+    const dr = await d.next("room");
+    expect(dr.room.seat).toBe(2);
+    expect((await a.next("notice", 3000)).text).toMatch(/Dee takes over the .* seat/);
+    // Eve arrives to a full table and is told why she is watching.
+    const e = await hello("Eve");
+    e.send({ t: "join", code });
+    expect((await e.next("room")).room.seat).toBeNull();
+    expect((await e.next("notice", 3000)).text).toMatch(/every seat is taken/);
+    // Ben, back late, finds his chair gone and watches.
+    const b2 = await hello("Ben", b.token);
+    expect((await b2.next("room")).room.seat).toBeNull();
+    a.close(); c.close(); d.close(); e.close(); b2.close();
+  });
+
+  it("in the lobby a dropped guest's chair goes back to the table after the grace", async () => {
+    const a = await hello("Ann"), b = await hello("Ben");
+    a.send({ t: "create", seats: 2, config });
+    const code = (await a.next("room")).room.code;
+    b.send({ t: "join", code }); await b.next("room");
+    b.close();
+    const room = srv.rooms.get(code)!;
+    await new Promise((r) => setTimeout(r, 400));
+    expect(room.seats[1].uid).toBeNull();
+    expect(room.seats[1].bot).toBe(false);
+    a.close();
   });
 
   it("relays chat to everybody in the room, trimmed", async () => {
@@ -239,8 +300,11 @@ describe("edges", () => {
     a.drain("room");
     a.send({ t: "start", seed: 1 });
     await a.next("state");
+    // Arriving mid-game, the bot nobody sat in is his for the taking; standing up again makes him a watcher.
     w.send({ t: "join", code });
-    await w.next("room");
+    expect((await w.next("room")).room.seat).toBe(1);
+    w.send({ t: "stand" });
+    await new Promise((r) => setTimeout(r, 30));
     w.send({ t: "action", action: { type: "roll", seat: 0 } });
     expect((await w.next("refused")).error).toMatch(/watching/);
     a.send({ t: "action", action: { type: "tick" } });
