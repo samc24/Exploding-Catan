@@ -1,4 +1,4 @@
-import { MODES, PLAYER_COLORS, PLAYER_NAMES, type GameConfig, type Mode, type BoardKey } from "@exploding-catan/engine";
+import { IMPLODE_REVEAL_MS, MODES, PLAYER_COLORS, PLAYER_NAMES, type GameConfig, type Mode, type BoardKey } from "@exploding-catan/engine";
 import { defaultAvatar } from "@exploding-catan/protocol";
 import { h } from "./dom";
 import { seg as segRow } from "./controls";
@@ -46,7 +46,7 @@ export function newGameDialog(onStart: (cfg: GameConfig, botSeats: number[], see
         localStorage.setItem(KEY, JSON.stringify(st));
         const cfg: GameConfig = {
           players: Array.from({ length: st.n }, (_, i) => ({ name: (st.names[i] || "").trim() || PLAYER_NAMES[i], avatar: st.avatars[i] || defaultAvatar(i) })),
-          mode: st.mode, winPoints: st.win, turnSeconds: st.timer, implodeRevealMs: 2500,
+          mode: st.mode, winPoints: st.win, turnSeconds: st.timer, implodeRevealMs: IMPLODE_REVEAL_MS,
         };
         if (st.board !== "auto") cfg.board = st.board;
         const raw = seedIn.value.trim();

@@ -25,6 +25,8 @@ import { hideLanding, landingShowing, showLanding } from "./ui/landing";
 import { connectDialog, roomDialog } from "./ui/lobby";
 import { installMusic } from "./music";
 import { installSfx } from "./sfx";
+import { installPileWheel } from "./ui/table";
+import { MOTION_HINT, MOTION_LABEL, MOTION_TITLE, applyMotion, cycleMotion, motion, tipsOn, toggleTips } from "./settings";
 
 setRenderer(render);
 // The dev build lets the browser tests reach the socket, to drop it and watch the recovery.
@@ -127,6 +129,16 @@ for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   btn.onclick = () => { menu.hidden = !menu.hidden; $("menuLeave").hidden = !store.get(); };
   $("menuLeave").onclick = () => { menu.hidden = true; leaveGame(); };
   document.addEventListener("pointerdown", (ev) => { if (!menu.hidden && !menu.contains(ev.target as Node) && ev.target !== btn) menu.hidden = true; });
+  // Motion (full / calm / off) and Tips, remembered per machine, as in JP's header.
+  const fx = $("fxBtn"), tip = $("tipBtn");
+  const drawSwitches = () => {
+    fx.textContent = MOTION_LABEL[motion()]; fx.title = MOTION_TITLE[motion()]; fx.classList.toggle("off", motion() === "off");
+    tip.textContent = tipsOn() ? "Tips: on" : "Tips: off"; tip.title = "Show or hide the one-line advice in the header"; tip.classList.toggle("off", !tipsOn());
+  };
+  applyMotion();
+  drawSwitches();
+  fx.onclick = () => { const m = cycleMotion(); drawSwitches(); hint(MOTION_HINT[m], true, 2500); };
+  tip.onclick = () => { const on = toggleTips(); drawSwitches(); if (on) hint("Advice is back on."); };
   if (document.fullscreenEnabled) {
     const fs = $("fsBtn");
     fs.hidden = false;
@@ -135,6 +147,7 @@ for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
 }
 installKeys();
 installDrag();
+installPileWheel(render);
 installBoardView();
 installMusic();
 installSfx();

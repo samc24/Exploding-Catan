@@ -1,8 +1,8 @@
 /* The bottom bar: whose hand this is, their resources, their kitten cards,
    and the buttons for whatever their turn allows. */
 import {
-  RES, RES_NAME, KITTEN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, owesAnswer, handoverActive,
-  timerEnabled, totalRes, type GameState, type Card,
+  RES, RES_NAME, KITTEN, OFF_TURN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, owesAnswer,
+  playableWhenDrawn, timerEnabled, totalRes, type GameState, type Card,
 } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
 import { cardArt, has, resArt } from "../art";
@@ -16,6 +16,8 @@ export interface HandCallbacks {
   trade(): void;
   card(card: Card): void;
   cancelSelect(): void;
+  /** Reopen the final table after the game. */
+  standings(): void;
 }
 
 export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, isBot: (pid: number) => boolean, cb: HandCallbacks, spectator = false): void {
@@ -36,18 +38,31 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
   const hand = h("div", { class: "hand" });
   for (const c of p.cards) {
     const def = KITTEN[c.key];
-    let cls = "kc";
-    let why = def.text;
+    const isVP = c.key === "vp";
+    const locked = c.boughtTurn === s.turnCounter && !isVP && !playableWhenDrawn(c);
     const reaction = c.key === "nope" || c.key === "defuse";
-    const live = reaction
+    const live = !locked && !isVP && (reaction
       ? cardIsPlayable(s, c) && answersFor(s, c.key as "nope" | "defuse", view, now).length > 0
-      : cardIsPlayable(s, c) && canPlayToPile(s, c.key, view);
-    if (c.key === "vp") cls += " dead";
-    else if (live) cls += reaction ? " answer" : " live";
-    else { cls += " dead"; why += c.boughtTurn === s.turnCounter ? " (bought this turn)" : ""; }
+      : cardIsPlayable(s, c) && canPlayToPile(s, c.key, view));
+    // Playable on somebody else's turn: the red "now" pip, as in JP's game.
+    const offTurn = live && !reaction && s.cur !== view && OFF_TURN.has(c.key);
+    let cls = "kc";
+    if (isVP) cls += " dead vp";
+    else if (locked) cls += " dead locked";
+    else if (live) cls += reaction ? " answer" : offTurn ? " live offturn" : " live";
+    else cls += reaction ? " reaction" : " dead";
+    // The last line of the tooltip is what you DO with the card, so it has to be true of the card.
+    const how = isVP ? "A point while it is in your hand — it is never played."
+      : locked ? "Bought this turn — drag it to the discard pile from next turn."
+      : "Drag it to the discard pile to play it.";
+    const pip = locked ? h("span", { class: "pip" }, "next turn")
+      : isVP ? h("span", { class: "pip now" }, "1 VP")
+      : live && reaction ? h("span", { class: "pip now" }, "answer")
+      : offTurn ? h("span", { class: "pip now" }, "now")
+      : reaction ? h("span", { class: "pip" }, "react") : null;
     const art = has(cardArt(c.key, c.flavor)) ? cardArt(c.key, c.flavor) : null;
-    hand.append(h("div", { class: cls, title: `${def.name}: ${why}`, dataset: { idx: String(p.cards.indexOf(c)), card: String(c.id) }, style: art ? { backgroundImage: `url(${art})` } : null, onclick: () => cb.card(c) },
-      live && reaction ? h("span", { class: "react" }, "React") : null,
+    hand.append(h("div", { class: cls, title: `${def.name}${c.flavor ? ` · ${c.flavor}` : ""} — ${def.text}\n${how}`, dataset: { idx: String(p.cards.indexOf(c)), card: String(c.id) }, style: art ? { backgroundImage: `url(${art})` } : null, onclick: () => cb.card(c) },
+      pip,
       art ? "" : def.name + (c.flavor ? ` (${c.flavor})` : "")));
   }
   if (!p.cards.length) hand.append(h("i", { style: { color: "var(--dim)", fontSize: "12px" } }, "no kitten cards"));
@@ -57,7 +72,7 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
   if (spectator) {
     actions.append(h("span", { class: "note" }, "You are watching. Sit in an empty seat from the table dialog to play."));
   } else if (s.phase === "over") {
-    actions.append(h("span", { class: "note" }, `${s.players[s.winner!].name} wins.`));
+    actions.append(h("span", { class: "note" }, `${s.players[s.winner!].name} wins.`), h("button", { onclick: cb.standings }, "Final standings"));
   } else if (s.phase.startsWith("setup")) {
     if (s.phase === "setup3") actions.append(h("span", { class: "note" }, s.roadsOwed && s.roadsOwed[view] > 0 ? `Place ${s.roadsOwed[view]} opening road${s.roadsOwed[view] === 1 ? "" : "s"} on your settlements.` : "Waiting for the others to place their roads."));
     else if (mine) actions.append(h("span", { class: "note" }, sel?.kind === "road" ? "Place a road touching that settlement." : `Place a settlement: ${tap} a spot, ${tap} again to confirm.`));
@@ -71,7 +86,7 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
   } else if (mine) {
     if (s.phase === "roll") {
       const why = canRollNow(s, now);
-      actions.append(h("button", { class: "primary", disabled: !!why, title: why ?? "", onclick: cb.roll }, handoverActive(s, now) ? "Roll (a moment…)" : "Roll dice"));
+      actions.append(h("button", { class: "primary", disabled: !!why, title: why ?? "", onclick: cb.roll }, "Roll dice"));
     } else {
       const owed = owesAnswer(s);
       actions.append(

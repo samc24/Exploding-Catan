@@ -5,6 +5,7 @@ import { setBots, scheduleBots } from "./bots-host";
 import { goLocal, net } from "./online";
 import { feed, panelCb, setManualSeat } from "./screen";
 import { resetFeedSignature } from "./ui/feed";
+import { resetShowcase } from "./ui/showcase";
 import { newGameDialog, type Preset } from "./ui/newgame";
 import { requestRender } from "./screen";
 import { restoreBots } from "./bots-host";
@@ -13,6 +14,7 @@ export function startGame(cfg: GameConfig, botSeats: number[], seed?: number): v
   if (net.online) { net.leave(); goLocal(); }
   feed.reset();
   resetFeedSignature();
+  resetShowcase();
   setManualSeat(null);
   panelCb.scratch = {};
   panelCb.composer = null;
@@ -27,7 +29,8 @@ export function resumeLocal(): boolean {
   if (!store.restore()) return false;
   const s = store.get()!;
   restoreBots();
-  feed.lines = s.journal.slice(-30).map((e) => ({ text: e.text, kind: e.kind, jid: e.id }));
+  feed.reset();
+  for (const e of s.journal.slice(-30)) feed.add(e.text, e.kind, e.id, e.turn);
   requestRender();
   scheduleBots(800);
   return true;

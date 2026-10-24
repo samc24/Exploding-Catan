@@ -14,8 +14,9 @@ import { canPlayToPile, cardIsPlayable, type Card, type GameState } from "@explo
 import { store } from "./store";
 import { clock } from "./online";
 import { act, ui } from "./screen";
-import { $, h } from "./ui/dom";
+import { h } from "./ui/dom";
 import { answerable } from "./ui/feed";
+import { layer } from "./ui/fx";
 import { offerAnswers, onCardOnEntry } from "./input";
 import { sfx } from "./sfx";
 
@@ -72,7 +73,7 @@ function lift(x: number, y: number): void {
   const s = store.get();
   if (!s) return;
   const ghost = h("div", { class: "kc ghost", style: { backgroundImage: p.el.style.backgroundImage, left: x + "px", top: y + "px" } }, p.el.style.backgroundImage ? "" : p.el.textContent);
-  $("fxroot").append(ghost);
+  layer().append(ghost);
   drag = { card: p.card, idx: p.idx, from: p.el, ghost, targets: targetsFor(s, p.card) };
   p.el.classList.add("lifted");
   document.body.classList.add("dragging");

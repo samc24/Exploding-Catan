@@ -202,7 +202,7 @@ export function nopeEntry(c: Ctx, id: number, noperId: number): void {
       : payer.cards.findIndex((x) => x.key === e.spent!.key);
     if (i >= 0) s.discard.push(payer.cards.splice(i, 1)[0]);
     else if (e.spent.id !== null)
-      log(c, `⚠ the ${e.spent.key} spent on entry ${e.id} was not in ${payer.name}'s hand after the rewind`);
+      c.events.push({ type: "log", text: `the ${e.spent.key} spent on entry ${e.id} was not in ${payer.name}'s hand after the rewind` });
   }
   // Undoing an answer puts what it answered back on the table.
   if (e.unanswers !== undefined) {
@@ -211,7 +211,7 @@ export function nopeEntry(c: Ctx, id: number, noperId: number): void {
   }
   s.select = null;
   s.robberDue = [];
-  s.trade = null;
+  if (s.trade) tradeOff(c);
 
   const noteEntry = logAction(c, `${noper.name} Nopes ${selfRoll ? "their own roll" : answering}`, "defend", {
     actor: noperId, snap: undone, nopeable: true, turnBack, spent, show: "nope",
@@ -284,6 +284,13 @@ function restoreTurnPointer(c: Ctx, t: TurnPointer): void {
   if (t.rolled) startTurnTimer(c);
 }
 
+/** A rewind under a live offer takes the offer off the table, and says so. */
+function tradeOff(c: Ctx): void {
+  c.s.trade = null;
+  feed(c, "↺ A card was answered — the trade on the table is off", "info");
+  log(c, "The trade on the table is off: a card was answered under it.");
+}
+
 /* ── Defuse ────────────────────────────────────────────────────────── */
 /** Spending a Defuse on the roll buys one hand out of the cut. Nothing is rewound. */
 function defuseSeven(c: Ctx, _e: JournalEntry, defuserId: number): void {
@@ -350,7 +357,7 @@ export function defuseEntry(c: Ctx, id: number, defuserId: number): void {
   const spent = spendCard(c, d, "defuse");
   s.select = null;
   s.robberDue = [];
-  s.trade = null;
+  if (s.trade) tradeOff(c);
 
   // The rewind put the defused card back in its owner's hand. It is spent either way.
   const origOwner = s.players[e.cardOwner === null ? victimId : e.cardOwner];

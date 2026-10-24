@@ -1,5 +1,5 @@
 /* The final table, with every hand revealed. */
-import { totalVP, vpCards, type GameState } from "@exploding-catan/engine";
+import { KITTEN, totalVP, vpCards, type GameState } from "@exploding-catan/engine";
 import { h } from "./dom";
 import { closeModal, openModal } from "./dialogs";
 
@@ -7,6 +7,7 @@ export function standings(s: GameState, onNewGame: () => void): void {
   if (s.phase !== "over" || s.winner === null) return;
   const w = s.players[s.winner];
   const order = [w, ...s.players.filter((q) => q.id !== w.id).sort((a, b) => totalVP(s, b) - totalVP(s, a))];
+  const name = (q: typeof w) => h("span", null, h("span", { class: "dot", style: { background: q.color } }), h("b", { class: "pn", style: { color: q.color } }, q.name));
   const table = h("table", { class: "rank" }, h("tr", null, h("th"), h("th", null, "Player"), h("th", null, "Breakdown"), h("th", null, "VP")),
     order.map((q, i) => {
       const bits: string[] = [];
@@ -15,9 +16,14 @@ export function standings(s: GameState, onNewGame: () => void): void {
       if (vpCards(q)) bits.push(`${vpCards(q)} Feral`);
       if (s.longestRoad.owner === q.id) bits.push("Longest Road +2");
       if (s.largestArmy.owner === q.id) bits.push(`Largest Army +2 (${q.knights}⚔)`);
-      return h("tr", { class: i === 0 ? "win" : "" }, h("td", null, String(i + 1)), h("td", null, q.name), h("td", null, bits.join(" · ") || "—"), h("td", null, String(totalVP(s, q))));
+      return h("tr", { class: i === 0 ? "win" : "" }, h("td", null, String(i + 1)), h("td", null, name(q)), h("td", null, bits.join(" · ") || "—"), h("td", null, String(totalVP(s, q))));
     }));
-  openModal(`${w.name} wins`, table, [
+  // Every hand is on the table now: the kitten cards each player was still holding.
+  const hands = h("div", { class: "hands" },
+    h("h4", null, "Kitten cards still in hand"),
+    order.map((q) => h("div", { class: "handrow" }, name(q), " ",
+      q.cards.length ? q.cards.map((c) => h("span", { class: "kchip" + (c.key === "vp" ? " vp" : "") }, KITTEN[c.key]?.name ?? c.key)) : h("i", { style: { color: "var(--dim)" } }, "none"))));
+  openModal(`${w.name} wins`, [h("p", { class: "sub", style: { color: "var(--dim)", margin: "0 0 6px" } }, "Final standings — every hand is revealed."), table, hands], [
     { label: "Review board", fn: closeModal },
     { label: "New game", cls: "primary", fn: () => { closeModal(); onNewGame(); } },
   ]);

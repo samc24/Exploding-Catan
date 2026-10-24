@@ -2,7 +2,7 @@
    TRADING — with the bank, and an open offer to the table
    ══════════════════════════════════════════════════════════════════════ */
 import { RES, bundleText, bundleTotal } from "./constants";
-import { feed, give, hasBundle, log, noteGain, player, refuse, take, tradeRate, type Ctx } from "./state";
+import { give, hasBundle, log, noteGain, player, refuse, take, tradeRate, type Ctx } from "./state";
 import { logAction, snapAll } from "./journal";
 import type { Bundle } from "./types";
 
@@ -81,7 +81,6 @@ export function acceptTrade(c: Ctx, seat: number, withSeat: number): void {
     actor: seat, target: withSeat, snap: snapBefore,
   });
   s.trade = null;
-  feed(c, `${p.name} and ${q.name} trade`, "info");
 }
 
 export function cancelTrade(c: Ctx, seat: number): void {

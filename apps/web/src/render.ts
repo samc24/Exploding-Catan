@@ -23,10 +23,13 @@ import { drawPanels } from "./ui/panels";
 import { drawFeed, drawLog, drawTicker } from "./ui/feed";
 import { drawDiceHistory } from "./ui/dice";
 import { drawTable, clearTable } from "./ui/table";
-import { showcase } from "./ui/showcase";
+import { afterShowcase, onPileRelease, showcase, syncPile } from "./ui/showcase";
 import { standings } from "./ui/standings";
 import { playEvents } from "./ui/fx";
 import { sfx } from "./sfx";
+
+// A card whose moment is over takes its place on the pile.
+onPileRelease(() => { const cur = store.get(); if (cur) drawTable(cur, viewSeat(cur), clock()); });
 
 export function render(): void {
   const s = store.get();
@@ -54,14 +57,16 @@ export function render(): void {
     trade: () => { panelCb.composer = panelCb.composer === "trade" ? null : "trade"; render(); },
     card: onCard,
     cancelSelect: () => act({ type: "cancelSelect", seat: view }),
+    standings: () => standings(s, () => openNewGame(true)),
   }, !!ui.spectator);
   drawPanels($("panels"), s, view, panelCb);
   drawFeed($("feed"), s, feed, view, now, onEntry);
-  drawTicker($("ticker"), feed, fitTicker());
+  drawTicker($("ticker"), s, feed, fitTicker());
   $("boardArea").classList.toggle("zoomed", ui.zoom > 1);
   drawLog($("log"), s);
   drawDiceHistory($("dicepanel"), s);
-  drawTable(s);
+  syncPile(s);
+  drawTable(s, view, now);
   // The deck itself sells cards: when a buy is possible, a click on it opens the buy, like the button.
   const deck = $("deck");
   const selling = canBuyCards(s, view) && !ui.spectator;
@@ -69,8 +74,9 @@ export function render(): void {
   deck.title = selling ? "Buy a kitten card: any 3 different resources" : s.cur === view ? "Buying takes 3 different resources on your turn, after the roll" : `${s.deck.length} cards left`;
   deck.onclick = selling ? () => { panelCb.composer = panelCb.composer === "buy" ? null : "buy"; render(); } : null;
   // Which way round the table, which matters once a Reverse has been played.
+  // Hidden in a two-player game, where there is no other way round the table.
   const dir = $("dirTag");
-  dir.hidden = s.phase.startsWith("setup");
+  dir.hidden = s.phase.startsWith("setup") || s.players.length < 3;
   dir.replaceChildren(s.dir === 1 ? "↻" : "↺", h("span", { class: "w" }, s.dir === 1 ? " clockwise" : " reversed"));
   dir.classList.toggle("rev", s.dir === -1);
   paintImplodeClock(s, now);
@@ -105,8 +111,11 @@ export function onEvents(s: GameState, events: GameEvent[]): void {
   feed.take(events);
   // Flights are measured against the screen as it is BEFORE this render moves things.
   try { playEvents(s, events, viewSeat(s)); } catch { /* decoration only */ }
+  const view = viewSeat(s), now = clock();
+  const lineOf = (jid: number | null) => (jid === null ? "" : events.find((e): e is Extract<GameEvent, { type: "feed" }> => e.type === "feed" && e.jid === jid)?.text ?? "");
   for (const ev of events) {
-    if (ev.type === "show") { showcase(s, ev.what, ev.pid); soundFor(ev.what); }
+    if (ev.type === "show") { showcase(s, ev.what, ev.pid, ev.jid, lineOf(ev.jid), view, now); soundFor(ev.what); }
+    if (ev.type === "log") console.warn("engine:", ev.text);
     if (ev.type === "hint" && ev.seat === ui.seat) hint(ev.text);
     if (ev.type === "production" && ev.sources.length) sfx("slide");
     if (ev.type === "cards" && (ev.from !== null || ev.to !== null)) sfx("slide", { gain: 0.7 });
@@ -114,7 +123,8 @@ export function onEvents(s: GameState, events: GameEvent[]): void {
     if (ev.type === "feed" && ev.kind === "buy" && /builds|upgrades/.test(ev.text)) sfx("build");
     if (ev.type === "feed" && ev.kind === "attack" && /moves the robber/.test(ev.text)) sfx("robber");
     if (ev.type === "feed" && ev.kind === "info" && / trades? /.test(ev.text)) sfx("trade");
-    if (ev.type === "gameOver") { sfx("win"); setTimeout(() => { const cur = store.get(); if (cur) standings(cur, () => openNewGame(true)); }, 2200); }
+    // The standings wait for the trophy to clear the middle of the board, ten seconds at the most.
+    if (ev.type === "gameOver") { sfx("win"); afterShowcase(() => { const cur = store.get(); if (cur) standings(cur, () => openNewGame(true)); }, 10000); }
   }
   // A roll that was not a seven has no showcase; the dice still clatter.
   if (events.some((e) => e.type === "feed" && e.kind === "roll" && !/rolls 7 /.test(e.text))) sfx("dice");
