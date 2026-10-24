@@ -2,7 +2,7 @@
    THE BOARD — an SVG rebuilt from the state on every render
    ══════════════════════════════════════════════════════════════════════ */
 import {
-  geometry, canPlaceSettlement, canPlaceRoad, canPlaceCity, affordable, openingRoadLegal, owesAnswer,
+  RES_NAME, geometry, canPlaceSettlement, canPlaceRoad, canPlaceCity, affordable, openingRoadLegal, owesAnswer,
   type GameState, type Geometry,
 } from "@exploding-catan/engine";
 import { clear, svg } from "./dom";
@@ -98,11 +98,15 @@ export function drawBoard(root: SVGSVGElement, s: GameState, ui: BoardUI, cb: Bo
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     const len = Math.hypot(mx, my) || 1;
     const px = mx * (1 + 22 / len), py = my * (1 + 22 / len);
+    // A 2:1 port is known by its colour; a 3:1 shows "?". The <title> is a child of the marker, so each
+    // port has its own tooltip; hovering brightens the ring.
+    const generic = port === "3:1";
+    const col = generic ? "#95a1b3" : `var(--${port})`;
     const g = svg("g", { class: "port" });
-    g.append(svg("line", { x1: a.x, y1: a.y, x2: px, y2: py, stroke: "#5a6a85", "stroke-dasharray": "3 3" }));
-    g.append(svg("line", { x1: b.x, y1: b.y, x2: px, y2: py, stroke: "#5a6a85", "stroke-dasharray": "3 3" }));
-    g.append(svg("circle", { cx: px, cy: py, r: 12, fill: port === "3:1" ? "#1c2129" : `var(--${port})` }));
-    g.append(svg("text", { x: px, y: py }, port === "3:1" ? "3:1" : "2:1"));
+    g.append(svg("title", null, generic ? "3:1 port — any resource, three of a kind" : `2:1 port — ${RES_NAME[port]}, two of a kind`));
+    g.append(svg("line", { x1: mx, y1: my, x2: px, y2: py, style: { stroke: col }, "stroke-width": 3, opacity: 0.6 }));
+    g.append(svg("circle", { cx: px, cy: py, r: 13, fill: "#1a1e25", style: { stroke: col }, "stroke-width": 2.5 }));
+    g.append(svg("text", { x: px, y: py, style: { fill: col, fontSize: generic ? "13px" : "10px" } }, generic ? "?" : "2:1"));
     portLayer.append(g);
   });
 
@@ -141,18 +145,33 @@ function spots(s: GameState, geo: Geometry, ui: BoardUI, cb: BoardCallbacks, lay
   const me = ui.seat;
   const sel = s.select;
   const armed = (kind: string, id: number) => ui.armed && ui.armed.kind === kind && ui.armed.id === id;
+  // Build spots wear the colour of whoever is placing, as JP's do: a dashed white rim over the player's
+  // colour, solid and ringed once armed. A halo keeps a road target legible over any terrain.
+  const colour = s.players[s.phase === "setup3" ? me : s.cur]?.color ?? "#fff";
+  const big = COARSE ? 3 : 0;
 
   const vertexSpot = (vid: number, kind: string) => {
     const v = geo.vertices[vid];
-    layer.append(svg("circle", { cx: v.x, cy: v.y, r: COARSE ? 13 : 9, class: "spot" + (armed(kind, vid) ? " armed" : ""), onclick: (ev: Event) => { ev.stopPropagation(); cb.vertex(vid); } }));
+    const on = !!armed(kind, vid);
+    const r = (on ? 17 : kind === "city" ? 15 : 13) + big;
+    layer.append(svg("circle", {
+      cx: v.x, cy: v.y, r, class: "spot" + (on ? " armed" : ""),
+      style: { fill: colour, opacity: on ? "0.9" : "0.55", stroke: "#fff", strokeWidth: on ? "3.5" : "2.5", strokeDasharray: on ? "none" : "4 3" },
+      onclick: (ev: Event) => { ev.stopPropagation(); cb.vertex(vid); },
+    }));
+    if (kind === "city" && !on) layer.append(svg("text", { x: v.x, y: v.y + 4, class: "spotplus" }, "+"));
+    if (on) layer.append(svg("circle", { cx: v.x, cy: v.y, r: r + 6, class: "spotring" }));
   };
   const edgeSpot = (eid: number, kind: string) => {
     const e = geo.edges[eid];
     const a = geo.vertices[e.v[0]], b = geo.vertices[e.v[1]];
-    const dx = b.x - a.x, dy = b.y - a.y;
+    const on = !!armed(kind, eid);
+    const click = (ev: Event) => { ev.stopPropagation(); cb.edge(eid); };
+    layer.append(svg("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "spothalo", style: { stroke: "#fff", strokeWidth: String((on ? 16 : 12) + big * 2), opacity: on ? "0.85" : "0.3" }, onclick: click }));
     layer.append(svg("line", {
-      x1: a.x + dx * 0.22, y1: a.y + dy * 0.22, x2: b.x - dx * 0.22, y2: b.y - dy * 0.22,
-      class: "spot road" + (armed(kind, eid) ? " armed" : ""), onclick: (ev: Event) => { ev.stopPropagation(); cb.edge(eid); },
+      x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "spot road" + (on ? " armed" : ""),
+      style: { stroke: colour, strokeWidth: String((on ? 9 : 7) + big), strokeDasharray: on ? "none" : "7 5", opacity: "0.95" },
+      onclick: click,
     }));
   };
   const hexSpot = (hid: number, kind: string) => {
