@@ -1,7 +1,7 @@
 /* The bots at a LOCAL table. Which seats are bots is a table setting, not a
    rule, so it lives beside the game rather than in it. Online, the server
    drives the bots and this does nothing. */
-import { createTable, createTauntMemory, nextBotAction, nextTaunts, isBot, type Table, type TauntMemory } from "@exploding-catan/bots";
+import { createTable, createTauntMemory, heard, nextBotAction, nextTaunts, isBot, type Table, type TauntMemory } from "@exploding-catan/bots";
 import { store } from "./store";
 import { modalOpen } from "./ui/dialogs";
 import { showEmote } from "./emotes";
@@ -25,6 +25,12 @@ export function restoreBots(): void {
     const b = JSON.parse(localStorage.getItem(BOTS_KEY) || "null") as { seats: number[]; seed: number } | null;
     if (b) { table = createTable(b.seats, b.seed); taunts = createTauntMemory(b.seed ^ 0x5eed, store.get() ?? undefined); }
   } catch { /* no bots */ }
+}
+/** Somebody at the table said something. A bot may answer with an emoji, as online. */
+export function localHeard(seat: number): void {
+  if (store.remote || !table.bots.size) return;
+  const back = heard(table, taunts, seat, Date.now());
+  if (back) setTimeout(() => showEmote(back.seat, back.emoji), 900 + Math.random() * 1400);
 }
 /** The bots react to what just happened. Called after every applied action. */
 export function pokeTaunts(): void {

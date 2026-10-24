@@ -20,6 +20,9 @@ export async function launch(name = "page", viewport = { width: 1400, height: 90
 async function newPage(browser, name, errors, viewport, touch = false) {
   const ctx = await browser.newContext(touch ? { viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport });
   const page = await ctx.newPage();
+  // The runner's Chrome may ask for reduced motion, which would default the game to calm and take the
+  // tumble and the flights out of what these tests watch. They test the game as designed: motion full.
+  await page.addInitScript(() => { try { localStorage.setItem("exploding-catan:motion", "full"); } catch { /* fine */ } });
   page.on("pageerror", (e) => errors.push(`${name} pageerror: ${e.message}`));
   page.on("console", (m) => {
     if (m.type() === "error" && !m.text().includes("404")) errors.push(`${name} console: ${m.text()}`);
@@ -55,9 +58,11 @@ export async function startLocal(page, { seed = "7", bots = [], mode = null } = 
 export async function clickSpot(page, selector = "#board .spot") {
   const spot = page.locator(selector);
   if (!(await spot.count())) return false;
-  await spot.first().click({ force: true }); await page.waitForTimeout(60);
+  // A road spot is an SVG line; a vertical one has a zero-width box and Playwright will not click it even
+  // forced. The board's handlers are plain click listeners, so the event is sent straight to the element.
+  await spot.first().dispatchEvent("click"); await page.waitForTimeout(60);
   const armed = page.locator(selector + ".armed");
-  if (await armed.count()) { await armed.first().click({ force: true }); await page.waitForTimeout(150); }
+  if (await armed.count()) { await armed.first().dispatchEvent("click"); await page.waitForTimeout(150); }
   return true;
 }
 /** Place for whoever this screen is on until setup ends (all-human tables). */

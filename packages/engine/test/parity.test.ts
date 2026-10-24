@@ -66,3 +66,17 @@ describe("what the table is told", () => {
     expect(r.events.filter((e) => e.type === "feed" && /trade/.test(e.text)).length).toBe(1);
   });
 });
+
+describe("the portrait", () => {
+  it("can be changed at any point in the game, by its owner, without touching the record", () => {
+    const s = toMain(3);
+    const me = s.cur, other = (me + 1) % s.players.length;
+    const before = s.journal.length;
+    const r = applyAction(s, { type: "setAvatar", seat: other, avatar: "9" }, T0);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.players[other].avatar).toBe("9");
+    expect(r.state.journal.length).toBe(before);
+    expect(r.events.length).toBe(0);
+  });
+});

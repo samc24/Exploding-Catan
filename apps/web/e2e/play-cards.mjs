@@ -128,7 +128,9 @@ await page.locator("#board .spot.hexpick").nth(2).click({ force: true }); await 
 await page.locator("#board .spot.hexpick.armed").first().click({ force: true }); await page.waitForTimeout(250);
 s = await state(page);
 const altered = JSON.stringify(before) !== JSON.stringify(s.numbers);
-console.log("alter changed numbers:", altered);
+const pulses = await page.locator("#boardArea .hexpulse.alter").count();
+console.log("alter changed numbers:", altered, "| token pulses:", pulses);
+if (altered && pulses !== 2) errors.push("the swapped tokens did not pulse");
 if (!altered) errors.push("Alter the Future did not swap");
 
 // TRADE: offer, other accepts, deal
@@ -191,6 +193,32 @@ await page.screenshot({ path: `${OUT}/20-bought.png` });
   if (asked) errors.push("a Nope with one answer opened the chooser");
   if (s.cur === before) errors.push("a Nope with one answer (the turn) did not take it");
   await page.screenshot({ path: `${OUT}/22-turn-noped.png` });
+}
+// Chat works at a local table too; the rules say everything JP's do; your own portrait is a button.
+{
+  // On a phone the side panel is a drawer: open it first.
+  if (await page.locator("#sideBtn").isVisible()) { await page.click("#sideBtn"); await page.waitForTimeout(100); }
+  await page.click('#sidetabs button[data-tab="chat"]');
+  await page.fill("#chatin", "well played"); await page.press("#chatin", "Enter"); await page.waitForTimeout(150);
+  const said = await page.locator('#chatlog div:has-text("well played")').count();
+  const inFeed = await page.locator('#feed .fl.chat:has-text("well played")').count();
+  console.log("local chat: in the window", said, "| in the feed", inFeed);
+  if (!said || !inFeed) errors.push("a line said at a local table was not shown");
+  await page.click('#sidetabs button[data-tab="feed"]');
+  if (await page.locator("#sideBtn").isVisible()) await page.keyboard.press("Escape"); // the drawer
+  await page.click("#menuBtn"); await page.click("#rulesBtn"); await page.waitForTimeout(100);
+  const rules = await page.locator("#modal .rules").textContent();
+  if (!/Forced Nope/.test(rules || "") || !/Imploding Kitten/.test(rules || "") || !/last four/.test(rules || "")) errors.push("the rules dialog is missing JP's sections");
+  await page.keyboard.press("Escape");
+  await page.locator("#seats .seat.me .avwrap.mine").click({ force: true }); await page.waitForTimeout(100);
+  const picker = await page.locator('#modal h2:has-text("Your picture")').count();
+  const none = await page.locator("#modal .avgrid .av.none").count();
+  console.log("portrait dialog:", picker, "| None option:", none);
+  if (!picker || !none) errors.push("clicking your own portrait does not offer a new picture");
+  await page.locator("#modal .avgrid .av").nth(3).click(); await page.waitForTimeout(100);
+  s = await state(page);
+  console.log("portrait now:", s.players[me].avatar);
+  if (!s.players[me].avatar) errors.push("the chosen portrait did not take");
 }
 // The Motion and Tips switches live in the menu and are remembered.
 {

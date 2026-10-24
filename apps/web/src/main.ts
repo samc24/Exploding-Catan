@@ -31,6 +31,7 @@ import { MOTION_HINT, MOTION_LABEL, MOTION_TITLE, applyMotion, cycleMotion, moti
 setRenderer(render);
 // The dev build lets the browser tests reach the socket, to drop it and watch the recovery.
 if (import.meta.env.DEV) Object.assign(window, { __net: net });
+Object.assign(window, { __viewSeat: () => ui.seat });
 /** Walk away from the game on this screen, after a word of warning. The
     saved copy goes too, so the front door stops offering it. */
 function leaveGame(): void {
@@ -120,6 +121,7 @@ const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", 
 for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
   for (const [tab, id] of Object.entries(PANES)) $(id).hidden = b.dataset.tab !== tab;
+  $("chatrow").hidden = b.dataset.tab !== "chat";
   if (b.dataset.tab === "chat") { drawChat(); chatSeen(); setTimeout(() => $("chatin").focus(), 0); }
   render();
 };

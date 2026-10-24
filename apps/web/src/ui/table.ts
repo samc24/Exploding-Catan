@@ -48,12 +48,18 @@ export function installPileWheel(redraw: () => void): void {
   }, { passive: false });
 }
 
+let diceSig = "";
 export function drawTable(s: GameState, view: number, now: number): void {
   const dice = $("dice");
+  // Written only when the throw itself changes: a repaint for any other reason (a hold clearing, a piece
+  // landing) must not replace dice that are mid-tumble with identical ones that are not.
+  const rollEntry = s.rolled ? [...s.journal].reverse().find((e) => e.kind === "roll") : undefined;
+  const sig = s.rolled ? `${rollEntry?.id ?? -1}:${s.rolled[0]}:${s.rolled[1]}` : "";
+  if (sig !== diceSig || !sig) {
+  diceSig = sig;
   clear(dice);
   if (s.rolled) {
     // A new throw tumbles in with its faces changing, then settles; a repaint of the same throw does not.
-    const rollEntry = [...s.journal].reverse().find((e) => e.kind === "roll");
     const fresh = !!rollEntry && rollEntry.id !== lastRoll;
     if (rollEntry) lastRoll = rollEntry.id;
     const lively = fresh && motion() === "full"; // calm and off: the faces simply appear
@@ -78,6 +84,7 @@ export function drawTable(s: GameState, view: number, now: number): void {
       }, 75);
     }
   } else lastRoll = -1;
+  }
 
   drawPile(s, view, now);
 
@@ -125,7 +132,7 @@ function drawPile(s: GameState, view: number, now: number): void {
 
 export function clearTable(): void {
   clear($("seats")); clear($("board")); clear($("bottom")); clear($("panels")); clear($("dice")); clear($("pile")); clear($("deck")); clear($("ticker"));
-  pileSig = "";
+  pileSig = ""; diceSig = "";
   $("modeTag").hidden = true;
   $("clock").hidden = true;
 }
