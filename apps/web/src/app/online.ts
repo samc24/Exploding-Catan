@@ -12,6 +12,8 @@ import { closeModal, modalOpen } from "../ui/dialogs";
 import { connectDialog, lobbyDialog, roomDialog } from "../net/lobby";
 import { feed, hint, onNoGame, requestRender, ui } from "../state/screen";
 import { clock, setClockSource } from "../state/clock";
+import { setServerRecords } from "../state/records";
+import type { GameState } from "@exploding-catan/engine";
 
 const ONLINE_KEY = "exploding-catan:online";
 let lobbyShowing = false;
@@ -29,6 +31,10 @@ export function chatSeen(): void { unread = 0; paintChatTab(); }
 export { clock };
 /** Online the room says who is a bot; locally the table does. */
 export function isBot(seat: number): boolean { return net.online ? !!net.room?.seats[seat]?.bot : localBot(seat); }
+/** The people at this table (not the bots), by name, for the record book. An away seat is still its person. */
+export function peopleAt(s: GameState): string[] {
+  return s.players.filter((p, i) => (net.online ? !!net.room?.seats[i] && (!net.room.seats[i].bot || !!net.room.seats[i].away) : !localBot(i))).map((p) => p.name);
+}
 
 /** Back to a local table: forget the room's state, show the saved game or the New Game dialog. */
 export function goLocal(): void {
@@ -37,6 +43,7 @@ export function goLocal(): void {
   store.clear();
   chatLines.length = 0;
   unread = 0;
+  setServerRecords(null);
   drawChat();
   document.body.classList.remove("online");
   try { localStorage.removeItem(ONLINE_KEY); } catch { /* fine */ }
@@ -73,6 +80,7 @@ export const net = new Net({
     try { localStorage.setItem(ONLINE_KEY, "1"); } catch { /* fine */ }
     document.body.classList.add("online");
     store.remote = (a) => net.action(a);
+    net.requestRecords();
     if (!room.started || room.over) {
       // The table, open until the host starts. Redrawn on every change.
       if (!room.over || !store.get() || lobbyShowing || !modalOpen()) { lobbyDialog(net, room); lobbyShowing = true; }
@@ -84,6 +92,7 @@ export const net = new Net({
   clock(p) { store.patchClock(p); },
   chat(seat, name, text) { sayAtTable(seat, name, text); },
   // Mid-game it is a line in the feed, like JP's "X has left"; with no game on it is a word in the header.
+  records(list) { setServerRecords(list); requestRender(); },
   notice(text, kind) {
     if (store.get()) { feed.add(text, kind, null, store.get()!.turnCounter); requestRender(); }
     else hint(text, false, 8000);

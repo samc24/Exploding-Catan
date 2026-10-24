@@ -28,6 +28,9 @@ import { connectDialog, roomDialog } from "./net/lobby";
 import { installMusic } from "./media/music";
 import { installSfx } from "./media/sfx";
 import { installPileWheel } from "./ui/table";
+import { recordsDialog } from "./ui/records";
+import { records } from "./state/records";
+import { peopleAt } from "./app/online";
 import { MOTION_HINT, MOTION_LABEL, MOTION_TITLE, applyMotion, cycleMotion, motion, tipsOn, toggleTips } from "./state/settings";
 
 setRenderer(render);
@@ -87,6 +90,7 @@ $("menuNew").onclick = () => { $("menu").hidden = true; openNewGame(!!store.get(
 $("menuOnline").onclick = () => { $("menu").hidden = true; $("onlineBtn").click(); };
 $("homeBtn").onclick = () => { if (landingShowing()) hideLanding(); else landing(); };
 $("rulesBtn").onclick = () => { $("menu").hidden = true; showRules(); };
+$("recordsBtn").onclick = () => { $("menu").hidden = true; const s = store.get(); recordsDialog(records(net.online), s ? peopleAt(s) : []); };
 $("sideBtn").onclick = () => { const side = $("side"); side.classList.toggle("open"); $("sideBtn").classList.toggle("on", side.classList.contains("open")); };
 // The last few log lines at the board's foot (phones) open the whole log.
 $("ticker").onclick = () => { if (!$("side").classList.contains("open")) $("sideBtn").click(); };

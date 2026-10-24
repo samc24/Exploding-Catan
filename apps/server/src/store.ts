@@ -12,7 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GameState } from "@exploding-catan/engine";
-import type { RoomConfig } from "@exploding-catan/protocol";
+import type { GameRecord, RoomConfig } from "@exploding-catan/protocol";
 
 export interface SeatRecord { uid: string | null; name: string | null; bot: boolean; avatar?: string; away?: boolean }
 export interface RoomSnapshot {
@@ -32,6 +32,9 @@ export interface RoomStore {
   deleteRoom(code: string): void;
   loadSessions(): SessionRecord[];
   saveSession(rec: SessionRecord): void;
+  /** The record book: every finished game, people by nickname. One list. */
+  loadRecords(): GameRecord[];
+  saveRecords(list: GameRecord[]): void;
   /** Write anything still pending. Called on shutdown. */
   flush(): void;
 }
@@ -45,6 +48,9 @@ export class MemoryStore implements RoomStore {
   deleteRoom(code: string): void { this.rooms.delete(code); }
   loadSessions(): SessionRecord[] { return [...this.sessions.values()].map((s) => ({ ...s })); }
   saveSession(rec: SessionRecord): void { this.sessions.set(rec.token, { ...rec }); }
+  records: GameRecord[] = [];
+  loadRecords(): GameRecord[] { return this.records.map((r) => ({ ...r })); }
+  saveRecords(list: GameRecord[]): void { this.records = list.map((r) => ({ ...r })); }
   flush(): void { /* nothing pending */ }
 }
 
@@ -66,6 +72,12 @@ export class FileStore implements RoomStore {
   }
   loadSessions(): SessionRecord[] { return this.readAll<SessionRecord>("sessions"); }
   saveSession(rec: SessionRecord): void { this.later("sessions/" + rec.token, () => this.write("sessions", rec.token, rec)); }
+  loadRecords(): GameRecord[] {
+    const f = join(this.dir, "records.json");
+    if (!existsSync(f)) return [];
+    try { return JSON.parse(readFileSync(f, "utf8")) as GameRecord[]; } catch (err) { console.warn(`could not read records: ${err instanceof Error ? err.message : err}`); return []; }
+  }
+  saveRecords(list: GameRecord[]): void { this.later("records", () => { const f = join(this.dir, "records.json"); writeFileSync(f + ".tmp", JSON.stringify(list)); renameSync(f + ".tmp", f); }); }
   flush(): void {
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     const jobs = [...this.pending.entries()];

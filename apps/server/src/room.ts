@@ -19,7 +19,7 @@ import {
   type TauntMemory,
 } from "@exploding-catan/bots";
 import {
-  EMOJIS, MAX_CHAT, defaultAvatar, freeAvatar, normalizeRoomConfig, validAvatar, type RoomConfig, type RoomInfo, type ServerMsg,
+  EMOJIS, MAX_CHAT, defaultAvatar, freeAvatar, normalizeRoomConfig, recordOf, validAvatar, type GameRecord, type RoomConfig, type RoomInfo, type ServerMsg,
 } from "@exploding-catan/protocol";
 import type { RoomSnapshot } from "./store";
 
@@ -59,6 +59,8 @@ export class Room {
   emptySince: number | null = null;
   /** Called after anything worth keeping changed. The server persists it. */
   onChange: ((room: Room) => void) | null = null;
+  /** Called once when a game ends with a person at the table: the record book's line. */
+  onResult: ((rec: GameRecord) => void) | null = null;
   readonly botPace: number;
   readonly seatGraceMs: number;
   private seed = 0;
@@ -351,9 +353,18 @@ export class Room {
     this.changed();
     if (action.type !== "tick") { this.scheduleBots(this.botPace); this.botTaunts(); }
     this.armTicks();
-    if (this.state.phase === "over") { this.stopTimers(); this.pushRoom(); }
+    if (this.state.phase === "over") { this.stopTimers(); this.pushRoom(); if (before.phase !== "over") this.noteResult(); }
     return null;
   }
+  /** The line the record book gets: the people at the table (an away seat is still its person), and who won. */
+  private noteResult(): void {
+    const s = this.state;
+    if (!s || s.winner === null) return;
+    const rec = recordOf(this.seats.map((seat, i) => ({ name: s.players[i].name, bot: seat.bot && !seat.away })), s.winner, s.winPoints, s.mode);
+    if (rec && this.onResult) this.onResult(rec);
+  }
+  /** The names of the people at this table, for the record book. */
+  peopleHere(): string[] { return this.seats.filter((s) => s.uid !== null).map((s, i) => s.name ?? PLAYER_NAMES[i]); }
   chat(uid: string, text: string): void {
     const c = this.clients.get(uid);
     if (!c) return;
@@ -435,6 +446,7 @@ export class Room {
   private send(msg: ServerMsg): void {
     for (const x of this.clients.values()) if (x.connected) x.send(msg);
   }
+  sendAll(msg: ServerMsg): void { this.send(msg); }
   pushRoom(): void {
     const now = Date.now();
     for (const c of this.clients.values()) if (c.connected) c.send({ t: "room", room: this.info(c.uid), now });

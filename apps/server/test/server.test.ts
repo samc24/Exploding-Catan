@@ -184,6 +184,23 @@ describe("rooms", () => {
     a.close();
   });
 
+  it("sends the record book's lines for the people at the table, and only those", async () => {
+    const { nick } = await import("@exploding-catan/protocol");
+    const store = srv.store as import("../src/store").MemoryStore;
+    store.records = [
+      { at: 1, players: ["Ann", "Ben"], winner: "Ann", winnerIsBot: false, bots: 0, points: 10, mode: "normal" },
+      { at: 2, players: ["Cal", "Dee"], winner: "Dee", winnerIsBot: false, bots: 1, points: 10, mode: "normal" },
+    ];
+    // The server read the book at boot; the test seeds it after, so ask through the one path that reads live.
+    const a = await hello("ann"); // the nickname is the identity, whatever the case
+    a.send({ t: "create", seats: 2, config });
+    await a.next("room");
+    a.send({ t: "records" });
+    const book = await a.next("records");
+    expect(book.list.every((r) => r.players.map(nick).includes("ann"))).toBe(true);
+    a.close();
+  });
+
   it("relays chat to everybody in the room, trimmed", async () => {
     const a = await hello("Ann"), b = await hello("Ben");
     a.send({ t: "create", seats: 2, config });

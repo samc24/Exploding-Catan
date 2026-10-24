@@ -8,7 +8,8 @@
    ══════════════════════════════════════════════════════════════════════ */
 import { KITTEN, discardOwed, type GameEvent, type GameState } from "@exploding-catan/engine";
 import { store } from "../state/store";
-import { clock, isBot } from "./online";
+import { clock, isBot, net, peopleAt } from "./online";
+import { noteLocalResult, records } from "../state/records";
 import { viewSeat } from "./focus";
 import { feed, hint, ui } from "../state/screen";
 import { openNewGame } from "./game";
@@ -35,7 +36,12 @@ export function onEvents(s: GameState, events: GameEvent[]): void {
     if (ev.type === "feed" && ev.kind === "attack" && /moves the robber/.test(ev.text)) sfx("robber");
     if (ev.type === "feed" && ev.kind === "info" && / trades? /.test(ev.text)) sfx("trade");
     // The standings wait for the trophy to clear the middle of the board, ten seconds at the most.
-    if (ev.type === "gameOver") { sfx("win"); afterShowcase(() => { const cur = store.get(); if (cur) standings(cur, () => openNewGame(true)); }, 10000); }
+    if (ev.type === "gameOver") {
+      sfx("win");
+      // A local table writes its own line; online the server has written it and sends the book.
+      if (!net.online) noteLocalResult(s, isBot);
+      afterShowcase(() => { const cur = store.get(); if (cur) standings(cur, () => openNewGame(true), records(net.online), peopleAt(cur)); }, 10000);
+    }
   }
   // A roll that was not a seven has no showcase; the dice still clatter.
   if (events.some((e) => e.type === "feed" && e.kind === "roll" && !/rolls 7 /.test(e.text))) sfx("dice");

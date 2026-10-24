@@ -6,6 +6,8 @@ import { seg } from "../ui/controls";
 import { closeModal, openModal } from "../ui/dialogs";
 import { avatarGrid, portrait } from "../ui/avatars";
 import { Net } from "./net";
+import { records } from "../state/records";
+import { lineupLine } from "../ui/records-lines";
 
 /** Step one: who you are and where the server is. */
 export function connectDialog(net: Net, onConnected: () => void): void {
@@ -125,6 +127,7 @@ function lobbyDialogWith(net: Net, room: RoomInfo, pickingNow: boolean): void {
     h("p", { class: "sub", style: { color: "var(--dim)", margin: "0 0 8px" } }, "Read the code out to everyone. They press Play online, then Join."),
     h("div", { class: "roomcode", style: { userSelect: "text" } }, room.code),
     seatRows,
+    (() => { const line = lineupLine(records(true), room.seats.filter((s) => s.taken && (!s.bot || s.away) && s.name).map((s) => s.name!)); return line ? h("p", { class: "sub book", style: { color: "var(--dim)", margin: "6px 0 0" } }, line) : null; })(),
     picking && me ? h("div", { class: "pickwrap" }, h("p", { class: "sub" }, "Your portrait"), avatarGrid(me.avatar, (a) => { net.preferAvatar(a); picking = false; })) : null,
     h("p", { style: { color: "var(--dim)", fontSize: "12px", marginTop: "10px" } },
       `${MODES[room.config.mode].name} · play to ${room.config.winPoints} · ${room.config.turnSeconds ? room.config.turnSeconds + "s turns" : "no clock"}`,

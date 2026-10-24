@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
-import { CODE_CHARS, PROTOCOL_VERSION, cleanName, type ClientMsg, type ServerMsg } from "@exploding-catan/protocol";
+import { CODE_CHARS, PROTOCOL_VERSION, addRecord, cleanName, nick, type ClientMsg, type GameRecord, type ServerMsg } from "@exploding-catan/protocol";
 import { Refused, Room, type Client } from "./room";
 import { MemoryStore, type RoomStore } from "./store";
 
@@ -41,13 +41,20 @@ export function startServer(opts: ServerOptions = {}) {
   const rooms = new Map<string, Room>();
   const sessions = new Map<string, Session>(); // token -> session
   const persistRoom = (room: Room) => store.saveRoom(room.toSnapshot());
+  // The record book: every finished game with a person in it. Kept whole; each table is sent the lines that involve somebody at it.
+  let records: GameRecord[] = store.loadRecords();
+  const recordsFor = (room: Room): GameRecord[] => { const here = new Set(room.peopleHere().map(nick)); return records.filter((r) => r.players.some((p) => here.has(nick(p)))); };
+  const wireRoom = (room: Room) => {
+    room.onChange = persistRoom;
+    room.onResult = (rec) => { records = addRecord(records, rec); store.saveRecords(records); room.sendAll({ t: "records", list: recordsFor(room) }); };
+  };
   const persistSession = (s: Session) => store.saveSession({ token: s.token, uid: s.uid, name: s.name, room: s.room ? s.room.code : null });
 
   // Pick up where the last process left off.
   for (const snap of store.loadRooms()) {
     try {
       const room = Room.fromSnapshot(snap, opts.botPace, opts.seatGraceMs);
-      room.onChange = persistRoom;
+      wireRoom(room);
       rooms.set(room.code, room);
     } catch (err) { log(`could not restore room ${snap.code}: ${err instanceof Error ? err.message : err}`); }
   }
@@ -99,7 +106,7 @@ export function startServer(opts: ServerOptions = {}) {
             let code = randomCode();
             while (rooms.has(code)) code = randomCode();
             const room = Room.create(code, clientOf(s), msg.seats, msg.config, opts.botPace, opts.seatGraceMs);
-            room.onChange = persistRoom;
+            wireRoom(room);
             rooms.set(code, room);
             s.room = room;
             persistSession(s);
@@ -130,6 +137,7 @@ export function startServer(opts: ServerOptions = {}) {
           case "restart": room.requireHost(s.uid); room.restart(); return;
           case "chat": room.chat(s.uid, msg.text); return;
           case "emote": room.emote(s.uid, msg.emoji); return;
+          case "records": send({ t: "records", list: recordsFor(room) }); return;
           case "action": room.act(s.uid, msg.action); return;
         }
       } catch (err) {
