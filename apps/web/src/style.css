@@ -224,15 +224,19 @@ body.dragging .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45);z-i
 .tok text{font-weight:800;font-size:15px;fill:#222;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 .tok text.red{fill:#c0392b}
 .tok .pips{fill:#333}
-.port{fill:#1c2129;stroke:#5a6a85;stroke-width:1}
-.port text{font-size:9px;fill:#e7ebf1;text-anchor:middle;dominant-baseline:central;font-weight:700}
+.port{cursor:help}
+.port text{text-anchor:middle;dominant-baseline:central;font-weight:700;pointer-events:none}
+.port circle{transition:stroke-width .12s,filter .12s}
+.port:hover circle{stroke-width:4.5;filter:drop-shadow(0 0 6px rgba(255,255,255,.45))}
+.port:hover line{opacity:1}
 .robber{fill:#111;stroke:#666;stroke-width:1}
 .road{stroke-width:7;stroke-linecap:round}
-.spot{fill:rgba(89,179,100,.35);stroke:#59b364;stroke-width:1.5;cursor:pointer}
-.spot:hover{fill:rgba(89,179,100,.7)}
-.spot.armed{fill:rgba(226,179,60,.85);stroke:#fff;stroke-width:2}
-.spot.road{stroke-width:8;stroke:rgba(89,179,100,.7);fill:none;stroke-linecap:round}
-.spot.road.armed{stroke:#e2b33c}
+/* Build spots: coloured inline by whoever is placing (see board.ts); these rules only shape and react. */
+.spot{cursor:pointer;transition:opacity .12s}
+.spot:hover{opacity:.9 !important}
+.spot.road,.spothalo{fill:none;stroke-linecap:round;cursor:pointer}
+.spotplus{font-size:11px;font-weight:700;fill:#fff;text-anchor:middle;pointer-events:none}
+.spotring{fill:none;stroke:#fff;stroke-width:1.5;opacity:.7;pointer-events:none}
 .spot.hexpick{fill:rgba(89,179,100,.18);stroke:#59b364;stroke-width:3;stroke-dasharray:6 4}
 .spot.hexpick.armed{fill:rgba(226,179,60,.35);stroke:#e2b33c}
 .piece{stroke:#0e1116;stroke-width:1.2}
@@ -538,7 +542,7 @@ body.dragging .kc:hover{transform:none;box-shadow:0 4px 12px rgba(0,0,0,.45);z-i
 }
 /* Fingers, not pointers: bigger things to hit. */
 @media (pointer:coarse){
-  .spot.road{stroke-width:13}
+  .spothalo{pointer-events:stroke}
   .spot.hexpick{stroke-width:4}
   button.sm{min-height:32px}
   #modal .answer{padding:11px 12px}
