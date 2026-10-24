@@ -104,13 +104,16 @@ export function lobbyDialog(net: Net, room: RoomInfo): void { lobbyDialogWith(ne
 function lobbyDialogWith(net: Net, room: RoomInfo, pickingNow: boolean): void {
   let picking = pickingNow;
   const seatRows = room.seats.map((s) => {
-    const label = s.bot ? (s.name ?? "bot") : s.name ? (s.connected ? "" : "⌛ ") + s.name : h("i", { style: { color: "var(--dim)" } }, "empty seat");
+    const label = s.away ? h("span", null, "⌛ ", s.name ?? "?", h("i", { style: { color: "var(--dim)", fontWeight: 400 } }, " — left; a bot is playing it"))
+      : s.bot ? (s.name ?? "bot") : s.name ? (s.connected ? "" : "⌛ ") + s.name : h("i", { style: { color: "var(--dim)" } }, "empty seat");
     const face = portrait(s.avatar, PLAYER_COLORS[s.seat], s.name ?? "?", 36);
     const row = h("div", { class: "seatrow" + (s.you ? " you" : "") },
       s.you ? h("button", { class: "facebtn", title: "Choose your portrait", onclick: () => { picking = !picking; redraw(); } }, face) : face,
       h("span", { class: "lbl" }, h("b", null, label), s.bot ? h("span", { class: "tag" }, "bot") : null, s.you ? h("span", { class: "tag you" }, "you") : null),
     );
-    if (!s.taken && room.seat !== s.seat) row.append(h("button", { class: "sm", onclick: () => net.sit(s.seat) }, "Sit here"));
+    // An empty chair, or mid-game a bot nobody sat in or a seat somebody abandoned: anybody may take it.
+    const open = !s.taken || (room.started && !room.over && (s.away || (s.bot && !s.away)));
+    if (open && room.seat !== s.seat) row.append(h("button", { class: "sm", onclick: () => net.sit(s.seat) }, s.taken ? "Take this seat" : "Sit here"));
     if (room.host && !s.taken) row.append(h("button", { class: "sm", onclick: () => net.bot(s.seat, true) }, "Add bot"));
     if (room.host && s.bot) row.append(h("button", { class: "sm", onclick: () => net.bot(s.seat, false) }, "Remove bot"));
     return row;

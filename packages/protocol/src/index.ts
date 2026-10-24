@@ -26,6 +26,8 @@ export interface SeatInfo {
   /** Somebody holds this seat (bot or person). */
   taken: boolean;
   connected: boolean;
+  /** A person's seat that a bot is playing while they are gone. Open to anybody with the code. */
+  away?: boolean;
   /** This seat is yours. Set per recipient. */
   you?: boolean;
 }
@@ -69,6 +71,8 @@ export type ServerMsg =
   | { t: "refused"; error: string; action?: Action }
   | { t: "error"; message: string }
   | { t: "chat"; seat: number | null; name: string; text: string; at: number }
+  /** A word from the table itself: who sat down, who left, why there is no chair. */
+  | { t: "notice"; text: string; kind: "info" | "big"; at: number }
   | { t: "emote"; seat: number; emoji: string; at: number }
   | { t: "pong"; now: number };
 

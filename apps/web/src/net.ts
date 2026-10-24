@@ -18,6 +18,8 @@ export interface NetHandlers {
   room(room: RoomInfo | null): void;
   state(state: GameState, events: GameEvent[], seat: number | null): void;
   chat(seat: number | null, name: string, text: string, at: number): void;
+  /** A word from the table: who sat down, who left, why there is no chair. */
+  notice(text: string, kind: "info" | "big"): void;
   emote(seat: number, emoji: string): void;
   clock(p: { turnTimerUntil: number; turnTickAt: number; implodeUntil: number; implodeFrom: number }): void;
   refused(error: string): void;
@@ -137,6 +139,7 @@ export class Net {
       case "refused": if (this.roomTimer) { clearTimeout(this.roomTimer); this.roomTimer = null; } this.handlers.refused(m.error); break;
       case "error": this.handlers.error(m.message); break;
       case "chat": this.handlers.chat(m.seat, m.name, m.text, m.at); break;
+      case "notice": this.handlers.notice(m.text, m.kind); break;
       case "emote": this.handlers.emote(m.seat, m.emoji); break;
       case "pong": this.offset = m.now - Date.now(); break;
     }

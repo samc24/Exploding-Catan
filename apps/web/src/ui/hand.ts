@@ -76,7 +76,7 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
   const actions = h("div", { class: "actions" });
   const sel = s.select;
   if (spectator) {
-    actions.append(h("span", { class: "note" }, "You are watching. Sit in an empty seat from the table dialog to play."));
+    actions.append(h("span", { class: "note" }, "You are watching. A seat opens the moment somebody leaves; the Online button shows the table."));
   } else if (s.phase === "over") {
     actions.append(h("span", { class: "note" }, `${s.players[s.winner!].name} wins.`), h("button", { onclick: cb.standings }, "Final standings"));
   } else if (s.phase.startsWith("setup")) {

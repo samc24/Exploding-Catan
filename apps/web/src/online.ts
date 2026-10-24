@@ -77,6 +77,11 @@ export const net = new Net({
     if ($("chat").hidden) { unread++; paintChatTab(); }
     requestRender();
   },
+  // Mid-game it is a line in the feed, like JP's "X has left"; with no game on it is a word in the header.
+  notice(text, kind) {
+    if (store.get()) { feed.add(text, kind, null, store.get()!.turnCounter); requestRender(); }
+    else hint(text, false, 8000);
+  },
   emote(seat, emoji) { showEmote(seat, emoji); },
   // A refusal or error with no table to show for it (a wrong code, a lost request) brings the table dialog back.
   refused(error) { hint(error, true); backToTable(); },
