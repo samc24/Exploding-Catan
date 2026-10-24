@@ -4,6 +4,16 @@ const { browser, page, errors } = await launch();
 await page.screenshot({ path: `${OUT}/01-newgame.png` });
 await startLocal(page, { seed: "7" });
 await page.screenshot({ path: `${OUT}/02-setup.png` });
+// Build spots wear the placing player's colour; a port says what it is when hovered.
+{
+  const s0 = await state(page);
+  const fill = await page.locator("#board .spot").first().evaluate((el) => el.style.fill);
+  const portTip = await page.locator("#board .port title").first().textContent();
+  console.log("spot colour:", fill, "for", s0.players[s0.cur].color, "| port tip:", portTip);
+  const hex = (c) => c.startsWith("#") ? `rgb(${parseInt(c.slice(1, 3), 16)}, ${parseInt(c.slice(3, 5), 16)}, ${parseInt(c.slice(5, 7), 16)})` : c;
+  if (fill !== hex(s0.players[s0.cur].color)) errors.push("the build spots are not in the placing player's colour");
+  if (!/port — /.test(portTip || "")) errors.push("a port has no tooltip");
+}
 await playSetup(page);
 await page.screenshot({ path: `${OUT}/03-after-setup.png` });
 let s = await state(page);
