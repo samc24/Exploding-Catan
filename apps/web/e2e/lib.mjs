@@ -58,9 +58,11 @@ export async function startLocal(page, { seed = "7", bots = [], mode = null } = 
 export async function clickSpot(page, selector = "#board .spot") {
   const spot = page.locator(selector);
   if (!(await spot.count())) return false;
-  await spot.first().click({ force: true }); await page.waitForTimeout(60);
+  // A road spot is an SVG line; a vertical one has a zero-width box and Playwright will not click it even
+  // forced. The board's handlers are plain click listeners, so the event is sent straight to the element.
+  await spot.first().dispatchEvent("click"); await page.waitForTimeout(60);
   const armed = page.locator(selector + ".armed");
-  if (await armed.count()) { await armed.first().click({ force: true }); await page.waitForTimeout(150); }
+  if (await armed.count()) { await armed.first().dispatchEvent("click"); await page.waitForTimeout(150); }
   return true;
 }
 /** Place for whoever this screen is on until setup ends (all-human tables). */
