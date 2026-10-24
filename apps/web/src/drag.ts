@@ -147,3 +147,5 @@ export function installDrag(): void {
   document.addEventListener("click", (ev) => { if (Date.now() < swallowClickUntil) { ev.stopPropagation(); ev.preventDefault(); } }, true);
 }
 export function dragging(): boolean { return !!drag; }
+/** Put a carried card back without dropping it anywhere. */
+export function cancelDrag(): void { if (drag) document.dispatchEvent(new PointerEvent("pointercancel")); }

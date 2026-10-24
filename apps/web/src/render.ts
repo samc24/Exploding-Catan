@@ -11,7 +11,8 @@ import {
 import { store } from "./store";
 import { clock, isBot, net } from "./online";
 import { viewSeat, waitingOn } from "./focus";
-import { act, feed, hint, panelCb, setManualSeat, ui } from "./screen";
+import { act, advice, feed, hint, panelCb, setManualSeat, ui } from "./screen";
+import { adviceFor } from "./ui/advice";
 import { boardCb, onCard, onEntry } from "./input";
 import { paintBubbles } from "./emotes";
 import { openNewGame } from "./game";
@@ -23,11 +24,12 @@ import { drawPanels } from "./ui/panels";
 import { drawFeed, drawLog, drawTicker } from "./ui/feed";
 import { drawDiceHistory } from "./ui/dice";
 import { drawTable, clearTable } from "./ui/table";
-import { afterShowcase, onPileRelease, showcase, syncPile } from "./ui/showcase";
+import { afterShowcase, onPileRelease, showPlaying, showcase, syncPile } from "./ui/showcase";
 import { standings } from "./ui/standings";
 import { playEvents } from "./ui/fx";
 import { sfx } from "./sfx";
 
+let lastPlaying = "";
 // A card whose moment is over takes its place on the pile.
 onPileRelease(() => { const cur = store.get(); if (cur) drawTable(cur, viewSeat(cur), clock()); });
 
@@ -48,6 +50,19 @@ export function render(): void {
   });
   paintBubbles();
   ui.spectator = net.online && net.seat === null;
+  // Everything but the faces goes dim and deaf while you choose one: the card is played, and a
+  // board you can still click is a board you can still misclick. Only on the chooser's screen.
+  const sel = s.select;
+  document.body.classList.toggle("picking", !!sel && sel.kind === "seat" && sel.actor === view && !ui.spectator);
+  advice(ui.spectator ? null : adviceFor(s, view, ui.armed, isBot));
+  // A card leaves the hand the moment it is played, and turns over in the middle while it waits on its aim.
+  const playing = sel && "actor" in sel && (sel.kind === "seat" || (sel.kind === "alter" && sel.purpose.kind === "play")) ? sel : null;
+  const playingId = playing ? (playing.kind === "seat" ? playing.cardId : playing.kind === "alter" && playing.purpose.kind === "play" ? playing.purpose.cardId : -1) : -1;
+  const tag = playing ? `${playing.actor}:${playingId}` : "";
+  if (tag !== lastPlaying) {
+    lastPlaying = tag;
+    if (playing) { const card = s.players[playing.actor].cards.find((c) => c.id === playingId); if (card) showPlaying(s, playing.actor, card); }
+  }
   drawBoard($("board") as unknown as SVGSVGElement, s, ui, boardCb);
   drawBottom($("bottom"), s, view, now, isBot, {
     roll: () => act({ type: "roll", seat: view }),

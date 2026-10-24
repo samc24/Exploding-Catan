@@ -1,7 +1,7 @@
 /* The bottom bar: whose hand this is, their resources, their kitten cards,
    and the buttons for whatever their turn allows. */
 import {
-  RES, RES_NAME, KITTEN, OFF_TURN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, owesAnswer,
+  RES, RES_NAME, KITTEN, OFF_TURN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, discardOwed, owesAnswer,
   playableWhenDrawn, timerEnabled, totalRes, type GameState, type Card,
 } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
@@ -36,7 +36,13 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     h("span", null, RES_NAME[r]), h("b", null, String(p.res[r])))));
 
   const hand = h("div", { class: "hand" });
+  // A card that has been played and is waiting on its aim has left the hand already.
+  const selB = s.select;
+  const aiming = selB && "actor" in selB && selB.actor === view
+    ? (selB.kind === "seat" ? selB.cardId : selB.kind === "alter" && selB.purpose.kind === "play" ? selB.purpose.cardId : selB.kind === "favor" ? selB.cardId : null)
+    : null;
   for (const c of p.cards) {
+    if (c.id === aiming) continue;
     const def = KITTEN[c.key];
     const isVP = c.key === "vp";
     const locked = c.boughtTurn === s.turnCounter && !isVP && !playableWhenDrawn(c);
@@ -83,6 +89,17 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
       sel.kind === "seat" ? `${Tap} the player to aim ${KITTEN[sel.key].name} at.` : "";
     actions.append(h("span", { class: "note" }, words));
     if ((sel.kind === "seat") || (sel.kind === "alter" && sel.purpose.kind === "play")) actions.append(h("button", { class: "sm", onclick: cb.cancelSelect }, "Cancel"));
+  } else if (mine && owesAnswer(s) && s.phase !== "setup3") {
+    // The buttons are gated anyway; this is so the bar never reads as a game that has stopped responding.
+    const owedBy = discardOwed(s);
+    const other = (pid: number) => s.players[pid].name;
+    const why = sel && "actor" in sel && sel.actor !== view ? `waiting for ${other(sel.actor)}…`
+      : sel ? "finish the move on the board"
+      : s.seven && !s.seven.queue.includes(view) ? "waiting on the seven to be paid"
+      : owedBy && owedBy.pid !== view ? `waiting for ${other(owedBy.pid)}…`
+      : s.forcedNope && s.forcedNope.pid !== view ? `waiting for ${other(s.forcedNope.pid)}…`
+      : "finish the open window first";
+    actions.append(h("span", { class: "note owed" }, "⏳ ", why));
   } else if (mine) {
     if (s.phase === "roll") {
       const why = canRollNow(s, now);

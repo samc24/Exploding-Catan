@@ -35,6 +35,7 @@ export const panelCb: PanelCallbacks = {
   composer: null,
   closeComposer() { panelCb.composer = null; requestRender(); },
   now: Date.now(),
+  hint: (text) => hint(text),
 };
 
 /** Dispatch, and say why if it was refused. */
@@ -43,13 +44,30 @@ export function act(a: Action): string | null {
   if (err) hint(err, true);
   return err;
 }
+/* Two kinds of words in the header: a passing hint (a refusal, "Bought 2
+   kitten cards."), which shows for a moment, and the standing advice for
+   this phase ("Roll the dice to begin your turn."), which stays until the
+   phase does. The advice is set on every render and sits under the hint.
+   On a phone the header has no room, so the advice stays off there (the
+   bottom bar carries the phase); the hint is a toast. */
 let hintTimer: number | null = null;
+let standing = "";
+const PHONE = "(max-width:800px), (max-width:1000px) and (max-height:520px)";
+function paintHint(text: string, isError: boolean): void {
+  const el = $("hint");
+  el.textContent = text;
+  el.style.color = isError ? "var(--danger)" : text === standing && text ? "var(--accent)" : "var(--dim)";
+}
 export function hint(text: string, isError = false, ms = 3500): void {
   // Advice can be turned off (Tips); a refusal is always said.
   if (!isError && !tipsOn()) return;
-  const el = $("hint");
-  el.textContent = text;
-  el.style.color = isError ? "var(--danger)" : "var(--dim)";
+  paintHint(text, isError);
   if (hintTimer) clearTimeout(hintTimer);
-  hintTimer = window.setTimeout(() => { el.textContent = ""; }, ms);
+  hintTimer = window.setTimeout(() => { hintTimer = null; paintHint(standing, false); }, ms);
+}
+export function advice(text: string | null): void {
+  let phone = false;
+  try { phone = matchMedia(PHONE).matches; } catch { /* no media queries */ }
+  standing = text && tipsOn() && !phone ? text : "";
+  if (hintTimer === null) paintHint(standing, false);
 }

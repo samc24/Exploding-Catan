@@ -10,6 +10,13 @@ let spinTimer: number | null = null;
 /** How long a fresh throw shows changing faces before it settles. */
 const SPIN_MS = 600;
 
+/** A die's face as nine cells, the pips lit. */
+const DIE_PIPS: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function pips(n: number): HTMLElement[] {
+  const on = DIE_PIPS[n] ?? [];
+  return Array.from({ length: 9 }, (_, i) => h("i", { class: on.includes(i) ? "" : "off" }));
+}
+
 /* ── the discard pile ──────────────────────────────────────────────────
    Every kitten card played, face up, newest on top. The answer to "what
    just happened" for anybody not reading the log. A card still turning
@@ -20,6 +27,9 @@ const SPIN_MS = 600;
 let discardIdx = 0;
 let discardTop = -1;
 let pileSig = "";
+let shownJid: number | null = null;
+/** The card the pile is showing while somebody looks back through it (null at the top). */
+export function pileShownJid(): number | null { return discardIdx > 0 ? shownJid : null; }
 function discardStack(s: GameState) {
   const out: GameState["pile"] = [];
   const upTo = pileRevealed();
@@ -48,9 +58,10 @@ export function drawTable(s: GameState, view: number, now: number): void {
     if (rollEntry) lastRoll = rollEntry.id;
     const lively = fresh && motion() === "full"; // calm and off: the faces simply appear
     const cls = lively ? " tumble" : "";
-    const a = h("div", { class: "die" + cls }, String(s.rolled[0]));
-    const b = h("div", { class: "die red" + cls, style: { animationDelay: "60ms" } }, String(s.rolled[1]));
-    dice.append(a, b);
+    const a = h("div", { class: "die" + cls, title: String(s.rolled[0]) }, pips(s.rolled[0]));
+    const b = h("div", { class: "die red" + cls, title: String(s.rolled[1]), style: { animationDelay: "60ms" } }, pips(s.rolled[1]));
+    const sum = s.rolled[0] + s.rolled[1];
+    dice.append(a, b, h("span", { class: "dicesum" + (sum === 7 ? " seven" : "") }, String(sum)));
     if (spinTimer !== null) { clearInterval(spinTimer); spinTimer = null; }
     if (lively) {
       const final = s.rolled;
@@ -59,11 +70,11 @@ export function drawTable(s: GameState, view: number, now: number): void {
         if (!a.isConnected || Date.now() - start >= SPIN_MS) {
           if (spinTimer !== null) clearInterval(spinTimer);
           spinTimer = null;
-          a.textContent = String(final[0]); b.textContent = String(final[1]);
+          a.replaceChildren(...pips(final[0])); b.replaceChildren(...pips(final[1]));
           return;
         }
-        a.textContent = String(1 + Math.floor(Math.random() * 6));
-        b.textContent = String(1 + Math.floor(Math.random() * 6));
+        a.replaceChildren(...pips(1 + Math.floor(Math.random() * 6)));
+        b.replaceChildren(...pips(1 + Math.floor(Math.random() * 6)));
       }, 75);
     }
   } else lastRoll = -1;
@@ -86,6 +97,7 @@ function drawPile(s: GameState, view: number, now: number): void {
   if (topId !== discardTop) { discardTop = topId; discardIdx = 0; }
   if (discardIdx > st.length - 1) discardIdx = Math.max(0, st.length - 1);
   const rec = st.length ? st[discardIdx] : null;
+  shownJid = rec ? rec.jid : null;
   const def = rec ? KITTEN[rec.card.key] : null;
   // "You can answer this", for the seat at this screen only: anything the pile could Defuse, not only the card on show.
   const p = s.players[view];

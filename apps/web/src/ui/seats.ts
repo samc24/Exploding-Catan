@@ -18,7 +18,7 @@ export function drawSeats(root: HTMLElement, s: GameState, view: number, isBot: 
       (s.trade && s.trade.replies[p.id] === "wait") ? "offered" : null;
     const el = h("div", {
       class: "seat" + (p.id === s.cur ? " cur" : "") + (mine ? " me" : "") + (pickable ? " pickable" : ""),
-      style: { "--c": p.color } as unknown as Record<string, string>,
+      style: { "--c": p.color, "--spin": `-${Date.now() % 1100}ms` } as unknown as Record<string, string>,
       onclick: () => onSeat(p.id),
       title: mine ? "Your seat" : isBot(p.id) ? `${p.name} is a bot` : `View as ${p.name}`,
     },

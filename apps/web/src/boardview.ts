@@ -88,6 +88,19 @@ export function installBoardView(): void {
     clampPan();
     requestRender();
   });
+  // Two taps on bare board put the view back. Two taps on a spot are a placement (arm, confirm), never a reset.
+  let lastTap: { t: number; x: number; y: number } | null = null;
+  svg.addEventListener("pointerup", (ev) => {
+    if (ev.pointerType !== "touch" || pinch || panning?.moved) { lastTap = null; return; }
+    const onSpot = ev.target instanceof Element && !!ev.target.closest(".spot");
+    const now = Date.now();
+    if (!onSpot && lastTap && now - lastTap.t < 320 && Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) < 30) {
+      lastTap = null;
+      if (ui.zoom !== 1) { resetZoom(); swallowUntil = Date.now() + 400; }
+      return;
+    }
+    lastTap = onSpot ? null : { t: now, x: ev.clientX, y: ev.clientY };
+  });
   const stop = (ev: PointerEvent) => {
     fingers.delete(ev.pointerId);
     if (fingers.size < 2 && pinch) { pinch = null; swallowUntil = Date.now() + 400; }

@@ -10,7 +10,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 import {
   IMPLODE_SHOW_MS, KITTEN, SHOWCASE_FADE_MS, canDefuseEntry, entryById, geometry, playableWhenDrawn,
-  type GameState, type JournalEntry,
+  type Card, type GameState, type JournalEntry,
 } from "@exploding-catan/engine";
 import { $, clear, h } from "./dom";
 import { cardArt, has } from "../art";
@@ -129,6 +129,21 @@ function answerShowcase(s: GameState, text: string, jid: number): void {
   void jid;
 }
 
+/* A card that has been played and is waiting on its aim. Shown once, as it
+   leaves the hand: an Alter the Future has to name its two hexes before it
+   can be journalled, and this is the moment in between, which used to be
+   silent. Held past the moment the pick clears, so the entry's own reveal
+   can decline to turn a board card over a second time: that reveal would
+   land exactly over the two numbers changing places, the one thing worth
+   watching. A targeted card changes nothing on the board, so its second
+   reveal, the one naming the victim, is kept. */
+let justRevealed = -1;
+export function showPlaying(s: GameState, pid: number, card: Card): void {
+  justRevealed = card.id;
+  const key = card.key as keyof typeof KITTEN;
+  push({ body: cardBody(key, card.flavor), cap: tint(s, `${s.players[pid]?.name ?? ""} plays ${KITTEN[key].name}`), cls: "", ms: 1500, must: false, jid: 0 });
+}
+
 /** One reveal. `text` is the line the entry wrote; `view` the seat at this screen. */
 export function showcase(s: GameState, what: string, pid: number, jid: number | null, text: string, view: number, now: number): void {
   const e = jid === null ? undefined : entryById(s, jid);
@@ -154,6 +169,10 @@ export function showcase(s: GameState, what: string, pid: number, jid: number | 
   }
   if (what in KITTEN) {
     const key = what as keyof typeof KITTEN;
+    if (e?.card && e.card.id === justRevealed) {
+      justRevealed = -1;
+      if (KITTEN[key].kind === "board") { releaseToPile(id); if (answerable) answerShowcase(s, text, id); return; }
+    }
     push({ body: cardBody(key, e?.card?.flavor ?? null), cap: tint(s, bare(text || `${who} plays ${KITTEN[key].name}`)), cls: "", ms: SHOWCASE_MS, must: false, jid: id });
     if (answerable) answerShowcase(s, text, id);
     return;
