@@ -220,6 +220,26 @@ await page.screenshot({ path: `${OUT}/20-bought.png` });
   console.log("portrait now:", s.players[me].avatar);
   if (!s.players[me].avatar) errors.push("the chosen portrait did not take");
 }
+// The record book: empty at first; a line written locally shows this lineup, each person, and head to head.
+{
+  await page.click("#menuBtn"); await page.click("#recordsBtn"); await page.waitForTimeout(100);
+  const empty = await page.locator("#modal .records").textContent();
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => {
+    const g = JSON.parse(localStorage.getItem("exploding-catan:game"));
+    const names = g.players.map((p) => p.name);
+    const rec = (winner, at) => ({ at, players: names, winner, winnerIsBot: false, bots: 0, points: 10, mode: "normal" });
+    localStorage.setItem("exploding-catan:records", JSON.stringify([rec(names[0], 1), rec(names[1], 2), rec(names[0], 3)]));
+  });
+  await reloadInto(page);
+  await page.click("#menuBtn"); await page.click("#recordsBtn"); await page.waitForTimeout(100);
+  const h4s = await page.locator("#modal .records h4").allTextContents();
+  const redWins = await page.locator('#modal .records table').first().locator("tr", { hasText: "Red" }).locator("td").nth(1).textContent();
+  console.log("records: empty says", /No finished games/.test(empty || ""), "| sections", h4s.join(", "), "| Red's wins in this lineup", redWins);
+  if (!/No finished games/.test(empty || "")) errors.push("an empty record book does not say so");
+  if (!h4s.includes("This lineup") || !h4s.includes("Head to head") || redWins !== "2") errors.push("the record book does not show the lineup, the pairs and the wins");
+  await page.keyboard.press("Escape");
+}
 // The Motion and Tips switches live in the menu and are remembered.
 {
   await page.click("#menuBtn"); await page.waitForTimeout(100);

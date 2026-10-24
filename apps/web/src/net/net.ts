@@ -6,7 +6,7 @@
    every message, so the windows that depend on time are judged by it.
    ══════════════════════════════════════════════════════════════════════ */
 import type { Action, GameEvent, GameState } from "@exploding-catan/engine";
-import { PROTOCOL_VERSION, type ClientMsg, type RoomConfig, type RoomInfo, type ServerMsg } from "@exploding-catan/protocol";
+import { PROTOCOL_VERSION, type ClientMsg, type GameRecord, type RoomConfig, type RoomInfo, type ServerMsg } from "@exploding-catan/protocol";
 
 const TOKEN_KEY = "exploding-catan:token";
 const NAME_KEY = "exploding-catan:name";
@@ -20,6 +20,8 @@ export interface NetHandlers {
   chat(seat: number | null, name: string, text: string, at: number): void;
   /** A word from the table: who sat down, who left, why there is no chair. */
   notice(text: string, kind: "info" | "big"): void;
+  /** The record book's lines for the people at this table. */
+  records(list: GameRecord[]): void;
   emote(seat: number, emoji: string): void;
   clock(p: { turnTimerUntil: number; turnTickAt: number; implodeUntil: number; implodeFrom: number }): void;
   refused(error: string): void;
@@ -140,6 +142,7 @@ export class Net {
       case "error": this.handlers.error(m.message); break;
       case "chat": this.handlers.chat(m.seat, m.name, m.text, m.at); break;
       case "notice": this.handlers.notice(m.text, m.kind); break;
+      case "records": this.handlers.records(m.list); break;
       case "emote": this.handlers.emote(m.seat, m.emoji); break;
       case "pong": this.offset = m.now - Date.now(); break;
     }
@@ -169,4 +172,5 @@ export class Net {
   chat(text: string): void { this.send({ t: "chat", text }); }
   setAvatar(avatar: string): void { this.send({ t: "setAvatar", avatar }); }
   emote(emoji: string): void { this.send({ t: "emote", emoji }); }
+  requestRecords(): void { this.send({ t: "records" }); }
 }

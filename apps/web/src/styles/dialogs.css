@@ -55,3 +55,8 @@
 #modal label.slider{display:flex;flex-direction:column;align-items:stretch;gap:2px}
 #modal label.slider input[type=range]{width:100%}
 #modal label.allbots{gap:6px;color:var(--ink)}
+/* The record book. */
+.records h4{margin:12px 0 4px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--dim);font-weight:600}
+.records h4:first-child{margin-top:0}
+.records .sub,#modal .book .sub{color:var(--dim);font-size:12.5px;margin:4px 0}
+#modal .book{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}

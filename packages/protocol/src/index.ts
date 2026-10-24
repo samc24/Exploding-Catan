@@ -9,6 +9,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 import type { Action, BoardKey, GameEvent, GameState, Mode } from "@exploding-catan/engine";
 import { MODES } from "@exploding-catan/engine";
+import type { GameRecord } from "./records";
 
 export const PROTOCOL_VERSION = 1;
 
@@ -59,6 +60,8 @@ export type ClientMsg =
   | { t: "action"; action: Action }
   | { t: "chat"; text: string }
   | { t: "emote"; emoji: string }
+  /** The record book, for the names at this table. */
+  | { t: "records" }
   | { t: "ping" };
 
 export type ServerMsg =
@@ -73,6 +76,8 @@ export type ServerMsg =
   | { t: "chat"; seat: number | null; name: string; text: string; at: number }
   /** A word from the table itself: who sat down, who left, why there is no chair. */
   | { t: "notice"; text: string; kind: "info" | "big"; at: number }
+  /** The lines of the record book that involve somebody at this table. */
+  | { t: "records"; list: GameRecord[] }
   | { t: "emote"; seat: number; emoji: string; at: number }
   | { t: "pong"; now: number };
 
@@ -126,3 +131,4 @@ export function validAvatar(a: unknown): string | null {
   const s = String(a ?? "");
   return AVATAR_IDS.includes(s) ? s : null;
 }
+export * from "./records";
