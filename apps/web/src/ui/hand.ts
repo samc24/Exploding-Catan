@@ -7,6 +7,7 @@ import {
 import { clear, h } from "./dom";
 import { cardArt, has, resArt } from "../art";
 import { Tap, tap } from "./tap";
+import { heldCard, heldRes } from "./fx";
 
 export interface HandCallbacks {
   roll(): void;
@@ -20,8 +21,9 @@ export interface HandCallbacks {
   standings(): void;
 }
 
+let lastHtml = "";
+export function resetBottom(): void { lastHtml = ""; }
 export function drawBottom(root: HTMLElement, s: GameState, view: number, now: number, isBot: (pid: number) => boolean, cb: HandCallbacks, spectator = false): void {
-  clear(root);
   const p = s.players[view];
   const mine = s.cur === view && !spectator;
 
@@ -31,9 +33,10 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     timerEnabled(s) && s.turnTimerUntil ? timerEl(s, now) : null,
   );
 
-  const res = h("div", { class: "resrow" }, RES.map((r) => h("div", { class: "chip" + (p.res[r] ? "" : " zero"), title: RES_NAME[r] },
+  // Each counter subtracts whatever is still in the air on its way here: the number moves when the card lands.
+  const res = h("div", { class: "resrow" }, RES.map((r) => { const n = Math.max(0, p.res[r] - heldRes(view, r)); return h("div", { class: "chip" + (n ? "" : " zero"), title: RES_NAME[r], dataset: { res: r } },
     h("span", { class: "swatch", style: has(resArt(r)) ? { backgroundImage: `url(${resArt(r)})` } : { background: `var(--${r})` } }),
-    h("span", null, RES_NAME[r]), h("b", null, String(p.res[r])))));
+    h("span", null, RES_NAME[r]), h("b", null, String(n))); }));
 
   const hand = h("div", { class: "hand" });
   // A card that has been played and is waiting on its aim has left the hand already.
@@ -42,7 +45,7 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     ? (selB.kind === "seat" ? selB.cardId : selB.kind === "alter" && selB.purpose.kind === "play" ? selB.purpose.cardId : selB.kind === "favor" ? selB.cardId : null)
     : null;
   for (const c of p.cards) {
-    if (c.id === aiming) continue;
+    if (c.id === aiming || heldCard(c.id)) continue; // played and waiting on its aim; or drawn and not landed yet
     const def = KITTEN[c.key];
     const isVP = c.key === "vp";
     const locked = c.boughtTurn === s.turnCounter && !isVP && !playableWhenDrawn(c);
@@ -119,6 +122,13 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
     actions.append(h("span", { class: "note" }, st, owesAnswer(s) ? "The table is waiting on an answer." : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
   }
 
+  // Compare before writing: rebuilding the bar drops the card being hovered and restarts the lift
+  // on the one about to be played. The clock is painted in place by paintClocks.
+  const built = h("div", null, who, res, hand, actions);
+  const html = built.innerHTML;
+  if (html === lastHtml.replace(/ lifted/g, "") && root.childElementCount === 4) return;
+  lastHtml = html;
+  clear(root);
   root.append(who, res, hand, actions);
 }
 

@@ -7,6 +7,7 @@ import {
 } from "@exploding-catan/engine";
 import { clear, svg } from "./dom";
 import { has, hexArt } from "../art";
+import { landing } from "./fx";
 import { COARSE } from "./tap";
 
 export interface BoardCallbacks {
@@ -108,7 +109,7 @@ export function drawBoard(root: SVGSVGElement, s: GameState, ui: BoardUI, cb: Bo
 
   // ── roads ──
   s.eOwner.forEach((o, eid) => {
-    if (o === null) return;
+    if (o === null || landing("e" + eid)) return;
     const e = geo.edges[eid];
     const a = geo.vertices[e.v[0]], b = geo.vertices[e.v[1]];
     roadLayer.append(svg("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "road", stroke: "#0e1116", "stroke-width": 10 }));
@@ -117,7 +118,7 @@ export function drawBoard(root: SVGSVGElement, s: GameState, ui: BoardUI, cb: Bo
 
   // ── buildings ──
   s.vOwner.forEach((o, vid) => {
-    if (o === null) return;
+    if (o === null || landing("v" + vid)) return;
     const v = geo.vertices[vid];
     const col = s.players[o].color;
     if (s.vType[vid] === "city") {

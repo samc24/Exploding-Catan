@@ -67,8 +67,8 @@ while (Date.now() < deadline && !inMain) {
 console.log("setup finished:", inMain);
 if (!inMain) { const dbg = await ann.evaluate(() => { const b = document.querySelector("#bottom"); return { note: b && b.textContent.replace(/\s+/g, " ").slice(0, 160), spots: document.querySelectorAll("#board .spot").length, landing: !document.querySelector("#landing").hidden, modal: !document.querySelector("#modal").hidden }; }); console.log("ann debug:", JSON.stringify(dbg)); const dbg2 = await ben.evaluate(() => { const b = document.querySelector("#bottom"); return { note: b && b.textContent.replace(/\s+/g, " ").slice(0, 160), spots: document.querySelectorAll("#board .spot").length, modal: !document.querySelector("#modal").hidden }; }); console.log("ben debug:", JSON.stringify(dbg2)); }
 if (!inMain) errors.push("the opening did not finish");
-const annMe = await ann.locator("#seats .seat.me .name").textContent();
-const benMe = await ben.locator("#seats .seat.me .name").textContent();
+const annMe = await ann.locator("#seats .seat.me .pname .nm").textContent();
+const benMe = await ben.locator("#seats .seat.me .pname .nm").textContent();
 console.log("Ann views:", annMe.trim(), "| Ben views:", benMe.trim());
 if (!annMe.includes("Ann") || !benMe.includes("Ben")) errors.push("a screen is not on its own seat");
 const roller = (await ann.locator('#bottom button:has-text("Roll")').count()) ? ann : (await ben.locator('#bottom button:has-text("Roll")').count()) ? ben : null;
@@ -95,7 +95,7 @@ await ann.screenshot({ path: `${OUT}/online-04-ann.png` });
 await ben.screenshot({ path: `${OUT}/online-04-ben.png` });
 await ben.reload({ waitUntil: "networkidle" });
 await ben.waitForSelector("#board .hex", { timeout: 8000 });
-const benBack = await ben.locator("#seats .seat.me .name").textContent();
+const benBack = await ben.locator("#seats .seat.me .pname .nm").textContent();
 console.log("Ben after reload views:", benBack.trim());
 if (!benBack.includes("Ben")) errors.push("Ben did not get his seat back after a reload");
 // The server forgets the table mid-game (a restart on the free host): the next reconnect comes

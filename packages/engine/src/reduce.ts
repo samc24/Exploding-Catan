@@ -186,6 +186,9 @@ function seatAction(c: Ctx, a: SeatAction): void {
     case "cancelSelect":
       cancelSelect(c, a.seat);
       return;
+    case "setAvatar":
+      player(c, a.seat).avatar = String(a.avatar).slice(0, 40);
+      return;
     case "reorderHand": {
       const p = player(c, a.seat);
       if (a.from < 0 || a.from >= p.cards.length) throw new RuleError("no such card");

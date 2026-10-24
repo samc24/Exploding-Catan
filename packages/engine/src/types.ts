@@ -313,7 +313,9 @@ export type SeatAction =
   | { type: "nopeTurn"; seat: number }
   | { type: "defuse"; seat: number; jid: number }
   | { type: "cancelSelect"; seat: number }
-  | { type: "reorderHand"; seat: number; from: number; to: number | null };
+  | { type: "reorderHand"; seat: number; from: number; to: number | null }
+  /** Your own portrait, at any point in the game. Cosmetic: never journalled, never answerable. */
+  | { type: "setAvatar"; seat: number; avatar: string };
 
 export type Action = SeatAction | { type: "tick"; hidden?: boolean };
 

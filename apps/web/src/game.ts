@@ -6,6 +6,9 @@ import { goLocal, net } from "./online";
 import { feed, panelCb, setManualSeat } from "./screen";
 import { resetFeedSignature } from "./ui/feed";
 import { resetShowcase } from "./ui/showcase";
+import { resetBoardWatch } from "./ui/fx";
+import { resetSeats } from "./ui/seats";
+import { resetBottom } from "./ui/hand";
 import { newGameDialog, type Preset } from "./ui/newgame";
 import { requestRender } from "./screen";
 import { restoreBots } from "./bots-host";
@@ -15,6 +18,8 @@ export function startGame(cfg: GameConfig, botSeats: number[], seed?: number): v
   feed.reset();
   resetFeedSignature();
   resetShowcase();
+  resetBoardWatch();
+  resetSeats(); resetBottom();
   setManualSeat(null);
   panelCb.scratch = {};
   panelCb.composer = null;
@@ -23,7 +28,7 @@ export function startGame(cfg: GameConfig, botSeats: number[], seed?: number): v
   store.newGame(cfg, theSeed);
   scheduleBots(600);
 }
-export function openNewGame(canCancel: boolean, preset: Preset = null): void { newGameDialog(startGame, canCancel, preset); }
+export function openNewGame(canCancel: boolean, preset: Preset = null): void { newGameDialog(startGame, canCancel, preset, net.online); }
 /** Pick the saved local game back up. Returns false when there is none. */
 export function resumeLocal(): boolean {
   if (!store.restore()) return false;

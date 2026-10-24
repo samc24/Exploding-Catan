@@ -5,7 +5,7 @@ import { PLAYER_COLORS } from "@exploding-catan/engine";
 import type { RoomInfo } from "@exploding-catan/protocol";
 import { Net } from "./net";
 import { store } from "./store";
-import { localBot, stopBots } from "./bots-host";
+import { localBot, localHeard, stopBots } from "./bots-host";
 import { showEmote } from "./emotes";
 import { $, clear, h } from "./ui/dom";
 import { closeModal, modalOpen } from "./ui/dialogs";
@@ -36,8 +36,7 @@ export function goLocal(): void {
   store.clear();
   chatLines.length = 0;
   unread = 0;
-  $("chatTab").hidden = true;
-  $("chatrow").hidden = true;
+  drawChat();
   document.body.classList.remove("online");
   try { localStorage.removeItem(ONLINE_KEY); } catch { /* fine */ }
   if (!store.restore()) onNoGame();
@@ -46,8 +45,23 @@ export function goLocal(): void {
 export function drawChat(): void {
   const log = $("chatlog");
   clear(log);
-  for (const l of chatLines.slice(-80)) log.append(h("div", null, h("b", { style: { color: l.seat !== null ? PLAYER_COLORS[l.seat] : "var(--dim)" } }, l.name), l.text));
+  if (!chatLines.length) log.append(h("div", { class: "sys" }, store.get() ? "Nothing said yet. The bots are listening." : "No game running."));
+  for (const l of chatLines.slice(-80)) log.append(h("div", { style: { borderLeftColor: l.seat !== null ? PLAYER_COLORS[l.seat] : "var(--line)" } }, h("b", { style: { color: l.seat !== null ? PLAYER_COLORS[l.seat] : "var(--dim)" } }, l.name), l.text));
   log.scrollTop = log.scrollHeight;
+}
+/** A line said at the table, online or not: the chat window, the feed, and the unread count. */
+function sayAtTable(seat: number | null, name: string, text: string): void {
+  chatLines.push({ seat, name, text });
+  drawChat();
+  // Also a line in the game log, so talk is seen whatever tab is open.
+  feed.add(`${name}: ${text}`, "chat", null, null);
+  if ($("chat").hidden) { unread++; paintChatTab(); }
+  requestRender();
+}
+/** Your portrait, changed mid-game: the server's business online, the table's locally. */
+export function pickAvatar(seat: number, avatar: string): void {
+  if (net.online) { if (avatar) net.preferAvatar(avatar); return; }
+  store.dispatch({ type: "setAvatar", seat, avatar });
 }
 
 function backToTable(): void { if (net.connected && !net.room && !modalOpen()) roomDialog(net); }
@@ -56,8 +70,6 @@ export const net = new Net({
     if (!room) { if (lobbyShowing) { closeModal(); lobbyShowing = false; } goLocal(); if (net.connected) roomDialog(net); return; }
     stopBots();
     try { localStorage.setItem(ONLINE_KEY, "1"); } catch { /* fine */ }
-    $("chatTab").hidden = false;
-    $("chatrow").hidden = false;
     document.body.classList.add("online");
     store.remote = (a) => net.action(a);
     if (!room.started || room.over) {
@@ -69,14 +81,7 @@ export const net = new Net({
   },
   state(s, events) { store.receive(s, events); },
   clock(p) { store.patchClock(p); },
-  chat(seat, name, text) {
-    chatLines.push({ seat, name, text });
-    drawChat();
-    // Also a line in the game log, so talk is seen whatever tab is open.
-    feed.add(`${name}: ${text}`, "chat", null, null);
-    if ($("chat").hidden) { unread++; paintChatTab(); }
-    requestRender();
-  },
+  chat(seat, name, text) { sayAtTable(seat, name, text); },
   // Mid-game it is a line in the feed, like JP's "X has left"; with no game on it is a word in the header.
   notice(text, kind) {
     if (store.get()) { feed.add(text, kind, null, store.get()!.turnCounter); requestRender(); }
@@ -100,7 +105,15 @@ export function wireOnline(): void {
     e.preventDefault();
     const input = $("chatin") as HTMLInputElement;
     const text = input.value.trim();
-    if (text && net.online) { net.chat(text); input.value = ""; }
+    if (!text) return;
+    input.value = "";
+    if (net.online) { net.chat(text); return; }
+    // A local table: said by the seat at this screen; the bots hear it and may answer in kind.
+    const s = store.get();
+    if (!s) return;
+    const seat = (window as unknown as { __viewSeat?: () => number }).__viewSeat?.() ?? s.cur;
+    sayAtTable(seat, s.players[seat]?.name ?? "you", text);
+    localHeard(seat);
   };
 }
 /** Back into the room we were in, if the page was reloaded mid-game. */

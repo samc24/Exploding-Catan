@@ -4,8 +4,28 @@ const { browser, page, errors } = await launch();
 await page.screenshot({ path: `${OUT}/01-newgame.png` });
 await startLocal(page, { seed: "7" });
 await page.screenshot({ path: `${OUT}/02-setup.png` });
+// Placing a piece: it comes down where it was placed (the board leaves it out while it falls).
+{
+  await clickSpot(page); await page.waitForTimeout(60);
+  const plops = await page.locator("#boardArea .plop").count();
+  const s1 = await state(page);
+  const placed = s1.vOwner.filter((o) => o !== null).length;
+  const drawn = await page.locator("#board .piece").count();
+  console.log("landing: plop overlays", plops, "| pieces placed", placed, "drawn while landing", drawn);
+  if (!plops) errors.push("a placed piece did not come down with a landing");
+  if (drawn >= placed) errors.push("the board drew the piece while it was still landing");
+}
 await playSetup(page);
 await page.screenshot({ path: `${OUT}/03-after-setup.png` });
+// The seat cards: score ring on the portrait, name banner, two pills, tooltips with the bonus.
+{
+  const rings = await page.locator("#seats .seat .vpring").count();
+  const pills = await page.locator("#seats .seat .statgroup.hand .stat[data-stat='res']").count();
+  const roadTip = await page.locator("#seats .seat .stat.road").first().getAttribute("title");
+  console.log("seat cards: rings", rings, "| hand pills", pills, "| road tip:", roadTip);
+  if (rings !== 4 || pills !== 4) errors.push("the seat cards are missing the score ring or the hand pill");
+  if (!/Longest unbroken road \(\d+ built\)/.test(roadTip || "")) errors.push("the road stat has no tooltip");
+}
 let s = await state(page);
 console.log("phase after setup:", s.phase, "turn", s.turnCounter);
 // The standing advice says what the table wants; the current portrait wears the turning ring.
@@ -31,6 +51,9 @@ const sevenShown = await page.locator("#showcase:not([hidden]) .showseven").coun
 await page.screenshot({ path: `${OUT}/04-rolled.png` });
 await settle(page);
 if (s.select && s.select.kind === "robber") {
+  const pulse = await page.locator("#boardArea .hexpulse.robber").count();
+  console.log("robber pulse:", pulse);
+  if (!pulse) errors.push("the robber landed without a pulse");
   // The seven holds the middle for its full beat first; the robbery queues behind it.
   const robbery = await page.locator("#showcase:not([hidden]) .showglyph.robbery").waitFor({ timeout: 6000 }).then(() => 1).catch(() => 0);
   console.log("seven disc:", sevenShown, "| robbery moment:", robbery);
@@ -53,11 +76,33 @@ for (const b of ["Bank", "Trade", "Buy cards"]) {
     await page.click("#deck"); await page.waitForTimeout(100);
   }
 }
+// On the first roll that pays out: the paying hexes flash, and the counters do not move until the cards land.
+let heldChecked = false;
+const total = (st) => st.players.reduce((a, p) => a + Object.values(p.res).reduce((x, y) => x + y, 0), 0);
 for (let t = 0; t < 6; t++) {
   const end = page.locator('#bottom button:has-text("End turn")');
   if (await end.count() && await end.isEnabled()) { await end.click(); await page.waitForTimeout(3200); }
   const roll = page.locator('#bottom button:has-text("Roll")');
-  if (await roll.count() && await roll.isEnabled()) { await roll.click(); await page.waitForTimeout(300); }
+  if (await roll.count() && await roll.isEnabled()) {
+    const before = await state(page);
+    await roll.click(); await page.waitForTimeout(1000); // the dice settle (850 ms) before the cards leave the hexes
+    const after = await state(page);
+    if (!heldChecked && total(after) > total(before)) {
+      heldChecked = true;
+      const flashes = await page.locator("#boardArea .hexflash").count();
+      const whoName = await page.locator("#bottom .who b").textContent();
+      const me = after.players.find((p) => p.name === whoName);
+      const shown = (await page.locator("#bottom .chip b").allTextContents()).reduce((a, b) => a + Number(b), 0);
+      const mine = me ? Object.values(me.res).reduce((a, b) => a + b, 0) : 0;
+      const gained = me ? mine - Object.values(before.players[me.id].res).reduce((a, b) => a + b, 0) : 0;
+      console.log("payout: hex flashes", flashes, "| my counters show", shown, "of", mine, "(gained", gained + ")");
+      if (!flashes) errors.push("a paying hex did not flash");
+      if (gained > 0 && shown >= mine) errors.push("my counters jumped before the cards landed");
+      await page.waitForTimeout(2500);
+      const settled = (await page.locator("#bottom .chip b").allTextContents()).reduce((a, b) => a + Number(b), 0);
+      if (settled !== mine) errors.push(`my counters read ${settled} after the cards landed, not ${mine}`);
+    } else await page.waitForTimeout(300);
+  }
   await settle(page);
 }
 s = await state(page);

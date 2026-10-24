@@ -19,9 +19,16 @@ import {
   type TauntMemory,
 } from "@exploding-catan/bots";
 import {
-  EMOJIS, MAX_CHAT, defaultAvatar, normalizeRoomConfig, validAvatar, type RoomConfig, type RoomInfo, type ServerMsg,
+  AVATAR_IDS, EMOJIS, MAX_CHAT, defaultAvatar, normalizeRoomConfig, validAvatar, type RoomConfig, type RoomInfo, type ServerMsg,
 } from "@exploding-catan/protocol";
 import type { RoomSnapshot } from "./store";
+
+/** A different face for each bot, never one a person at the table chose. (Mirrors the web's.) */
+function freeAvatar(seat: number, taken: string[]): string {
+  const used = new Set(taken);
+  for (let k = 0; k < AVATAR_IDS.length; k++) { const id = AVATAR_IDS[((seat * 7) + k * 3) % AVATAR_IDS.length]; if (!used.has(id)) return id; }
+  return defaultAvatar(seat);
+}
 
 export interface Client {
   uid: string;
@@ -302,7 +309,7 @@ export class Room {
     if (open) throw new Error(`${open} seat${open === 1 ? " is" : "s are"} still empty — add a bot or wait`);
     this.seed = seed;
     const cfg: GameConfig = {
-      players: this.seats.map((s, i) => ({ name: s.name ?? PLAYER_NAMES[i], avatar: s.avatar ?? defaultAvatar(i) })),
+      players: this.seats.map((s, i) => ({ name: s.name ?? PLAYER_NAMES[i], avatar: s.avatar ?? freeAvatar(i, this.seats.map((x) => x.avatar).filter((a): a is string => !!a)) })),
       mode: this.config.mode, winPoints: this.config.winPoints, turnSeconds: this.config.turnSeconds, implodeRevealMs: IMPLODE_REVEAL_MS,
     };
     if (this.config.board !== "auto") cfg.board = this.config.board;

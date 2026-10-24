@@ -26,10 +26,13 @@ import { drawDiceHistory } from "./ui/dice";
 import { drawTable, clearTable } from "./ui/table";
 import { afterShowcase, onPileRelease, showPlaying, showcase, syncPile } from "./ui/showcase";
 import { standings } from "./ui/standings";
-import { playEvents } from "./ui/fx";
+import { checkBoardChanges, dropHoldsFor, onHoldCleared, playEvents } from "./ui/fx";
+import { avatarDialog } from "./ui/avatars";
+import { pickAvatar } from "./online";
 import { sfx } from "./sfx";
 
 let lastPlaying = "";
+onHoldCleared(() => { if (store.get()) render(); });
 // A card whose moment is over takes its place on the pile.
 onPileRelease(() => { const cur = store.get(); if (cur) drawTable(cur, viewSeat(cur), clock()); });
 
@@ -42,12 +45,13 @@ export function render(): void {
   if (view !== ui.seat) { ui.armed = null; panelCb.composer = null; panelCb.scratch = {}; }
   ui.seat = view;
 
+  dropHoldsFor(s);
   drawSeats($("seats"), s, view, isBot, (pid) => {
     const sel = s.select;
     if (sel && sel.kind === "seat" && sel.actor === view) { act({ type: "pickSeat", seat: view, target: pid }); return; }
     setManualSeat(pid === waitingOn(s) ? null : pid);
     render();
-  });
+  }, ui.spectator || isBot(view) ? null : () => avatarDialog(s.players[view].avatar, (a) => pickAvatar(view, a)));
   paintBubbles();
   ui.spectator = net.online && net.seat === null;
   // Everything but the faces goes dim and deaf while you choose one: the card is played, and a
@@ -63,6 +67,7 @@ export function render(): void {
     lastPlaying = tag;
     if (playing) { const card = s.players[playing.actor].cards.find((c) => c.id === playingId); if (card) showPlaying(s, playing.actor, card); }
   }
+  checkBoardChanges(s);
   drawBoard($("board") as unknown as SVGSVGElement, s, ui, boardCb);
   drawBottom($("bottom"), s, view, now, isBot, {
     roll: () => act({ type: "roll", seat: view }),
