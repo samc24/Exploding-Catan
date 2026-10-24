@@ -20,6 +20,9 @@ export async function launch(name = "page", viewport = { width: 1400, height: 90
 async function newPage(browser, name, errors, viewport, touch = false) {
   const ctx = await browser.newContext(touch ? { viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport });
   const page = await ctx.newPage();
+  // The runner's Chrome may ask for reduced motion, which would default the game to calm and take the
+  // tumble and the flights out of what these tests watch. They test the game as designed: motion full.
+  await page.addInitScript(() => { try { localStorage.setItem("exploding-catan:motion", "full"); } catch { /* fine */ } });
   page.on("pageerror", (e) => errors.push(`${name} pageerror: ${e.message}`));
   page.on("console", (m) => {
     if (m.type() === "error" && !m.text().includes("404")) errors.push(`${name} console: ${m.text()}`);
