@@ -20,6 +20,8 @@ export interface PanelCallbacks {
   composer: "buy" | "bank" | "trade" | null;
   closeComposer(): void;
   now: number;
+  /** A word of advice to the person at this screen. */
+  hint(text: string): void;
 }
 
 const zero = (): Bundle => ({ wood: 0, brick: 0, sheep: 0, wheat: 0, ore: 0 });
@@ -30,11 +32,14 @@ const dim = (text: string, top = false) => h("div", { style: { color: "var(--dim
 
 /** Five buttons, one per resource: click to add, click past the limit to clear.
     `note` is a small line under the count: what you hold, your rate, what is left. */
-function pickRow(counts: Bundle, canPick: (r: Res) => boolean, step: (r: Res) => void, note?: (r: Res) => string | null): HTMLElement {
+function pickRow(counts: Bundle, canPick: (r: Res) => boolean, step: (r: Res) => void, note?: (r: Res) => string | null, down?: (r: Res) => void): HTMLElement {
   return h("div", { class: "pick" }, RES.map((r) => {
     const n = note ? note(r) : null;
-    return h("button", { disabled: !canPick(r), onclick: () => step(r) },
-      sw(r), RES_NAME[r], h("b", { class: "ct" + (counts[r] ? "" : " off") }, `×${counts[r] || 1}`), n ? h("small", { class: "have" }, n) : null);
+    return h("div", { class: "pickitem" },
+      h("button", { disabled: !canPick(r), onclick: () => step(r) },
+        sw(r), RES_NAME[r], h("b", { class: "ct" + (counts[r] ? "" : " off") }, `×${counts[r] || 1}`), n ? h("small", { class: "have" }, n) : null),
+      // Drawn only when there is something to take back: a slip no longer means cycling round through zero.
+      down && counts[r] > 0 ? h("button", { class: "minus", title: "Take one back", onclick: (ev: Event) => { ev.stopPropagation(); down(r); } }, "−") : null);
   }));
 }
 /** A −/+ row for one resource. */
@@ -71,8 +76,13 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
       h("h3", null, owed.kind === "seven" ? "A seven: discard half" : "Attacked: drop cards", h("small", null, `${chosen} of ${owed.n}`)),
       h("p", { class: "sub" }, `${p.name} must discard ${owed.n} resource card${owed.n === 1 ? "" : "s"}.`),
       RES.map((r) => counterRow(h("span", null, sw(r), `${RES_NAME[r]} — has ${p.res[r]}`), pick[r], pick[r] > 0, chosen < owed.n && pick[r] < p.res[r], (d) => { pick[r] += d; redraw(root, s, view, cb); })),
-      e && answers.length ? h("div", { class: "warnbox" }, `You are holding an answer to this. ${Tap} the card in your hand to spend it instead of paying.`) : null,
+      // An attack can be answered from the window it opened, rather than after paying for it.
+      e && answers.length ? h("div", { class: "reactnote" }, h("b", null, "You are holding an answer to this."), ` Spend it instead of paying, or ${tap} the card in your hand.`) : null,
       h("div", { class: "btns" },
+        ...(e ? answersFor(s, "defuse", view, cb.now).filter((a): a is Extract<typeof a, { jid: number }> => "jid" in a && a.jid === e.id && holds("defuse")).map(() =>
+          h("button", { class: "react", title: "Your hand is not cut; the rest stands", onclick: () => cb.dispatch({ type: "defuse", seat: view, jid: e.id }) }, owed.kind === "seven" ? "🛡 Defuse the 7" : "🛡 Defuse it")) : []),
+        ...(e ? answersFor(s, "nope", view, cb.now).filter((a): a is Extract<typeof a, { jid: number }> => "jid" in a && a.jid === e.id && holds("nope")).map(() =>
+          h("button", { class: "reactno", onclick: () => cb.dispatch({ type: "nope", seat: view, jid: e.id }) }, owed.kind === "seven" ? "🚫 Nope it — reroll" : "🚫 Nope it")) : []),
         h("button", { class: "primary", disabled: chosen !== owed.n, onclick: () => { const err = cb.dispatch({ type: "discard", seat: view, bundle: { ...pick } }); if (!err) delete cb.scratch[key]; } }, "Confirm"),
       ),
     ));
@@ -152,14 +162,14 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
     root.append(h("div", { class: "panel" },
       h("h3", null, "Buy kitten cards"),
       h("p", { class: "sub" }, `Any 3 different resources buys a card. ${Tap} to add, ${tap} past what you hold to clear.`),
-      pickRow(pool, (r) => p.res[r] > 0, (r) => { pool[r] = p.res[r] > pool[r] ? pool[r] + 1 : 0; redraw(root, s, view, cb); }, (r) => `have ${p.res[r]}`),
+      pickRow(pool, (r) => p.res[r] > 0, (r) => { pool[r] = p.res[r] > pool[r] ? pool[r] + 1 : 0; redraw(root, s, view, cb); }, (r) => `have ${p.res[r]}`, (r) => { pool[r]--; redraw(root, s, view, cb); }),
       total(pool) ? h("div", { class: "tsum" }, chips(res.spent), h("span", { class: "arrow" }, "→"), `${capped} card${capped === 1 ? "" : "s"}`,
         res.cards > capped ? h("span", { class: "mismatch" }, `deck only has ${s.deck.length}`) : null,
         total(res.left) ? h("span", { class: "mismatch" }, "some cannot pair up: ", chips(res.left)) : null) : null,
       composerButtons(
         () => { cb.scratch["buy"] = zero(); redraw(root, s, view, cb); },
         () => { delete cb.scratch["buy"]; cb.closeComposer(); },
-        { label: capped > 1 ? `Buy ${capped} cards` : "Buy", disabled: capped < 1, fn: () => { const err = cb.dispatch({ type: "buyCards", seat: view, spend: { ...res.spent } }); if (!err) { delete cb.scratch["buy"]; cb.closeComposer(); } } }),
+        { label: capped > 1 ? `Buy ${capped} cards` : "Buy", disabled: capped < 1, fn: () => { const err = cb.dispatch({ type: "buyCards", seat: view, spend: { ...res.spent } }); if (!err) { delete cb.scratch["buy"]; cb.closeComposer(); cb.hint(`Bought ${capped} kitten card${capped === 1 ? "" : "s"}.`); } } }),
     ));
   }
   if (cb.composer === "bank" && s.cur === view) {
@@ -173,9 +183,9 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
       h("p", { class: "sub" }, "4:1 unless a port says otherwise. Lots given and cards taken must match."),
       dim("Give — one lot at your rate"),
       pickRow(give, (r) => p.res[r] >= tradeRate(s, p, r), (r) => { const rate = tradeRate(s, p, r); give[r] = p.res[r] >= (give[r] + 1) * rate ? give[r] + 1 : 0; redraw(root, s, view, cb); },
-        (r) => `${tradeRate(s, p, r)}:1 · have ${p.res[r]}`),
+        (r) => `${tradeRate(s, p, r)}:1 · have ${p.res[r]}`, (r) => { give[r]--; redraw(root, s, view, cb); }),
       dim("Take — one card each", true),
-      pickRow(get, (r) => s.bank[r] > 0, (r) => { get[r] = s.bank[r] > get[r] ? get[r] + 1 : 0; redraw(root, s, view, cb); }, (r) => `${s.bank[r]} in bank`),
+      pickRow(get, (r) => s.bank[r] > 0, (r) => { get[r] = s.bank[r] > get[r] ? get[r] + 1 : 0; redraw(root, s, view, cb); }, (r) => `${s.bank[r]} in bank`, (r) => { get[r]--; redraw(root, s, view, cb); }),
       lots || units ? h("div", { class: "tsum" }, chips(spend), h("span", { class: "arrow" }, "→"), chips(get), lots !== units ? h("span", { class: "mismatch" }, `${lots} lot${lots === 1 ? "" : "s"} vs ${units} card${units === 1 ? "" : "s"}`) : null) : null,
       composerButtons(
         () => { cb.scratch["bankGive"] = zero(); cb.scratch["bankGet"] = zero(); redraw(root, s, view, cb); },
@@ -191,9 +201,9 @@ export function drawPanels(root: HTMLElement, s: GameState, view: number, cb: Pa
       h("h3", null, "Open trade"),
       h("p", { class: "sub" }, "Build one offer and put it to the whole table."),
       dim("You give"),
-      pickRow(offer, (r) => p.res[r] > 0, (r) => { offer[r] = offer[r] >= p.res[r] ? 0 : offer[r] + 1; redraw(root, s, view, cb); }, (r) => `have ${p.res[r]}`),
+      pickRow(offer, (r) => p.res[r] > 0, (r) => { offer[r] = offer[r] >= p.res[r] ? 0 : offer[r] + 1; redraw(root, s, view, cb); }, (r) => `have ${p.res[r]}`, (r) => { offer[r]--; redraw(root, s, view, cb); }),
       dim("You want", true),
-      pickRow(want, () => true, (r) => { want[r] = want[r] >= 6 ? 0 : want[r] + 1; redraw(root, s, view, cb); }),
+      pickRow(want, () => true, (r) => { want[r] = want[r] >= 6 ? 0 : want[r] + 1; redraw(root, s, view, cb); }, undefined, (r) => { want[r]--; redraw(root, s, view, cb); }),
       composerButtons(
         () => { cb.scratch["offer"] = zero(); cb.scratch["want"] = zero(); redraw(root, s, view, cb); },
         () => { delete cb.scratch["offer"]; delete cb.scratch["want"]; cb.closeComposer(); },

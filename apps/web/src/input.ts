@@ -8,6 +8,8 @@ import { act, hint, panelCb, requestRender, ui } from "./screen";
 import { $, h } from "./ui/dom";
 import { closeModal, modalOpen, openModal } from "./ui/dialogs";
 import type { BoardCallbacks } from "./ui/board";
+import { pileShownJid } from "./ui/table";
+import { cancelDrag, dragging } from "./drag";
 import { sfx } from "./sfx";
 
 /** The board's two-click confirm: arm on the first click, act on the second. */
@@ -67,8 +69,11 @@ export function offerAnswers(key: "nope" | "defuse", me: number, onlyJid?: numbe
     if ("turn" in a) act({ type: "nopeTurn", seat: me });
     else act({ type: key, seat: me, jid: a.jid });
   };
-  // One answer that is not your own roll and not a whole turn: no question to ask.
-  if (answers.length === 1 && "jid" in answers[0] && !isOwnRoll(s, answers[0].jid, me)) { go(answers[0]); return; }
+  // Looking back through the pile is pointing at a card: if the card on show is one of the answers, that is the answer.
+  const shown = pileShownJid();
+  if (answers.length > 1 && shown !== null) { const hit = answers.find((a) => "jid" in a && a.jid === shown); if (hit) answers = [hit]; }
+  // One answer, and not your own roll: no question to ask. (A whole turn is an answer like any other.)
+  if (answers.length === 1 && !("jid" in answers[0] && isOwnRoll(s, answers[0].jid, me))) { go(answers[0]); return; }
   const word = key === "defuse" ? "Defuse" : "Nope";
   const rows = answers.map((a) => h("div", {
     class: "answer" + ("turn" in a ? " turn" : ""),
@@ -109,6 +114,7 @@ export function installKeys(): void {
     if (e.key !== "Escape") return;
     // Whatever is most recent goes first: a tray or menu, the drawer, a dialog, then the table's own state.
     const tray = $("emojiTray"), menu = $("menu"), side = $("side");
+    if (dragging()) { cancelDrag(); return; }
     if (!tray.hidden) { tray.hidden = true; return; }
     if (!menu.hidden) { menu.hidden = true; return; }
     if (side.classList.contains("open")) { side.classList.remove("open"); $("sideBtn").classList.remove("on"); return; }

@@ -81,9 +81,10 @@ export function drawBoard(root: SVGSVGElement, s: GameState, ui: BoardUI, cb: Bo
       g.append(tok);
     }
     if (hx.id === s.robber) {
+      // On the token, not beside it: the token says which number is blocked, and the robber says it is.
       g.append(svg("g", { class: "robber" },
-        svg("ellipse", { cx: hx.x + R * 0.42, cy: hx.y + R * 0.22, rx: 7, ry: 10 }),
-        svg("circle", { cx: hx.x + R * 0.42, cy: hx.y + R * 0.02, r: 5.5 }),
+        svg("ellipse", { cx: hx.x, cy: hx.y + R * 0.1, rx: 6.5, ry: 9 }),
+        svg("circle", { cx: hx.x, cy: hx.y - R * 0.12, r: 5 }),
       ));
     }
     hexLayer.append(g);

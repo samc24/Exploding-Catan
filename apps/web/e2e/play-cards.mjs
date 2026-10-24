@@ -25,6 +25,18 @@ await page.screenshot({ path: `${OUT}/10-hand.png` });
 
 // ATTACK → pick seat → the victim's discard panel; the victim Defuses instead; the attacker pays.
 await page.click('.kc[title^="Attack"]'); await page.waitForTimeout(150);
+// Aiming: the card has left the hand and turned over in the middle; the table is dim; the seats breathe.
+{
+  const picking = await page.evaluate(() => document.body.classList.contains("picking"));
+  const inHand = await page.locator('.kc[title^="Attack"]').count();
+  const shown = await page.locator("#showcase:not([hidden]) .showcard").count();
+  const breathing = await page.locator("#seats .seat.pickable").count();
+  console.log("aiming: dim", picking, "| Attack still in hand", inHand, "| turned over", shown, "| seats lit", breathing);
+  if (!picking) errors.push("the table does not dim while aiming");
+  if (inHand) errors.push("the played card is still in the hand while aiming");
+  if (!shown) errors.push("the played card was not turned over while aiming");
+  if (breathing !== 3) errors.push("the seats to aim at are not lit");
+}
 await page.screenshot({ path: `${OUT}/11-aiming.png` });
 await page.locator("#seats .seat").nth(foe).click(); await page.waitForTimeout(250);
 s = await state(page);
@@ -47,9 +59,14 @@ console.log("attackDue:", JSON.stringify(s.attackDue), "panel:", await page.loca
   if (!turns) errors.push("the feed lines carry no turn caption");
 }
 await page.screenshot({ path: `${OUT}/12-discard.png` });
-await page.click('.kc[title^="Defuse"]'); await page.waitForTimeout(300);
-// More than one thing to answer (a robbery too): pick the Attack.
-if (!(await page.locator("#modal").isHidden())) { await page.locator('#modal .answer', { hasText: "Attack" }).first().click(); await page.waitForTimeout(300); }
+// The forced dialog carries its own Defuse button: the attack is answered from the window it opened.
+{
+  const btn = page.locator('#panels button.react:has-text("Defuse")');
+  const bar = await page.locator("#bottom .note.owed").textContent().catch(() => "");
+  console.log("discard panel Defuse button:", await btn.count(), "| attacker's bar:", bar);
+  if (!(await btn.count())) errors.push("the discard panel has no Defuse button");
+  await btn.click(); await page.waitForTimeout(300);
+}
 s = await state(page);
 console.log("after defuse: attackDue", JSON.stringify(s.attackDue), "last:", s.journal[s.journal.length - 1].text);
 if (!s.journal[s.journal.length - 1].text.includes("Defuses")) errors.push("the Defuse did not land");
@@ -145,31 +162,36 @@ if (s.trade !== null) errors.push("the trade did not settle");
   await page.screenshot({ path: `${OUT}/21-dragged.png` });
   await page.keyboard.press("Escape"); await page.waitForTimeout(150); // put it back
 }
-// The chooser explains each answer: give the third player a Nope and open it.
+// BUY cards. A slip is taken back with the − in the corner rather than cycling round through zero.
+await page.click('#bottom button:has-text("Buy cards")'); await page.waitForTimeout(100);
+await page.screenshot({ path: `${OUT}/19-buy.png` });
+for (let i = 0; i < 4; i++) await page.locator("#panels .pick .pickitem > button:first-child:not([disabled])").nth(i).click();
+{
+  const minuses = await page.locator("#panels .pick .minus").count();
+  await page.locator("#panels .pick .minus").nth(3).click(); await page.waitForTimeout(80);
+  const after = await page.locator("#panels .pick .minus").count();
+  console.log("buy composer: minus buttons", minuses, "→", after);
+  if (minuses !== 4 || after !== 3) errors.push("the − in the pick's corner does not take one back");
+}
+await page.click('#panels button:has-text("Buy")'); await page.waitForTimeout(300);
+s = await state(page);
+console.log("deck now", s.deck.length, "hand", s.players[me].cards.length, "| hint:", await page.locator("#hint").textContent());
+if (s.deck.length !== 53) errors.push("the purchase did not draw");
+await page.screenshot({ path: `${OUT}/20-bought.png` });
+// One answer, and the Nope acts without asking: the third player's only answer is the whole turn.
 {
   await page.evaluate(() => { const g = JSON.parse(localStorage.getItem("exploding-catan:game")); g.players[(g.cur + 2) % 4].cards.push({ id: 71000, key: "nope", flavor: null, boughtTurn: -1 }); localStorage.setItem("exploding-catan:game", JSON.stringify(g)); });
   await reloadInto(page);
+  const before = (await state(page)).cur;
   await page.locator("#seats .seat").nth((me + 2) % 4).click(); await page.waitForTimeout(150);
-  await page.click('.kc[title^="Nope"]'); await page.waitForTimeout(200);
-  const rows = await page.locator("#modal .answer").count();
-  const effects = await page.locator("#modal .answer span").allTextContents();
-  console.log("chooser rows:", rows, "| first effect:", (effects[0] || "").slice(0, 60));
-  if (rows < 1 || !effects.every((e) => e.length > 20)) errors.push("the Nope chooser does not explain its answers");
-  await page.hover("#modal .answer.turn");
-  if (!(await page.locator("#seats .seat.hl").count())) errors.push("hovering the whole-turn answer did not light the seat");
-  await page.screenshot({ path: `${OUT}/22-chooser.png` });
-  await page.keyboard.press("Escape");
-  await page.locator("#seats .seat").nth(me).click(); await page.waitForTimeout(100);
+  await page.click('.kc[title^="Nope"]'); await page.waitForTimeout(300);
+  const asked = !(await page.locator("#modal").isHidden());
+  s = await state(page);
+  console.log("single-answer Nope: asked", asked, "| turn moved", before, "→", s.cur, "|", s.journal[s.journal.length - 1].text);
+  if (asked) errors.push("a Nope with one answer opened the chooser");
+  if (s.cur === before) errors.push("a Nope with one answer (the turn) did not take it");
+  await page.screenshot({ path: `${OUT}/22-turn-noped.png` });
 }
-// BUY cards
-await page.click('#bottom button:has-text("Buy cards")'); await page.waitForTimeout(100);
-await page.screenshot({ path: `${OUT}/19-buy.png` });
-for (let i = 0; i < 3; i++) await page.locator("#panels .pick button:not([disabled])").nth(i).click();
-await page.click('#panels button:has-text("Buy")'); await page.waitForTimeout(300);
-s = await state(page);
-console.log("deck now", s.deck.length, "hand", s.players[me].cards.length);
-if (s.deck.length !== 53) errors.push("the purchase did not draw");
-await page.screenshot({ path: `${OUT}/20-bought.png` });
 // The Motion and Tips switches live in the menu and are remembered.
 {
   await page.click("#menuBtn"); await page.waitForTimeout(100);

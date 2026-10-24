@@ -142,7 +142,16 @@ for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
   if (document.fullscreenEnabled) {
     const fs = $("fsBtn");
     fs.hidden = false;
-    fs.onclick = () => { menu.hidden = true; if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => { /* refused */ }); };
+    // The label follows the state, including when it is left by Escape or a swipe rather than the button.
+    const label = () => { fs.textContent = document.fullscreenElement ? "⛶ Exit full screen" : "⛶ Fullscreen"; };
+    label();
+    document.addEventListener("fullscreenchange", label);
+    fs.onclick = () => {
+      menu.hidden = true;
+      if (document.fullscreenElement) { void document.exitFullscreen(); return; }
+      // It can be refused after the fact; a button that appears broken is worse than one that explains itself.
+      document.documentElement.requestFullscreen().catch(() => hint("This browser would not go full screen from here.", true));
+    };
   }
 }
 installKeys();

@@ -8,11 +8,21 @@ await playSetup(page);
 await page.screenshot({ path: `${OUT}/03-after-setup.png` });
 let s = await state(page);
 console.log("phase after setup:", s.phase, "turn", s.turnCounter);
+// The standing advice says what the table wants; the current portrait wears the turning ring.
+{
+  const adv = await page.locator("#hint").textContent();
+  const spin = await page.locator("#seats .seat.cur").evaluate((el) => el.style.getPropertyValue("--spin"));
+  console.log("advice:", adv, "| ring phase:", spin);
+  if (adv !== "Roll the dice to begin your turn.") errors.push("the standing advice is missing before the roll");
+  if (!/^-\d+ms$/.test(spin)) errors.push("the turn ring has no resumable phase");
+}
 await page.click('#bottom button:has-text("Roll dice")');
 await page.waitForTimeout(120);
 const tumbling = await page.locator("#dice .die.tumble").count();
-console.log("dice tumbling:", tumbling);
+const pips = await page.locator("#dice .die i").count(), sum = await page.locator("#dice .dicesum").textContent();
+console.log("dice tumbling:", tumbling, "| pip cells:", pips, "| sum:", sum);
 if (tumbling !== 2) errors.push("the dice did not tumble on a new roll");
+if (pips !== 18 || !sum) errors.push("the dice are not drawn as pips with a total");
 await page.waitForTimeout(300);
 s = await state(page);
 console.log("rolled:", s.rolled, "phase", s.phase, "seven?", !!s.seven, "select", s.select && s.select.kind);
