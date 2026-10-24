@@ -120,8 +120,9 @@ button.on{border-color:var(--accent);color:var(--accent)}
 
 /* ── dice / piles / clock ── */
 #dice{position:absolute;left:12px;top:12px;display:flex;gap:6px;align-items:center;pointer-events:none}
-.die{border-radius:8px;background:#f1ece2;color:#111;box-shadow:0 2px 6px rgba(0,0,0,.5)}
-.die.red{background:#d94b4b;color:#fff}
+/* Real dice: ivory and red, a rounded cube with a little weight to it, the pips pressed in. */
+.die{border-radius:11px;background:radial-gradient(circle at 30% 28%,#fffaf0,#efe6d2 55%,#d9cdb2);color:#111;border:1px solid #c9bc9e;box-shadow:inset 0 -3px 0 rgba(0,0,0,.14),inset 0 2px 0 rgba(255,255,255,.7),0 4px 10px rgba(0,0,0,.55)}
+.die.red{background:radial-gradient(circle at 30% 28%,#ef6b6b,#d94b4b 55%,#a83434);border-color:#8f2b2b;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.25),0 4px 10px rgba(0,0,0,.55)}
 /* Two piles one above the other down the right-hand side, as in JP's game:
    the discard on top, the draw pile under it, both card-sized and always
    in plain view. The pile is the answer to "what just happened" for anybody
@@ -674,22 +675,22 @@ body.nofx .seat.pickable{animation:none;box-shadow:0 0 0 3px rgba(127,196,143,.4
 .panel .btns button.reactno:hover:not(:disabled){background:#5e2b3c}
 .actions .note.owed{color:var(--accent)}
 /* Pip dice, and the total beside them: red on a seven. */
-.die{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;padding:6px;width:40px;height:40px}
-.die i{display:block;border-radius:50%;background:#111;width:100%;height:100%}
+.die{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;padding:9px;width:58px;height:58px}
+.die i{display:block;border-radius:50%;background:radial-gradient(circle at 40% 35%,#333,#000);width:100%;height:100%;box-shadow:inset 0 1px 2px rgba(0,0,0,.8),0 1px 0 rgba(255,255,255,.35)}
 .die i.off{visibility:hidden}
-.die.red i{background:#fff}
-.dicesum{font-family:var(--display);font-size:26px;line-height:40px;color:var(--ink);text-shadow:0 2px 6px rgba(0,0,0,.6);margin-left:4px}
+.die.red i{background:radial-gradient(circle at 40% 35%,#fff,#e8e0d0);box-shadow:inset 0 1px 2px rgba(0,0,0,.35),0 1px 0 rgba(0,0,0,.25)}
+.dicesum{font-family:var(--display);font-size:32px;line-height:58px;color:var(--ink);text-shadow:0 2px 6px rgba(0,0,0,.6);margin-left:6px}
 .dicesum.seven{color:var(--danger)}
 @media (max-width:800px), (max-width:1000px) and (max-height:520px){
-  .die{width:30px;height:30px;padding:4px;gap:1.5px}
-  .dicesum{font-size:20px;line-height:30px}
+  .die{width:34px;height:34px;padding:5px;gap:2px;border-radius:8px}
+  .dicesum{font-size:22px;line-height:34px}
   .seat.cur .portrait::before{inset:-5px;border-width:2px}
   .pick .minus{width:22px;height:22px;top:-6px;right:-4px}
   .actions .note.owed{grid-column:1/-1}
 }
 @media (max-width:1000px) and (max-height:520px){
-  .die{width:26px;height:26px;padding:3px}
-  .dicesum{font-size:17px;line-height:26px}
+  .die{width:28px;height:28px;padding:4px;gap:1.5px;border-radius:7px}
+  .dicesum{font-size:18px;line-height:28px}
 }
 
 /* ══ Waves 3 and 5: things you can see happen, and the chrome ═════════ */

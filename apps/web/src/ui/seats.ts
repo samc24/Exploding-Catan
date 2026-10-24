@@ -99,7 +99,7 @@ export function installSeatStrip(root: HTMLElement): void {
 }
 export function resetSeats(): void { lastHtml = ""; }
 
-const ICON: Record<string, string> = { res: "🂠", kit: "🐱", knight: "⚔", road: "🛣" };
+const ICON: Record<string, string> = { res: "🂠", kit: "🐱", knight: "⚔️", road: "🛣️" };
 /** One figure with its glyph. Lit gold when it holds the bonus card. */
 function stat(which: string, n: number, title: string, holds: boolean): HTMLElement {
   return h("span", { class: "stat " + which + (holds ? " holds" : "") + (n ? "" : " zero"), title, dataset: { stat: which } }, h("b", null, String(n)), h("i", null, ICON[which]));
