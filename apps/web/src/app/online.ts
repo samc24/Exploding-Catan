@@ -22,7 +22,7 @@ let unread = 0;
 function paintChatTab(): void {
   const tab = $("chatTab");
   tab.textContent = unread ? `Chat (${unread})` : "Chat";
-  tab.classList.toggle("on", unread > 0 || tab.classList.contains("on") && !$("chat").hidden);
+  tab.classList.toggle("on", unread > 0 || !$("chat").hidden);
 }
 /** The chat pane was opened: nothing is unread any more. */
 export function chatSeen(): void { unread = 0; paintChatTab(); }

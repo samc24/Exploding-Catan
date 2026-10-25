@@ -22,10 +22,7 @@
     <h1 id="homeBtn" title="Home"><span class="ex">Exploding</span> <span class="ca">Catan</span></h1>
     <span id="hint"></span>
     <div class="spacer"></div>
-    <span id="dirTag" title="Turn order" hidden></span>
     <span id="modeTag" hidden></span>
-    <button class="sm" id="emojiBtn" title="Throw an emoji">😏</button>
-    <div id="emojiTray" hidden></div>
     <button class="sm" id="sideBtn" title="Game log and chat">Log</button>
     <span id="netTag" hidden></span>
     <button class="sm" id="onlineBtn">Online</button>
@@ -50,20 +47,32 @@
     <div id="boardArea">
       <svg id="board"></svg>
       <div id="dice"></div>
+      <div id="zoomWrap"><button class="sm" id="zoomIn" title="Zoom in">+</button><button class="sm" id="zoomOut" title="Zoom out">−</button><button class="sm" id="zoomReset" title="Reset view">⌂</button></div>
       <div id="piles"><div id="pile"></div><div id="deck"></div></div>
       <div id="panels"></div>
       <div id="showcase" hidden></div>
       <div id="clock" hidden></div>
       <div id="ticker" title="Open the log"></div>
-      <div id="zoomWrap"><button class="sm" id="zoomIn" title="Zoom in">+</button><button class="sm" id="zoomOut" title="Zoom out">−</button><button class="sm" id="zoomReset" title="Reset view">⌂</button></div>
     </div>
+    <!-- The left column, as in JP's game: a strip of buttons at the board's
+         top-left, the log floating below it, and the dice history, the chat
+         and the emoji tray hanging off the strip. The log is its own toggle;
+         the other three share a peg, and only one of them is ever out. On a
+         phone the whole column is a drawer behind the header's Log button,
+         and the emoji button and the direction tag move up into the header
+         (app/layout.ts). -->
     <div id="side">
-      <div id="sidetabs"><button class="sm on" data-tab="feed">Game log</button><button class="sm" data-tab="log">Details</button><button class="sm" data-tab="chat" id="chatTab">Chat</button><button class="sm" data-tab="dice">Dice</button></div>
+      <div id="sidetabs">
+        <button class="sm on" data-tab="feed" id="logBtn">Game log</button>
+        <button class="sm" data-tab="dice" id="diceBtn">Dice history</button>
+        <button class="sm" data-tab="chat" id="chatTab">Chat</button>
+        <button class="sm" id="emojiBtn" title="Throw an emoji">Emoji</button>
+        <span id="dirTag" title="Turn order" hidden></span>
+        <div id="emojiTray" hidden></div>
+      </div>
+      <div id="dicepanel" class="peg" hidden></div>
+      <div id="chat" class="peg" hidden><div id="chatlog"></div><form id="chatrow"><input id="chatin" maxlength="140" placeholder="Say something to the table…" autocomplete="off"><button class="sm" type="submit">Send</button></form></div>
       <div id="feed"></div>
-      <div id="log" hidden></div>
-      <div id="dicepanel" hidden></div>
-      <div id="chat" hidden><div id="chatlog"></div></div>
-      <form id="chatrow" hidden><input id="chatin" maxlength="140" placeholder="Say something to the table…" autocomplete="off"><button class="sm" type="submit">Send</button></form>
     </div>
   </div>
   <div id="bottom"></div>

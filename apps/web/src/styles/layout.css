@@ -1,35 +1,53 @@
-/* The stage, the board's room, the side column and its tabs, the drawer button, the dice history. */
+/* The stage, the board's room, the left column (button strip, hanging boxes, the floating log), the dice history. */
 
 /* ── stage ── */
-#stage{flex:1 1 auto;display:flex;min-height:0;position:relative}
-#boardArea{flex:1 1 auto;position:relative;min-width:0;background:var(--table)}
+#stage{flex:1 1 auto;min-height:0;position:relative;--chatH:min(300px,40vh)}
+#boardArea{position:absolute;inset:0;background:var(--table)}
 #board{width:100%;height:100%;display:block;touch-action:none}
-#side{width:300px;flex:0 0 auto;border-left:1px solid #4a3a30;background:linear-gradient(180deg,#1f1612,#181110);display:flex;flex-direction:column;min-height:0}
-#sidetabs{display:flex;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line)}
-#feed,#log{flex:1;overflow-y:auto;padding:6px 8px;font-size:12.5px;user-select:text;-webkit-user-select:text}
-#log{color:var(--dim);font-size:11.5px}
-#chat{flex:1;display:flex;flex-direction:column;min-height:0}
-#chatlog{flex:1;overflow-y:auto;padding:6px 8px;font-size:12.5px;user-select:text;-webkit-user-select:text}
-#chatlog div{margin-bottom:4px}
+
+/* ── the left column, floating over the board as in JP's game ──
+   A strip of buttons at the top-left; the dice history or the chat hanging
+   under it in a box of a fixed height; the log taking whatever is left,
+   bottom-aligned, its oldest lines fading out under the strip. The column
+   itself never eats a click: only the things in it do. */
+#side{position:absolute;left:10px;top:10px;bottom:8px;width:clamp(170px,19%,280px);z-index:7;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#side > *{pointer-events:auto}
+#sidetabs{position:relative;display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:0 0 auto}
+#sidetabs button{white-space:nowrap}
+#sidetabs button.on{background:#2f5d3a;border-color:#4d8a5f;color:var(--ink)}
+/* Hung off the strip, in the same place as the chat and the dice history: only one of the three is ever out. */
+#sidetabs #emojiTray{position:absolute;top:calc(100% + 6px);left:0;right:auto;z-index:8}
+.peg{flex:0 0 auto;height:var(--chatH);display:flex;flex-direction:column;overflow:hidden;background:rgba(28,19,15,.94);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);backdrop-filter:blur(3px)}
+.peg[hidden]{display:none}
+#feed{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;font-size:12.5px;user-select:text;-webkit-user-select:text;scrollbar-width:none;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 44px);mask-image:linear-gradient(to bottom,transparent 0,#000 44px)}
+/* Bottom-aligned by an auto margin, not justify-content: an overflowing column justified to the end spills past the top and cannot be scrolled back to. */
+#feed > .fl:first-child{margin-top:auto}
+#feed::-webkit-scrollbar{width:0;height:0}
+#feed[hidden]{display:none}
+#chatlog{flex:1 1 auto;min-height:0;overflow-y:auto;padding:7px 8px;font-size:12.5px;user-select:text;-webkit-user-select:text;scrollbar-width:none;display:flex;flex-direction:column;gap:5px}
+#chatlog::-webkit-scrollbar{width:0}
+#chatlog > *:first-child{margin-top:auto}
 #chatlog b{margin-right:5px}
-#chatrow{display:flex;gap:6px;padding:6px 8px;border-top:1px solid var(--line);flex:0 0 auto}
-#chatrow input{flex:1;min-width:0;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit}
+#chatrow{display:flex;gap:6px;padding:6px;border-top:1px solid var(--line);flex:0 0 auto;background:rgba(0,0,0,.3)}
+#chatrow input{flex:1;min-width:0;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit;font-size:12px}
+#chatrow input:focus{outline:none;border-color:var(--accent)}
 #netTag{font-size:10.5px;border-radius:6px;padding:2px 7px;background:#2f5d3a;color:#dfe}
 #netTag.off{background:#6b2f2f}
 
 
-/* ── the side panel on a phone: a drawer ── */
+/* ── the drawer button (phones only) ── */
 #sideBtn{display:none}
 #menu .phone{display:none}
 
 
-/* ── dice history ── */
-#dicepanel{flex:1;overflow-y:auto;padding:8px 10px;font-size:12px}
-.hist{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;align-items:end;height:120px;margin:6px 0 4px}
+/* ── dice history: the same chart as the old dialog, in a third of the width ── */
+#dicepanel{overflow-y:auto;padding:8px 10px;font-size:12px;scrollbar-width:none}
+#dicepanel::-webkit-scrollbar{width:0}
+.hist{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;align-items:end;height:112px;margin:6px 0 2px}
 .hist .bar{background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;position:relative}
 .hist .bar.red{background:var(--danger)}
-.hist .bar i{position:absolute;top:-16px;left:0;right:0;text-align:center;font-style:normal;font-size:10px;color:var(--dim)}
-.histlbl{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;text-align:center;color:var(--dim);font-size:11px;margin-bottom:10px}
+.hist .bar i{position:absolute;top:-14px;left:0;right:0;text-align:center;font-style:normal;font-size:9.5px;color:var(--dim)}
+.histlbl{display:grid;grid-template-columns:repeat(11,1fr);gap:3px;text-align:center;color:var(--dim);font-size:9.5px;margin-bottom:8px}
 .recent{display:flex;flex-wrap:wrap;gap:4px}
-.recent span{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-weight:700}
+.recent span{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-weight:700;font-size:11px}
 .recent span.seven{border-color:var(--danger);color:var(--danger)}

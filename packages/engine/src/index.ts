@@ -5,7 +5,7 @@ export { geometry } from "./board";
 export type { Geometry, Hex, Vertex, Edge } from "./board";
 export {
   createGame, RuleError, totalRes, totalVP, publicVP, vpCards, longestRoadFor, canPlaceSettlement, canPlaceRoad,
-  canPlaceCity, affordable, tradeRate, cardsFromPool, holds,
+  canPlaceCity, affordable, tradeRate, cardsFromPool, holds, openingRound,
 } from "./state";
 export {
   canNopeEntry, canNopeFor, canNopeNow, canNopeTurnNow, canDefuseEntry, nopeCancelsCard, openEntries, openEntry,

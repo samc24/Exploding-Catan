@@ -11,6 +11,8 @@ import { $, h } from "./ui/dom";
 import { showRules } from "./ui/rules";
 import { hint, setManualSeat, setNoGameHandler, setRenderer, ui, manualSeat } from "./state/screen";
 import { installSeatStrip } from "./ui/seats";
+import { installColumn } from "./ui/column";
+import { PHONE_MQ, installLayout } from "./app/layout";
 import { render } from "./app/render";
 import { onEvents } from "./app/events";
 import { paintClocks } from "./app/clocks";
@@ -100,7 +102,6 @@ installSeatStrip($("seats"));
    browser's own bars, and no page can take them away: iPhones have no
    fullscreen for pages at all. Opening the game from the Home Screen does.
    The ⚙ menu says so on such phones, and a toast says it once. */
-const PHONE_MQ = "(max-width:800px), (max-width:1000px) and (max-height:520px)";
 function inBrowserOnAPhone(): boolean {
   try {
     const standalone = matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || (navigator as { standalone?: boolean }).standalone === true;
@@ -122,14 +123,10 @@ document.addEventListener("pointerdown", (ev) => {
   const side = $("side"), t = ev.target as Node;
   if (side.classList.contains("open") && !side.contains(t) && !$("sideBtn").contains(t) && !$("modal").contains(t)) { side.classList.remove("open"); $("sideBtn").classList.remove("on"); }
 });
-const PANES: Record<string, string> = { feed: "feed", log: "log", chat: "chat", dice: "dicepanel" };
-for (const b of $("sidetabs").querySelectorAll("button")) b.onclick = () => {
-  for (const x of $("sidetabs").querySelectorAll("button")) x.classList.toggle("on", x === b);
-  for (const [tab, id] of Object.entries(PANES)) $(id).hidden = b.dataset.tab !== tab;
-  $("chatrow").hidden = b.dataset.tab !== "chat";
-  if (b.dataset.tab === "chat") { drawChat(); chatSeen(); setTimeout(() => $("chatin").focus(), 0); }
-  render();
-};
+// The strip at the board's top-left, as in JP's game: the log is its own toggle; the dice
+// history, the chat and the emoji tray hang off the strip and only one of them is ever out.
+installColumn({ chatOpened: () => { drawChat(); chatSeen(); setTimeout(() => $("chatin").focus(), 0); }, changed: render });
+installLayout();
 // The settings menu: things set once, out of the way of the things pressed mid-game.
 {
   const menu = $("menu"), btn = $("menuBtn");

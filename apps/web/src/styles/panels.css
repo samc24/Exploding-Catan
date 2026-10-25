@@ -1,7 +1,12 @@
 /* Panels: everything the table is waiting on, and the composers; picks, counters, reaction buttons. */
 
 /* ── panels (pending decisions) ── */
-#panels{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;max-width:360px;z-index:20}
+/* Down the right-hand side, as in JP's game: a decision the table is waiting on is
+   read in full without scrolling, and overlapping the deck is the better trade,
+   because the deck is not going anywhere and the panel is gone in a few seconds. */
+#panels{position:absolute;right:12px;top:12px;bottom:12px;width:min(330px,46%);display:flex;flex-direction:column;gap:8px;align-items:stretch;overflow-y:auto;scrollbar-width:none;pointer-events:none;z-index:20}
+#panels::-webkit-scrollbar{width:0}
+.panel{pointer-events:auto}
 .panel{background:linear-gradient(180deg,#2a1f1a,#211713);border:1px solid #5a4536;border-radius:14px;padding:12px 14px;box-shadow:0 10px 34px rgba(0,0,0,.55)}
 .panel h3{margin:0 0 6px;font-size:15px;font-family:var(--display);font-weight:400;letter-spacing:.2px;color:#f7e6c8}
 .panel h3 small{color:var(--dim);font-weight:400;margin-left:6px}

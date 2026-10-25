@@ -95,6 +95,8 @@ export function playCard(c: Ctx, ownerId: number, cardId: number): void {
   if (!card) refuse("no such card in hand");
   if (!cardIsPlayable(s, card)) refuse("that card cannot be played now");
   const def = KITTEN[card.key];
+  // The fast tracks' first round holds the two attacks back (see openingRound). The card does not light up; this is for whoever tries anyway.
+  if (heldBack(s, card.key)) refuse(`${def.name} waits until everybody has had a turn`);
   if (!canPlayToPile(s, card.key, ownerId)) refuse(`${def.name} cannot be played now`);
 
   if (def.kind === "target") {

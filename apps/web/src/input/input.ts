@@ -10,6 +10,7 @@ import { closeModal, modalOpen, openModal } from "../ui/dialogs";
 import type { BoardCallbacks } from "../ui/board";
 import { pileShownJid } from "../ui/table";
 import { cancelDrag, dragging } from "./drag";
+import { closePegs } from "../ui/column";
 import { sfx } from "../media/sfx";
 
 /** The board's two-click confirm: arm on the first click, act on the second. */
@@ -117,6 +118,7 @@ export function installKeys(): void {
     if (dragging()) { cancelDrag(); return; }
     if (!tray.hidden) { tray.hidden = true; return; }
     if (!menu.hidden) { menu.hidden = true; return; }
+    if (!$("chat").hidden || !$("dicepanel").hidden) { closePegs(); requestRender(); return; }
     if (side.classList.contains("open")) { side.classList.remove("open"); $("sideBtn").classList.remove("on"); return; }
     if (modalOpen()) { closeModal(); return; }
     if (ui.armed) { ui.armed = null; requestRender(); return; }

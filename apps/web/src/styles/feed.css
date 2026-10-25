@@ -1,6 +1,10 @@
 /* The game log: lines, badges, struck lines, tinted names, resource chips, chat in the log and the chat window. */
 
 .fl{padding:5px 7px;border-radius:7px;margin-bottom:4px;background:var(--panel2);border-left:3px solid var(--line);line-height:1.35}
+/* Floating over the board (JP's .ev): translucent and blurred, with a shadow to lift it off the hexes. */
+#feed .fl{margin:0;flex:0 0 auto;background:rgba(28,19,15,.9);border:1px solid rgba(255,255,255,.08);border-left:4px solid var(--line);backdrop-filter:blur(3px);box-shadow:0 3px 12px rgba(0,0,0,.45)}
+#feed .fl.big{background:rgba(58,44,24,.92)}
+#feed .fl.open:hover{background:rgba(58,46,38,.95)}
 .fl.attack{border-left-color:var(--danger)}
 .fl.buy{border-left-color:var(--ok)}
 .fl.roll{border-left-color:var(--accent)}

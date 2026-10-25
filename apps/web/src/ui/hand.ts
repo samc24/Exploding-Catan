@@ -1,7 +1,7 @@
 /* The bottom bar: whose hand this is, their resources, their kitten cards,
    and the buttons for whatever their turn allows. */
 import {
-  RES, RES_NAME, KITTEN, OFF_TURN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, discardOwed, owesAnswer,
+  RES, RES_NAME, KITTEN, OFF_TURN, canPlayToPile, cardIsPlayable, answersFor, canRollNow, discardOwed, openingRound, owesAnswer,
   playableWhenDrawn, timerEnabled, totalRes, type GameState, type Card,
 } from "@exploding-catan/engine";
 import { clear, h } from "./dom";
@@ -119,7 +119,9 @@ export function drawBottom(root: HTMLElement, s: GameState, view: number, now: n
   } else {
     // On a phone the name line has no room for the status, so the note carries it (`.st`, shown there only).
     const st = h("span", { class: "st" }, `${s.players[s.cur].name} is ${isBot(s.cur) ? "thinking…" : "playing."} `);
-    actions.append(h("span", { class: "note" }, st, owesAnswer(s) ? "The table is waiting on an answer." : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
+    actions.append(h("span", { class: "note" }, st, owesAnswer(s) ? "The table is waiting on an answer."
+      : openingRound(s) ? "Until everybody has had a turn, only a Nope crosses turns: Attack and Exploding Kitten wait."
+      : "You can throw a Nope, Attack or Exploding Kitten on anyone's turn."));
   }
 
   // Compare before writing: rebuilding the bar drops the card being hovered and restarts the lift

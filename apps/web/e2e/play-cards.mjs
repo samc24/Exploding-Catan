@@ -204,7 +204,7 @@ await page.screenshot({ path: `${OUT}/20-bought.png` });
   const inFeed = await page.locator('#feed .fl.chat:has-text("well played")').count();
   console.log("local chat: in the window", said, "| in the feed", inFeed);
   if (!said || !inFeed) errors.push("a line said at a local table was not shown");
-  await page.click('#sidetabs button[data-tab="feed"]');
+  await page.click('#sidetabs button[data-tab="chat"]'); // and away again
   if (await page.locator("#sideBtn").isVisible()) await page.keyboard.press("Escape"); // the drawer
   await page.click("#menuBtn"); await page.click("#rulesBtn"); await page.waitForTimeout(100);
   const rules = await page.locator("#modal .rules").textContent();

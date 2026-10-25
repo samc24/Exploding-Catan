@@ -45,7 +45,7 @@
      the board is as wide as the screen and has height to spare, so the
      strip costs it nothing. */
   #boardArea{padding-top:66px}
-  #dice{left:10px;top:10px;gap:5px}
+  #dice{left:10px;right:auto;top:10px;gap:5px}
   .die{border-radius:7px}
   #piles{right:10px;top:8px;bottom:auto;flex-direction:row;align-items:flex-start;gap:8px}
   .cardface{width:34px;height:48px;font-size:7px;border-width:1px;border-radius:5px}
@@ -68,12 +68,12 @@
   #ticker .tl.defend{border-left-color:#8ad8f5}
   #ticker .tl.big{border-left-color:var(--accent)}
   /* Fingers pinch to zoom; the buttons are down to one, to come back, and only once zoomed. */
-  #zoomWrap{left:auto;right:10px;bottom:10px;display:none}
+  #zoomWrap{left:auto;right:10px;top:auto;bottom:10px;flex-direction:row;display:none}
   #boardArea.zoomed #zoomWrap{display:flex}
   #zoomIn,#zoomOut{display:none}
   #panels:not(:empty) ~ #zoomWrap{display:none}
   /* decisions and composers: a sheet at the foot of the board */
-  #panels{left:0;right:0;bottom:0;max-width:none;max-height:100%;overflow-y:auto;gap:0;overscroll-behavior:contain}
+  #panels{left:0;right:0;top:auto;bottom:0;width:auto;max-height:100%;overflow-y:auto;gap:0;overscroll-behavior:contain}
   .panel{border-radius:16px 16px 0 0;padding:12px 12px 12px;border-bottom:0}
   .panel + .panel{border-radius:0;border-top:1px solid var(--line)}
   .panel .sub{font-size:12px}
@@ -108,10 +108,14 @@
   .actions{grid-area:actions;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;align-items:stretch}
   .actions .note{max-width:none;font-size:12px;align-self:center;line-height:1.35}
   .actions button{padding:10px 4px;font-size:13px;white-space:nowrap}
-  /* the side panel: a drawer */
+  /* The left column becomes a drawer on the right, behind the header's Log
+     button: the same strip, the same boxes, the same log, with a solid back. */
   #sideBtn{display:inline-block}
-  #side{display:none;position:absolute;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:30;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
+  #side{display:none;left:auto;right:0;top:0;bottom:0;width:min(320px,85vw);z-index:30;padding:6px 8px;pointer-events:auto;background:linear-gradient(180deg,#1f1612,#181110);border-left:1px solid #4a3a30;box-shadow:-10px 0 30px rgba(0,0,0,.5)}
   #side.open{display:flex}
+  #stage{--chatH:min(190px,42vh)}
+  #feed{-webkit-mask-image:none;mask-image:none}
+  #feed .fl{backdrop-filter:none}
   /* menus and dialogs */
   #emojiTray{left:8px;right:8px;top:48px;grid-template-columns:repeat(6,1fr)}
   #emojiTray button{font-size:24px;padding:8px 0}
@@ -160,12 +164,12 @@
   .actions button.sm{grid-column:1/-1}
   .actions .note{font-size:11.5px}
   /* the board's corners again: the board is narrower than its room here */
-  #dice{left:8px;top:8px}
+  #dice{left:8px;right:auto;top:8px}
   .die{border-radius:6px}
   #piles{right:8px;top:8px;bottom:auto;flex-direction:row}
   .cardface{width:30px;height:42px}
   #clock{max-width:calc(100vw - 420px)}
-  #zoomWrap{right:8px;bottom:8px}
+  #zoomWrap{right:8px;top:auto;bottom:8px}
   /* Decisions and composers: a sheet down the right of the board's room,
      so the board stays in view while trading. Dialogs sit in the middle. */
   #panels{left:auto;right:0;top:0;bottom:0;width:min(380px,64%);max-height:none;justify-content:flex-end}
