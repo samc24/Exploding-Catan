@@ -129,7 +129,29 @@ console.log("dice bars:", bars, "| direction:", dirTag);
 if (bars !== 11) errors.push("the dice history did not draw");
 if (!dirTag.includes("clockwise")) errors.push("the direction tag is missing");
 await page.screenshot({ path: `${OUT}/07b-dice.png` });
-await page.click('#sidetabs button[data-tab="feed"]');
+await page.click('#sidetabs button[data-tab="dice"]'); // and away again
+// JP's table (not on a phone, where the column is a drawer): the column on the left of the
+// board, the dice top-right, the piles bottom-right; the log is its own toggle; the dice
+// history and the chat share a peg under the strip, and the chat box sits above the log.
+if (!(await page.locator("#sideBtn").isVisible())) {
+  const box = (sel) => page.locator(sel).boundingBox();
+  const stage = await box("#stage"), side = await box("#side"), dice = await box("#dice"), piles = await box("#piles");
+  const mid = stage.x + stage.width / 2;
+  if (!(side.x + side.width < mid)) errors.push("the column is not on the left of the board");
+  if (!(dice.x > mid && dice.y < stage.y + 60)) errors.push("the dice are not top-right");
+  if (!(piles.x > mid && piles.y + piles.height > stage.y + stage.height - 60)) errors.push("the piles are not bottom-right");
+  await page.click("#logBtn"); await page.waitForTimeout(50);
+  if (await page.locator("#feed").isVisible()) errors.push("the Game log button did not hide the log");
+  await page.click("#logBtn"); await page.waitForTimeout(50);
+  if (!(await page.locator("#feed").isVisible())) errors.push("the Game log button did not bring the log back");
+  await page.click("#diceBtn"); await page.click("#chatTab"); await page.waitForTimeout(50);
+  if (await page.locator("#dicepanel").isVisible()) errors.push("opening the chat did not put the dice history away");
+  const chat = await box("#chat"), feed = await box("#feed");
+  if (!(chat.y + chat.height <= feed.y + 1)) errors.push("the chat box does not sit above the log");
+  await page.keyboard.press("Escape"); await page.waitForTimeout(50);
+  if (await page.locator("#chat").isVisible()) errors.push("Escape did not put the chat box away");
+  await page.screenshot({ path: `${OUT}/07c-column.png` });
+}
 // Zoom in and back out (by the buttons; a phone has only the pinch and the way back).
 if (await page.locator("#zoomIn").isVisible()) {
   await page.click("#zoomIn"); await page.click("#zoomIn"); await page.waitForTimeout(100);

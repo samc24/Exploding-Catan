@@ -96,12 +96,3 @@ export function drawTicker(root: HTMLElement, s: GameState, feed: Feed, n: numbe
   for (const l of lines) root.append(h("div", { class: "tl " + l.kind }, tint(s, l.text)));
 }
 
-let lastLogLength = -1;
-export function drawLog(root: HTMLElement, s: GameState): void {
-  if (root.hidden && root.childElementCount) return; // nobody is looking; catch up when they do
-  if (s.log.length === lastLogLength && root.childElementCount) return;
-  lastLogLength = s.log.length;
-  clear(root);
-  for (const l of s.log.slice(-200)) root.append(h("div", null, l));
-  root.scrollTop = root.scrollHeight;
-}

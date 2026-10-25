@@ -19,7 +19,7 @@ import { drawBoard } from "../ui/board";
 import { drawSeats } from "../ui/seats";
 import { canBuyCards, drawBottom } from "../ui/hand";
 import { drawPanels } from "../ui/panels";
-import { drawFeed, drawLog, drawTicker } from "../ui/feed";
+import { drawFeed, drawTicker } from "../ui/feed";
 import { drawDiceHistory } from "../ui/dice";
 import { drawTable, clearTable } from "../ui/table";
 import { onPileRelease, showPlaying, syncPile } from "../ui/showcase";
@@ -80,7 +80,6 @@ export function render(): void {
   drawFeed($("feed"), s, feed, view, now, onEntry);
   drawTicker($("ticker"), s, feed, fitTicker());
   $("boardArea").classList.toggle("zoomed", ui.zoom > 1);
-  drawLog($("log"), s);
   drawDiceHistory($("dicepanel"), s);
   syncPile(s);
   drawTable(s, view, now);

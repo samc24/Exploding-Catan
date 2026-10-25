@@ -4,6 +4,7 @@
    animation where it was rather than replaying the pop. */
 import { EMOJIS } from "@exploding-catan/protocol";
 import { $, h } from "../ui/dom";
+import { closePegs } from "../ui/column";
 
 const EMOTE_MS = 3400;
 const bubbles = new Map<number, { emoji: string; since: number }>();
@@ -39,6 +40,6 @@ export function installEmoteTray(send: (emoji: string) => void): void {
     lastAt = Date.now();
     send(e);
   } }, e));
-  $("emojiBtn").onclick = () => { tray.hidden = !tray.hidden; };
+  $("emojiBtn").onclick = () => { tray.hidden = !tray.hidden; if (!tray.hidden) closePegs(); };
   document.addEventListener("pointerdown", (ev) => { if (!tray.hidden && !tray.contains(ev.target as Node) && ev.target !== $("emojiBtn")) tray.hidden = true; });
 }

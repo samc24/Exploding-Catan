@@ -40,7 +40,7 @@ describe("Exploding Kitten", () => {
     expect(applyAction(s, { type: "playCard", seat: me, cardId: card(s, me, "explode").id }, T0).ok).toBe(true);
     let f = noKittens(toMain(3, 4, { mode: "fast" }));
     f = dealTo(f, f.cur, "explode");
-    expect(refused(f, { type: "playCard", seat: f.cur, cardId: card(f, f.cur, "explode").id })).toMatch(/cannot be played/);
+    expect(refused(f, { type: "playCard", seat: f.cur, cardId: card(f, f.cur, "explode").id })).toMatch(/waits until everybody has had a turn/);
   });
 });
 

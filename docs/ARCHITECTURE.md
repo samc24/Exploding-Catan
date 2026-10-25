@@ -116,13 +116,16 @@ src/
                  server's clock, portraits
     game.ts      starting and resuming a local game
     bots-host.ts the bot driver at a local table (the server's twin)
+    layout.ts    phone or not: the emoji button, its tray and the direction
+                 tag move between the header and the strip
   input/         gestures → actions: clicks and arming (input.ts), dragging a
                  card (drag.ts), zoom and pan (boardview.ts)
   net/           the WebSocket (net.ts) and its dialogs (lobby.ts)
   state/         the store (the one GameState, local or from the server) and
                  the remembered settings (Motion, Tips)
   media/         art paths, sound effects, music, emotes
-  ui/            drawing. Each file draws one region from a GameState and the
+  ui/            drawing (column.ts is the strip's toggles). Each file draws
+                 one region from a GameState and the
                  callbacks it is given; nothing in ui/ imports from app/,
                  input/ or net/, so a region can be read on its own.
   styles/        one CSS file per region, imported in cascade order by
@@ -131,6 +134,15 @@ src/
                  later wins and a phone rule inside a topic file would lose to
                  any desktop rule after it.
 ```
+
+The table is laid out as JP's (PR #23): a strip of buttons at the board's
+top-left (Game log, Dice history, Chat, Emoji, the direction tag), the log
+floating under it over the board, and the dice history, the chat and the
+emoji tray hanging off the strip, only one of them out at a time; the dice
+top-right with the zoom buttons under them; the two piles bottom-right; the
+decisions column (`#panels`) down the right, over the deck. On a phone the
+same column is a drawer behind the header's Log button, and the emoji button
+and direction tag move up into the header.
 
 Three rules the screen keeps:
 

@@ -41,7 +41,9 @@ button.on{border-color:var(--accent);color:var(--accent)}
 /* ── direction, zoom, fullscreen ── */
 #dirTag{font-size:11.5px;color:var(--dim);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
 #dirTag.rev{color:var(--accent);border-color:var(--accent)}
-#zoomWrap{position:absolute;left:12px;bottom:12px;display:flex;gap:4px;z-index:21}
+/* Under the dice, which share this right edge: the offset clears their full height. */
+#zoomWrap{position:absolute;right:12px;top:80px;display:flex;flex-direction:column;gap:4px;z-index:4}
+#zoomWrap button{width:30px;text-align:center;padding:3px 0;font-size:14px;line-height:1}
 #board.panning{cursor:grabbing}
 
 
